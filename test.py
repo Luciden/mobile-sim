@@ -1,26 +1,34 @@
 import mobile-sim
+"""
+How to handle changes in each time step?
+"""
 
-"""
-"""
+class OperantConditioningAgent():
+    def act(self):
+        # To be implemented
+        return []
+
 infant = Actor("infant")
 
-infant.addAction("leftfoot")
-infant.addAction("rightfoot")
-infant.addAction("lefthand")
-infant.addAction("righthand")
+infant.addAction("left-foot")
+infant.addAction("right-foot")
+infant.addAction("left-hand")
+infant.addAction("right-hand")
 
-mobile = Object("mobile")
-mobile.addActuator("prodded", def move (self): self.speed += 10 )
+infant.addTrigger("see-movement", def see(self): self.see = True )
+
+mobile = Actor("mobile")
+mobile.addAction("move")
+mobile.addTrigger("prodded", def move (self): self.speed += 10 )
 
 exp = Experiment()
 exp.addActor(infant)
-exp.addObject(mobile)
+exp.addActor(mobile)
 
-# dict['name']
-exp.connect( {'infant': 'rightfoot', 'mobile': 'prodded'} 
+exp.addLink("infant", "right-foot", "mobile", "prodded")
+exp.addLink("mobile", "move", "infant", "see-movement")
 
-# How to make infant observe the mobile?
-# How to handle changes in each time step?
+# how to handle Agents?
+exp.setController("infant", OperantConditioningAgent())
 
-infant.sees(mobile)
-
+exp.run()
