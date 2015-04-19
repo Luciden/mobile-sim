@@ -3,10 +3,33 @@ import mobile-sim
 How to handle changes in each time step?
 """
 
-class OperantConditioningAgent():
-    def act(self):
-        # To be implemented
-        return []
+class InfantOCAgent(OperantConditioningAgent):
+    def __init__(self):
+        OperantConditioningAgent.__init__(self)
+        
+        self.actionTable = {
+            "left-foot": "move-left-foot",
+            "left-hand": "move-left-hand",
+            "right-foot": "move-right-foot",
+            "right-hand": "move-right-hand"
+        }
+        
+        self.addReinforcer("see-movement")
+        self.addAction("move-left-foot")
+        self.addAction("move-right-foot")
+        self.addAction("move-left-hand")
+        self.addAction("move-right-hand")
+    
+    def sense(self, actions, triggers):
+        ageMemory(self)
+        
+        for a in actions:
+            self.addMemory(self.actionTable[a])
+        
+        for t in triggers:
+            if t == "see-movement"
+            self.addMemory("see-movement")
+        
 
 infant = Actor("infant")
 

@@ -43,6 +43,9 @@ class Actor:
         self.triggers = {}
         self.dynamics = pass
         self.controller = IdleAgent()
+        
+        self.triggered = []
+        self.acted     = []
     
     def addAction(self, name):
         """
@@ -76,6 +79,7 @@ class Actor:
     def trigger(self, trigger):
         if self.triggers.has_key(trigger):
             self.triggers[trigger](self)
+            
     
     def setController(self, agent):
         self.controller = agent
@@ -86,6 +90,15 @@ class Actor:
         """
         return self.controller.act()
     
+    def sense(self):
+        """
+        Passes information to the Agent
+        """
+        # To the associated Agent
+        # Pass a list of all actions
+        # and a list of all triggered triggers
+        self.controller.sense()
+    
 
 class Experiment:
     """
@@ -93,6 +106,7 @@ class Experiment:
     object creation and data collection.
     """
     def __init__(self):
+        self.maxSteps = 1000
         self.actors = {}
         self.links = {}
         """
@@ -112,8 +126,8 @@ class Experiment:
         Runs one experiment with the current settings, objects
         and rules.
         """
-        running = True
-        while(running):
+        step = 0
+        while(step < maxSteps):
             for a in self.actors:
                 self.actors[a].tick()
             # calculate actions and actuate actuators
@@ -127,6 +141,8 @@ class Experiment:
                                 self.actors[trigger[1]].trigger(trigger[2])
                 else:
                     pass
+            
+            step += 1
     
     def addActor(self, actor):
         # Only add new actors if they do not already exist
