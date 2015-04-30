@@ -38,7 +38,6 @@ class Actor:
     """
     Any entity in the environment that can act and/or be acted on.
     """
-    
     def __init__(self):
         self.triggers = {}
         self.dynamics = pass
