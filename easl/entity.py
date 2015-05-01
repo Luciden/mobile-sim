@@ -92,6 +92,7 @@ class Entity(object):
         for trigger in self.triggers:
             self.call_trigger(trigger, {attribute: value})
 
+
     def set_physics(self, physics):
         self.physics = physics
 
