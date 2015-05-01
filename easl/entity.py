@@ -1,22 +1,5 @@
 __author__ = 'Dennis'
 
-class PhysicalState(object):
-    """
-    Attributes:
-        physics: a function that changes the state using only the state's
-            attributes.
-    """
-    def __init__(self):
-        self.physics = lambda: None
-
-class Action(object):
-    """
-    An Action that
-    """
-    def __init__(self, name):
-        self.name = name
-        self.change = lambda self: None
-
 class Entity(object):
     """
     The basic component in the simulation.
@@ -30,20 +13,49 @@ class Entity(object):
     State, grounded in experience through its Senses.
 
     Attributes:
-        physical: a PhysicalState containing the Entity's attribute information.
+        physics: a function that changes the state using only the state's
+            attributes
+        emission: a function that returns a list of signals to be emitted
+            in this frame, based on the Entity's internal state.
     """
     def __init__(self):
-        self.physical = PhysicalState()
-        pass
+        self.attributes = {}
+        self.a = self.attributes
+        self.sensors = []
+        self.observations = {}
+        self.physics = lambda self: None
+        self.emission = lambda self: []
+
+    def step(self):
+        self.physics(self)
+
+    def add_sensor(self, sensor):
+        sensor.set_observations(self.observations)
+        self.sensors.append(sensor)
+
+    def emit_signals(self):
+        return self.emission(self)
+
+    def set_emission(self, emission):
+        self.emission = emission
 
     def add_action(self, name, params):
         # TODO(Dennis): Implement.
         pass
 
+    def set_physics(self, physics):
+        self.physics = physics
+
     def add_attribute(self, name, value):
-        # TODO(Dennis): Implement.
-        pass
+        self.attributes[name] = value
 
     def add_trigger(self, name, params):
         # TODO(Dennis): Implement.
         pass
+
+    def print_state(self):
+        for a in self.attributes:
+            print a + ": " +  str(self.attributes[a])
+        for obs in self.observations:
+            print obs + ": " + str(self.observations[obs])
+        print "\n"
