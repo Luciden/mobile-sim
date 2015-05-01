@@ -81,6 +81,7 @@ class World(object):
         self.entities = {}
 
         self.notifications = []
+        self.actions = []
 
     def run(self, iterations=10):
         """
@@ -88,14 +89,12 @@ class World(object):
         and relations between them.
         """
         for i in range(iterations):
-            """
-            self.sense_all()
-            actions = self.query_actions()
-            self.do_actions(actions)
-            """
             print "step " + str(i)
             self.do_physics()
             self.emit_signals()
+            actions = self.query_actions()
+            self.do_actions(actions)
+
             self.print_state()
 
     def print_state(self):
@@ -105,16 +104,7 @@ class World(object):
             print self.entities[entity].print_state()
 
     def add_entity(self, name, entity):
-        # TODO(Dennis): Check for already existing entities.
         self.entities[name] = entity
-
-    def couple_sense(self, sensing, sense, sensed, attribute):
-        # TODO(Dennis): Implement.
-        pass
-
-    def couple_action(self, actor, action, acted, trigger):
-        # TODO(Dennis): Implement.
-        pass
 
     def do_physics(self):
         """
@@ -133,26 +123,17 @@ class World(object):
 
         self.send_signals()
 
-    def sense_all(self):
-        """
-        Passes sense information on to all Entities.
-        """
-        # TODO(Dennis): Implement.
-        # Update all sensors
-
-        pass
-
     def query_actions(self):
         """
         Collects which actions the Entities want to perform.
 
         Returns:
-            a list of agent/actions pairs that should be executed.
+            a dictionary of agent/actions pairs that should be executed.
         """
         # Collect the actions by all entities and put them in one list
-        actions = []
+        actions = {}
         for entity in self.entities:
-            actions += entity.act()
+            actions[entity] = self.entities[entity].prepare_actions()
 
         return actions
 
@@ -160,8 +141,9 @@ class World(object):
         """
         Executes all actions, triggering appropriate Triggers.
         """
-        # TODO(Dennis): Implement.
-        pass
+        for entity in actions:
+            for action in actions[entity]:
+                self.entities[entity].do_action(action.name, action.params)
 
     def add_signal(self, signal):
         # Go through all the sensors to find observers
