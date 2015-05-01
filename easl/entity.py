@@ -18,11 +18,14 @@ class Entity(object):
     The consequences of this, among with the consequences of the entity's
     physics, are used to have interactions between Entities.
 
-    Attributes:
-        physics: a function that changes the state using only the state's
-            attributes
-        emission: a function that returns a list of signals to be emitted
-            in this frame, based on the Entity's internal state.
+    Attributes
+    ----------
+    physics : function
+        a function that changes the state using only the state's
+        attributes
+    emission : function
+        returns a list of signals to be emitted
+        in this frame, based on the Entity's internal state.
     """
     def __init__(self):
         self.attributes = {}
@@ -35,6 +38,8 @@ class Entity(object):
         self.actions = {}
         self.events = []
         self.triggers = {}
+
+        self.agent = None
 
     def step(self):
         self.physics(self)
@@ -53,7 +58,11 @@ class Entity(object):
         Returns:
             list of all actions that are performed at this moment
         """
-        return []
+        # TODO(Dennis): Implement.
+        # PSEUDO
+        # pass all observations to agent and have it convert to internal representation
+        # calculate the actions and queue them to be executed
+        return self.agent.act()
 
     def do_action(self, name, params):
         self.actions[name](**params)
@@ -94,6 +103,9 @@ class Entity(object):
 
     def set_physics(self, physics):
         self.physics = physics
+
+    def set_agent(self, agent):
+        self.agent = agent
 
     def add_attribute(self, name, value):
         self.attributes[name] = value

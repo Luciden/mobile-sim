@@ -82,21 +82,12 @@ class Actor:
     
     def setController(self, agent):
         self.controller = agent
-    
+
     def act(self):
         """
         Gives which Actions the Actor performs this time step.
         """
         return self.controller.act()
-    
-    def sense(self):
-        """
-        Passes information to the Agent
-        """
-        # To the associated Agent
-        # Pass a list of all actions
-        # and a list of all triggered triggers
-        self.controller.sense()
     
 
 class Experiment:
