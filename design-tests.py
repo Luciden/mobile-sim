@@ -28,7 +28,7 @@ class LampSensor(Sensor):
 
     def notify(self, signal):
         if signal.modality == "sight":
-            if signal.type == "light":
+            if signal.sig_type == "light":
                 self.observations["light"] = True
 
 def step3():

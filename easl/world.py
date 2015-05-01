@@ -20,22 +20,13 @@ class Sensor(object):
         pass
 
 
-class SightSensor(Sensor):
-    def detects_modality(self, modality):
-        return modality == "sight"
-
-    def notify(self, signal):
-        if signal.type == "movement":
-            self.observations["movement"] = True
-
-
 class HearingSensor(Sensor):
     def detects_modality(self, modality):
         return modality == "hearing"
 
 
 class Signal(object):
-    def __init__(self, modality=None, type=None, value=None):
+    def __init__(self, modality=None, sig_type=None, value=None):
         """
         Attributes:
             modality: string describing the modality that this signal is for
@@ -44,7 +35,7 @@ class Signal(object):
             value: any value associated with the signal
         """
         self.modality = modality
-        self.type = type
+        self.sig_type = sig_type
         self.value = value
 
 
@@ -94,6 +85,7 @@ class World(object):
             self.emit_signals()
             actions = self.query_actions()
             self.do_actions(actions)
+            self.trigger_events()
 
             self.print_state()
 
@@ -118,7 +110,7 @@ class World(object):
         for entity in self.entities:
             signals = self.entities[entity].emit_signals()
             for signal in signals:
-                print "emitting: " + signal.type
+                print "emitting: " + signal.sig_type
                 self.add_signal(signal)
 
         self.send_signals()
@@ -139,7 +131,7 @@ class World(object):
 
     def do_actions(self, actions):
         """
-        Executes all actions, triggering appropriate Triggers.
+        Executes all actions
         """
         for entity in actions:
             for action in actions[entity]:
@@ -161,3 +153,12 @@ class World(object):
         while len(self.notifications) > 0:
             n = self.notifications.pop(0)
             n.sensor.notify(n.signal)
+
+    def trigger_events(self):
+        for cause in self.entities:
+            for i in range(len(self.entities[cause].events)):
+                attribute, value = self.entities[cause].events.pop(0)
+
+                # Find all entities that are triggered by this event
+                for triggered in self.entities:
+                    self.entities[triggered].try_trigger(attribute, value)

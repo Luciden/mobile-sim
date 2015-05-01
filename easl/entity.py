@@ -1,5 +1,6 @@
 __author__ = 'Dennis'
 
+
 class Entity(object):
     """
     The basic component in the simulation.
@@ -87,6 +88,10 @@ class Entity(object):
     def call_trigger(self, name, params):
         self.triggers[name](**params)
 
+    def try_trigger(self, attribute, value):
+        for trigger in self.triggers:
+            self.call_trigger(trigger, {attribute: value})
+
     def set_physics(self, physics):
         self.physics = physics
 
@@ -94,8 +99,8 @@ class Entity(object):
         self.attributes[name] = value
 
     def print_state(self):
-        for a in self.attributes:
-            print a + ": " +  str(self.attributes[a])
+        for attr in self.attributes:
+            print attr + ": " + str(self.attributes[attr])
         for obs in self.observations:
             print obs + ": " + str(self.observations[obs])
         print "\n"
