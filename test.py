@@ -29,7 +29,7 @@ class InfantOCAgent(OperantConditioningAgent):
         for t in triggers:
             if t == "see-movement"
             self.addMemory("see-movement")
-        
+
 
 infant = Actor("infant")
 
