@@ -20,11 +20,6 @@ class Sensor(object):
         pass
 
 
-class HearingSensor(Sensor):
-    def detects_modality(self, modality):
-        return modality == "hearing"
-
-
 class Signal(object):
     def __init__(self, modality=None, sig_type=None, value=None):
         """

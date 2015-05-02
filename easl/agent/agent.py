@@ -7,12 +7,20 @@ class Agent(object):
 
     Maybe integrate sense-plan-act into one process?
     (Because all information is already stored in Entity.)
+
+    Need some kind of time representation.
     """
     # TODO(Dennis): Design and implement Agent.
     # TODO(Dennis): How to convert from Entity attributes to internal representation?
     # TODO(Dennis): How to let Agent know which actions can be executed?
     # TODO(Dennis): How to pass actions to Entity?
     def __init__(self):
+        pass
+
+    def init_internal(self):
+        """
+        Called at the beginning of simulation to initialize internal representation.
+        """
         pass
 
     def act(self):
@@ -45,49 +53,12 @@ class Agent(object):
         # TODO(Dennis): Implement.
         pass
 
-
-class CausalReasoningAgent(Agent):
-    # TODO(Dennis): Implement.
-    """
-    Uses Causal Bayes Nets based learning.
-
-    Needs
-     - conversion of observations to Variables
-     - actions as interventions
-
-    Notes
-    -----
-    Based on work by Gopnik [1]_ and dissertation [2]_.
-
-    References
-    ----------
-    .. [1] "Thing by Gopnik," Gopnik et al.
-    .. [2] Dissertation
-    """
-    def __init__(self):
+    def do_action(self, name):
+        """
+        Queues an action to be performed in the Act state.
+        """
+        # TODO(Dennis): Implement.
+        # Check if action exists.
+        # Add to actions to be performed.
         pass
 
-
-class OperantConditioningAgent(Agent):
-    # TODO(Dennis): Implement.
-    """
-    Uses operant conditioning based learning.
-
-    Needs
-     - representation of observations as predicates in memory
-     - link between action predicates and actual actions
-    """
-    def __init__(self):
-        pass
-
-
-class SensorimotorLearningAgent(Agent):
-    # TODO(Dennis): Implement.
-    """
-    Uses sensorimotor learning based on the comparator model.
-
-    Needs
-     - unknown
-    """
-    def __init__(self):
-        pass

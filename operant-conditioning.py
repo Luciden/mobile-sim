@@ -21,7 +21,7 @@ class OperantConditioningAgent(Agent):
     
     def addMemory(self, m):
         self.memory.append( (m, 0) )
-        
+
     def addAction(self, name):
         self.actions.append(name)
     
@@ -48,14 +48,6 @@ class OperantConditioningAgent(Agent):
             for c in createConjunctions(self.actions + self.observations):
                 self.reinforcers[k].append
     
-    def sense(self, actions, triggers):
-        pass
-    
-    def act(self):
-        # observe present predicates
-        
-        # form conjuctions of predicates
-    
     def createConjunctions(p):
         """
         Create all possible conjunctions of a list of propositions.
@@ -69,7 +61,7 @@ class OperantConditioningAgent(Agent):
         Modified from: http://www.technomancy.org/python/powerset-generator-python/
         Doesn't return the empty set.
         
-        Returns all the subsets of this set. This is a generator.
+        Yields all the subsets of this set. This is a generator.
         """
         if len(seq) <= 1:
             yield seq
