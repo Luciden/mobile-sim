@@ -25,12 +25,19 @@ class RandomAgent(Agent):
         pass
 
     def act(self):
+        """
+
+        Returns
+        -------
+        [(string, {string: value})]
+            all action/parameter/value structs that should be performed
+        """
         # Select one random action to perform.
-        k = self.actions.keys()
-        i = random.randint(0, k)
+        action = random.choice(self.actions.keys())
+        parameters = self.actions[action][1]
+        # Select a random value for every parameter
+        params = {}
+        for p in parameters:
+            params[p] = random.choice(parameters[p])
 
-        # Select the parameter for the action
-        a = self.actions[i]
-        j = random.randint(0, len(a))
-
-        return [(k[i], a[j])]
+        return [(action, params)]

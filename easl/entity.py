@@ -1,5 +1,7 @@
 __author__ = 'Dennis'
 
+from copy import deepcopy
+
 
 class Entity(object):
     """
@@ -32,8 +34,8 @@ class Entity(object):
         self.a = self.attributes
         self.sensors = []
         self.observations = {}
-        self.physics = lambda self: None
-        self.emission = lambda self: []
+        self.physics = lambda x: None
+        self.emission = lambda x: []
 
         self.actions = {}
         self.events = []
@@ -43,7 +45,7 @@ class Entity(object):
 
     def start(self):
         if self.agent is not None:
-            self.agent.init_internal(self.actions)
+            self.agent.init_internal(deepcopy(self.actions))
 
     def step(self):
         self.physics(self)
@@ -60,9 +62,18 @@ class Entity(object):
         """
         X
 
+
         Returns:
-            list of all actions that are performed at this moment
+        [(string, {string: value})]
+            all action/parameter/value structs that should be performed
+
+        See Also
+        --------
+        easl.agent.Agent.act : Functionality delegated to Agent.
         """
+        if self.agent is None:
+            return []
+
         # pass all observations to agent and have it convert to internal representation
         for observation in self.observations:
             self.agent.sense(observation)
@@ -71,8 +82,40 @@ class Entity(object):
         # ask agent to give actions
         return self.agent.act()
 
-    def do_action(self, name, params):
-        self.actions[name](**params)
+    def add_action(self, name, parameters, f):
+        """
+        Adds an action to the possible actions.
+
+        Defining Actions:
+            name, [{paramname: [values]}], function
+
+        Parameters
+        ----------
+        name : string
+            name the action will be identified/called by
+        parameters : {string: [values]}
+            pairs of parameter names and respective possible values
+        f : function
+            callback that is called for an entity when the action is performed
+        """
+        self.actions[name] = (f, parameters)
+
+    def do_action(self, name, parameters):
+        """
+
+        Sending Actions:
+            name, {paramname: value}
+
+        Parameters
+        ----------
+        name : string
+            name of the action
+        parameters : {string: string}
+            parameter name/value pairs
+        """
+        print parameters
+        parameters["self"] = self
+        self.actions[name][0](**parameters)
 
     def add_sensor(self, sensor):
         sensor.set_observations(self.observations)
@@ -83,16 +126,6 @@ class Entity(object):
 
     def set_emission(self, emission):
         self.emission = emission
-
-    def add_action(self, name, action):
-        """
-        Adds an action to the possible actions.
-
-        Args:
-            name: string that the action will be identified by
-            action: function that changes the internal state when performed
-        """
-        self.actions[name] = action
 
     def add_trigger(self, name, trigger):
         """
@@ -113,6 +146,12 @@ class Entity(object):
 
     def set_agent(self, agent):
         self.agent = agent
+
+    def is_active(self):
+        """
+        If the entity performs any actions, i.e. has an associated agent.
+        """
+        return self.agent is not None
 
     def add_attribute(self, name, value):
         self.attributes[name] = value

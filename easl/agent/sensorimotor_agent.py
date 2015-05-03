@@ -13,3 +13,12 @@ class SensorimotorLearningAgent(Agent):
     """
     def __init__(self):
         pass
+
+    def init_internal(self, actions):
+        raise NotImplementedError("Hmm.")
+
+    def sense(self, observation):
+        raise NotImplementedError("Hmm.")
+
+    def act(self):
+        raise NotImplementedError("Hmm.")

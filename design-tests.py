@@ -1,6 +1,7 @@
 __author__ = 'Dennis'
 
 from easl import *
+from easl.agent import RandomAgent
 
 
 def lamp_physics(self):
@@ -58,16 +59,12 @@ def step3():
 
 
 def step4():
-    def move_up(self):
-        self.try_action("position", "up")
-
-    def move_down(self):
-        self.try_action("position", "down")
+    def move(self, d):
+        self.try_action("position", d)
 
     arm = Entity()
     arm.add_attribute("position", "down")
-    arm.add_action("move-up", move_up)
-    arm.add_action("move-down", move_down)
+    arm.add_action("move", ["up", "down"], move)
 
     def moved(self, direction):
         self.a["position"] = direction
@@ -79,6 +76,20 @@ def step4():
     world = World()
     world.add_entity("arm", arm)
     world.add_entity("ball", ball)
+
+    world.run()
+
+def step5():
+    def move(self, direction):
+        self.try_action("position", direction)
+
+    arm = Entity()
+    arm.add_attribute("position", "down")
+    arm.add_action("move", {"direction": ["up", "down"]}, move)
+    arm.set_agent(RandomAgent())
+
+    world = World()
+    world.add_entity("arm", arm)
 
     world.run()
 
@@ -99,3 +110,9 @@ if __name__ == '__main__':
     print "Run step 4:"
     print "Two Entities that change each others state through interacting."
     step4()
+
+    print 3 * "\n"
+
+    print "Run step 5:"
+    print "Single Entity that performs an action at random, where the action changes its own state."
+    step5()

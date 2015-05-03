@@ -1,5 +1,7 @@
 __author__ = 'Dennis'
 
+import csv
+
 
 class Sensor(object):
     def __init__(self):
@@ -44,11 +46,44 @@ class Log(object):
     """
     Simple log that contains all experiment information (actions, observations).
 
+    Time based. Logs for every time step what happened.
+
     Can (not yet) be read from/to files etc.
     """
     # TODO: How to get information from Agent? Make local Log?
-    def __init__(self):
+    def __init__(self, fname=None):
         self.log = []
+        self.verbose = False
+
+        if fname is not None:
+            self.__from_file(fname)
+
+    def set_verbose(self):
+        self.verbose = True
+
+    def add_entry(self, time, kind, data):
+        self.log.append([time, kind, data])
+
+    def filter_entity(self, name):
+        return filter(lambda x: x[2] == name)
+
+    def write_file(self, name):
+        f = open(name, 'wt')
+        try:
+            writer = csv.writer(f)
+            for entry in self.log:
+                writer.writerow(entry)
+        finally:
+            f.close()
+
+    def __from_file(self, name):
+        f = open(name, 'rt')
+        try:
+            reader = csv.reader(f)
+            for row in reader:
+                self.log.append(tuple(row))
+        finally:
+            f.close()
 
 
 class World(object):
@@ -81,12 +116,24 @@ class World(object):
         self.notifications = []
         self.actions = []
 
+        self.time = 0
+
+        self.log = None
+
     def run(self, iterations=10):
         """
         Runs the simulation once with the currently specified Entities
         and relations between them.
         """
+        self.log = Log()
+        self.log.set_verbose()
+
+        for e in self.entities:
+            self.entities[e].start()
+
         for i in range(iterations):
+            self.time = i
+
             print "step " + str(i)
             self.do_physics()
             self.emit_signals()
@@ -95,6 +142,8 @@ class World(object):
             self.trigger_events()
 
             self.print_state()
+
+        self.log.write_file("log.csv")
 
     def print_state(self):
         # Show all individual entity's state
@@ -141,8 +190,9 @@ class World(object):
         Executes all actions
         """
         for entity in actions:
-            for action in actions[entity]:
-                self.entities[entity].do_action(action.name, action.params)
+            for (action, params) in actions[entity]:
+                self.entities[entity].do_action(action, params)
+                self.log.add_entry(self.time, "action", (entity, action, params))
 
     def add_signal(self, signal):
         # Go through all the sensors to find observers
