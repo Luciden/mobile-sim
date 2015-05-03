@@ -18,30 +18,25 @@ class Data(object):
         self.variables = variables
         self.entries = []
 
-    def calculate_prior(self, name):
+    def calculate_joint(self, names):
         """
-        Calculates the prior distribution of a variable.
+        Calculates the joint probability distribution from data for the given
+        variables.
 
         Parameters
         ----------
-        name : string
-            name of the variable
+        names : [string]
+            names of the variables to calculate the distribution for
         """
-        # TODO(Dennis): What to do when there are no entries? (Division by zero)
-        # TODO(Dennis): Generalize to N variables (calculate_joint).
-        dist = easl.utils.Distribution(name)
+        freq = easl.utils.Table(names)
 
-        # calculate frequencies
-        frequencies = dict([(value, 0) for value in self.variables[name]])
         for entry in self.entries:
-            frequencies[entry[name]] += 1
+            freq.inc_value(entry)
 
-        # transform frequency table into likelihood table
-        for value, freq in frequencies.items():
-            frequencies[value] /= len(self.entries)
-            dist.set_prob((name, value), frequencies[value])
+        n = len(self.entries)
+        freq.do_operation(lambda x: x / n)
 
-        return dist
+        return easl.utils.Distribution(names, freq)
 
 
 class CausalReasoningAgent(Agent):
@@ -109,10 +104,10 @@ class CausalReasoningAgent(Agent):
             a = variables[i_a]
             for b in variables[i_a+1:]:
                 # Calculate P(A)
-                p_a = data.calculate_prior(a)
+                p_a = data.calculate_joint([a])
 
                 # Calculate P(B)
-                p_b = data.calculate_prior(b)
+                p_b = data.calculate_joint([b])
 
                 # Calculate P(A & B)
                 p_ab = data.calculate_joint([a, b])
@@ -134,8 +129,7 @@ class CausalReasoningAgent(Agent):
         # Get all pairs of nodes connected by an edge
         for (u, v) in c.get_pairs():
             # Get all nodes connected to one of either nodes
-            # TODO(Dennis): Remove duplicates from ts.
-            ts = c.get_connected(u) + c.get_connected(v)
+            ts = set(c.get_connected(u) + c.get_connected(v))
 
             found = False
 
@@ -147,7 +141,7 @@ class CausalReasoningAgent(Agent):
                 p_vt = data.calculate_joint([v, t])
                 p_uvt = data.calculate_joint([u, v, t])
 
-                if CausalReasoningAgent.check_independence_conditional_general([u, v, t],
+                if CausalReasoningAgent.check_independence_conditional([u, v, t],
                                                                                p_uvt, p_ut, p_vt, p_t):
                     found = True
                     continue
@@ -177,7 +171,7 @@ class CausalReasoningAgent(Agent):
                 p_vst = data.calculate_joint([v, s, t])
                 p_st = data.calculate_joint([s, t])
 
-                if CausalReasoningAgent.check_independence_conditional_general([u, v, s, t],
+                if CausalReasoningAgent.check_independence_conditional([u, v, s, t],
                                                                                p_uvst, p_ust, p_vst, p_st):
                     found = True
                     continue
@@ -210,10 +204,10 @@ class CausalReasoningAgent(Agent):
         # 6. For each triple of variables T, V, R such that T has an edge
         #    with an arrowhead directed into V and V - R, and T has no edge
         #    connecting it to R, orient V - R as V -> R.
-        # TODO(Dennis): Implement.
         for (t, v, r) in c.get_triples():
+            c.orient_half(v, r)
 
-        pass
+        return c
 
     @staticmethod
     def check_independence(names, a, b, ab):
@@ -244,7 +238,7 @@ class CausalReasoningAgent(Agent):
         return True
 
     @staticmethod
-    def check_independence_conditional(names, abc, ac, bc, c):
+    def check_independence_conditional(names, aby, ay, by, y):
         """
         Calculates the conditional probability.
 
@@ -255,37 +249,6 @@ class CausalReasoningAgent(Agent):
         P(A,B|Y) = P(A|Y) * P(B|Y)
         P(A,B,Y) / P(Y) = P(A,Y) / P(Y) * P(B,Y) / P(Y)
         """
-        # TODO(Dennis): Generalize to multiple variables.
-        v_abc = abc.get_variables()
-        var_a, var_b, var_c = names
-
-        for val_a in v_abc[var_a]:
-            for val_b in v_abc[var_b]:
-                for val_c in v_abc[var_c]:
-                    # P(A,B,C)/P(C) = P(A,C)/P(C) * P(B,C)/P(C)
-                    p_abc = abc.prob({var_a: val_a, var_b: val_b, var_c: val_c})
-                    p_ac = ac.prob({var_a: val_a, var_c: val_c})
-                    p_bc = bc.prob({var_b: val_b, var_c: val_c})
-                    p_c = c.prob({var_c: val_c})
-
-                    # When the probabilities are not 'equal'
-                    if abs(p_abc / p_c - (p_ac / p_c) * (p_bc / p_c)) > 1e-6:
-                        return False
-        return True
-
-    @staticmethod
-    def check_independence_conditional_general(names, aby, ay, by, y):
-        """
-        Calculates the conditional probability.
-
-        P(A,B|C) = P(A|C) * P(B|C)
-        P(A,B,C)/P(C) = P(A,C)/P(C) * P(B,C)/P(C)
-
-        Generalized:
-        P(A,B|Y) = P(A|Y) * P(B|Y)
-        P(A,B,Y) / P(Y) = P(A,Y) / P(Y) * P(B,Y) / P(Y)
-        """
-        # TODO(Dennis): Generalize to multiple variables.
         v_aby = aby.get_variables()
         var_a = names[0]
         var_b = names[1]

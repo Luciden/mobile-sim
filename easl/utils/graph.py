@@ -95,3 +95,16 @@ class Graph(object):
             else:
                 # error not found
                 pass
+
+    def orient_half(self, x, y):
+        """
+        Orient X - Y as X -> Y
+        """
+        for (a, ma, b, mb) in self.edges:
+            if (a == x and b == y):
+                mb = ">"
+            elif (b == x and a == y):
+                ma = ">"
+            else:
+                # error not found
+                pass
