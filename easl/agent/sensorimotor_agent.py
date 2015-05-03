@@ -1,5 +1,7 @@
 __author__ = 'Dennis'
 
+from agent import Agent
+
 
 class SensorimotorLearningAgent(Agent):
     # TODO(Dennis): Implement.

@@ -10,18 +10,36 @@ class Agent(object):
 
     Need some kind of time representation.
     """
-    # TODO(Dennis): Design and implement Agent.
-    # TODO(Dennis): How to convert from Entity attributes to internal representation?
-    # TODO(Dennis): How to let Agent know which actions can be executed?
-    # TODO(Dennis): How to pass actions to Entity?
     def __init__(self):
         pass
 
-    def init_internal(self):
+    def init_internal(self, actions):
         """
         Called at the beginning of simulation to initialize internal representation.
+
+        Should include a list of all possible actions the agent can do.
+
+        Parameters
+        ----------
+        actions : {string:[]}
+            lists the possible actions and respective possible parameters
         """
-        pass
+        raise NotImplementedError("Hmm.")
+
+    def sense(self, observation):
+        """
+        Receive a part of the observable world.
+
+        Called once for every piece of information in every time step.
+        Both information about own body and external world.
+
+        Parameters
+        ----------
+        observation : (string, value)
+            name/value pair of what was observed, which can be processed/stored
+            according to the Agent's needs
+        """
+        raise NotImplementedError("Hmm.")
 
     def act(self):
         """
@@ -33,32 +51,5 @@ class Agent(object):
         list
             All actions that should be performed in this time step.
         """
-        # TODO(Dennis): Implement.
-        return []
-
-    def sense(self, observation):
-        """
-        Receive a part of the observable world.
-
-        Called once for every piece of information in every time step.
-        Both information about own body and external world.
-        """
-        # TODO(Dennis): Implement.
-        pass
-
-    def plan(self):
-        """
-        Use the sensed information to update internal model.
-        """
-        # TODO(Dennis): Implement.
-        pass
-
-    def do_action(self, name):
-        """
-        Queues an action to be performed in the Act state.
-        """
-        # TODO(Dennis): Implement.
-        # Check if action exists.
-        # Add to actions to be performed.
-        pass
+        raise NotImplementedError("Hmm.")
 

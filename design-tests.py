@@ -2,8 +2,10 @@ __author__ = 'Dennis'
 
 from easl import *
 
+
 def lamp_physics(self):
     self.try_action("on", not self.a["on"])
+
 
 def lamp_emission(self):
     s = []
@@ -11,6 +13,7 @@ def lamp_emission(self):
         s.append(Signal("sight", "light", 1))
 
     return s
+
 
 def step2():
     lamp = Entity()
@@ -22,6 +25,7 @@ def step2():
 
     world.run()
 
+
 class LampSensor(Sensor):
     def detects_modality(self, modality):
         return modality == "sight"
@@ -30,6 +34,7 @@ class LampSensor(Sensor):
         if signal.modality == "sight":
             if signal.sig_type == "light":
                 self.observations["light"] = True
+
 
 def step3():
     world = World()
@@ -50,6 +55,7 @@ def step3():
     world.add_entity("lamp2", lamp2)
 
     world.run()
+
 
 def step4():
     def move_up(self):

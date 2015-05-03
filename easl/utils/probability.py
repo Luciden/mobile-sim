@@ -68,7 +68,7 @@ class Table(object):
         """
         Perform function f(x) on every element.
         """
-        self.__do_operation_rec(self, f, self.table, self.order)
+        self.__do_operation_rec(f, self.table, self.order)
 
     def __do_operation_rec(self, f, current, order):
         if len(order) == 0:

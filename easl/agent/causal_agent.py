@@ -5,18 +5,18 @@ from agent import Agent
 
 
 class Data(object):
-    def __init__(self, variables):
+    def __init__(self):
         """
 
         Attributes
         ----------
-        variables : dict
-            name and list of possible values for the specified variable
         entries : list
             list of dictionaries of variable name/value pairs
         """
-        self.variables = variables
         self.entries = []
+
+    def add_entry(self, vals):
+        self.entries.append(vals)
 
     def calculate_joint(self, names):
         """
@@ -27,6 +27,11 @@ class Data(object):
         ----------
         names : [string]
             names of the variables to calculate the distribution for
+
+        Returns
+        -------
+        Distribution
+            the joint probability table
         """
         freq = easl.utils.Table(names)
 
@@ -40,7 +45,6 @@ class Data(object):
 
 
 class CausalReasoningAgent(Agent):
-    # TODO(Dennis): Implement.
     """
     Uses Causal Bayes Nets based learning.
 
@@ -61,9 +65,42 @@ class CausalReasoningAgent(Agent):
     .. [2] Dissertation
     """
     def __init__(self):
-        pass
+        super(CausalReasoningAgent, self).__init__()
 
-    def learn_causality(self, variables, data):
+        self.data = Data()
+
+        self.actions = []
+        self.observations = []
+
+    def init_internal(self, actions):
+        self.actions = actions
+
+    def sense(self, observation):
+        # Simply store the information to use later.
+        self.observations.append(observation)
+
+    def act(self):
+        # TODO: Implement.
+        # Convert observations into an entry in the Database.
+        self.__store_observations()
+
+        # Get the causal network for the observations.
+        net = self.__learn_causality(variables)
+        # Find the action that would create the optimal reward.
+        # TODO: Where is the reward?
+        # For now:
+        #   Calculate the probability of the reward happening for all actions.
+        #   Take the action with maximum reward.
+        return []
+
+    def __store_observations(self):
+        """
+        Takes the observations in this time step and stores them in the database.
+        """
+        self.data.add_entry(dict(self.observations))
+        self.observations = []
+
+    def __learn_causality(self, variables):
         """
         Constraint-based approach to learning the network.
 
@@ -81,6 +118,7 @@ class CausalReasoningAgent(Agent):
         #  + node/edge representation
         #  + add node
         #  + add edge between nodes
+        # TODO: Where to get variables?
         c = easl.utils.Graph()
         c.make_complete(variables)
 
@@ -104,13 +142,13 @@ class CausalReasoningAgent(Agent):
             a = variables[i_a]
             for b in variables[i_a+1:]:
                 # Calculate P(A)
-                p_a = data.calculate_joint([a])
+                p_a = self.data.calculate_joint([a])
 
                 # Calculate P(B)
-                p_b = data.calculate_joint([b])
+                p_b = self.data.calculate_joint([b])
 
                 # Calculate P(A & B)
-                p_ab = data.calculate_joint([a, b])
+                p_ab = self.data.calculate_joint([a, b])
 
                 # Check for independence by checking P(A & B) = P(A) * P(B)
                 if CausalReasoningAgent.check_independence(p_a, p_b, p_ab):
@@ -136,10 +174,10 @@ class CausalReasoningAgent(Agent):
             for t in ts:
                 # Test conditional independence
                 # Calculate P(T), P(U,T), P(V,T) and P(U,V,T)
-                p_t = data.calculate_joint([t])
-                p_ut = data.calculate_joint([u, t])
-                p_vt = data.calculate_joint([v, t])
-                p_uvt = data.calculate_joint([u, v, t])
+                p_t = self.data.calculate_joint([t])
+                p_ut = self.data.calculate_joint([u, t])
+                p_vt = self.data.calculate_joint([v, t])
+                p_uvt = self.data.calculate_joint([u, v, t])
 
                 if CausalReasoningAgent.check_independence_conditional([u, v, t],
                                                                                p_uvt, p_ut, p_vt, p_t):
@@ -166,10 +204,10 @@ class CausalReasoningAgent(Agent):
 
             found = False
             for (t, s) in [(t, s) for t in ts for s in ts if t != s]:
-                p_uvst = data.calculate_joint([u, v, s, t])
-                p_ust = data.calculate_joint([u, s, t])
-                p_vst = data.calculate_joint([v, s, t])
-                p_st = data.calculate_joint([s, t])
+                p_uvst = self.data.calculate_joint([u, v, s, t])
+                p_ust = self.data.calculate_joint([u, s, t])
+                p_vst = self.data.calculate_joint([v, s, t])
+                p_st = self.data.calculate_joint([s, t])
 
                 if CausalReasoningAgent.check_independence_conditional([u, v, s, t],
                                                                                p_uvst, p_ust, p_vst, p_st):

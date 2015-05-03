@@ -40,6 +40,17 @@ class Notification(object):
         self.signal = signal
 
 
+class Log(object):
+    """
+    Simple log that contains all experiment information (actions, observations).
+
+    Can (not yet) be read from/to files etc.
+    """
+    # TODO: How to get information from Agent? Make local Log?
+    def __init__(self):
+        self.log = []
+
+
 class World(object):
     """
     Handles and arranges Entities and handles interactions between any
@@ -63,6 +74,7 @@ class World(object):
     Attributes:
         entities:
     """
+    # TODO: Add logging functionality.
     def __init__(self):
         self.entities = {}
 

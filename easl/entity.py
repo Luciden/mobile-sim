@@ -27,7 +27,7 @@ class Entity(object):
         returns a list of signals to be emitted
         in this frame, based on the Entity's internal state.
     """
-    def __init__(self):
+    def __init__(self, agent=None):
         self.attributes = {}
         self.a = self.attributes
         self.sensors = []
@@ -39,7 +39,11 @@ class Entity(object):
         self.events = []
         self.triggers = {}
 
-        self.agent = None
+        self.agent = agent
+
+    def start(self):
+        if self.agent is not None:
+            self.agent.init_internal(self.actions)
 
     def step(self):
         self.physics(self)
@@ -54,14 +58,17 @@ class Entity(object):
 
     def prepare_actions(self):
         """
+        X
 
         Returns:
             list of all actions that are performed at this moment
         """
-        # TODO(Dennis): Implement.
-        # PSEUDO
         # pass all observations to agent and have it convert to internal representation
-        # calculate the actions and queue them to be executed
+        for observation in self.observations:
+            self.agent.sense(observation)
+        self.observations = {}
+
+        # ask agent to give actions
         return self.agent.act()
 
     def do_action(self, name, params):
