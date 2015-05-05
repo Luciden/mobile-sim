@@ -85,6 +85,7 @@ class CausalReasoningAgent(Agent):
         self.__store_observations()
 
         # Get the causal network for the observations.
+        # TODO: How to get the variables?
         net = self.__learn_causality(variables)
         # Find the action that would create the optimal reward.
         # TODO: Where is the reward?
@@ -118,7 +119,6 @@ class CausalReasoningAgent(Agent):
         #  + node/edge representation
         #  + add node
         #  + add edge between nodes
-        # TODO: Where to get variables?
         c = easl.utils.Graph()
         c.make_complete(variables)
 
