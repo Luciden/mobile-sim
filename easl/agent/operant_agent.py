@@ -37,7 +37,6 @@ class WorkingMemory(object):
         """
         Updates all memory units' age by one time step.
         """
-        # TODO: Check type of predicate? (different max ages)
         # Create a new representation with all ages incremented.
         aged = {}
         for m in self.memory:
@@ -68,7 +67,7 @@ class WorkingMemory(object):
                 return True
         return False
 
-    def is_match(self, predictor):
+    def is_match(self, predictor, offset=0):
         """
         Determines whether there is a mapping of predicates to temporal tags
         such that the predictor's set of predicates is a subset of the set
@@ -86,11 +85,11 @@ class WorkingMemory(object):
         """
         # TODO: Not finished yet, probably.
         # First check if all sensory predicates can be matched
-        possible, match = self.__is_match_rec([], predictor.get_sensory_temporal())
+        possible, match = self.__is_match_rec([], predictor.get_sensory_temporal(), offset)
 
         return possible
 
-    def __is_match_rec(self, match, predicates):
+    def __is_match_rec(self, match, predicates, offset):
         """
         Parameters
         ----------
@@ -98,13 +97,15 @@ class WorkingMemory(object):
             match so far
         predicates : [Predicate]
             still unmatched predicates
+        offset : number
+            offset in age from which to ignore (used to check previous state)
         """
         if len(predicates) == 0:
             return True, match
 
         predicate, tag = predicates[0]
 
-        for i in range(self._MAX_AGE):
+        for i in range(offset, self._MAX_AGE):
             if self.has_predicate(i, predicate):
                 # see if we can assign the tag taking into account previously
                 # matched predicates
@@ -214,7 +215,9 @@ class Reinforcer(object):
     def __init__(self, predicate):
         self.predicate = predicate
 
+        # Start with the null conjunction
         self.conjunctions = []
+        self.conjunctions.append(Conjunction())
 
         self.predictors = []
 
@@ -310,8 +313,10 @@ class Reinforcer(object):
         .. math:: M(r, n) = \frac{r}{n} \mdot \max(0.2, 1 - \frac{1.175}{n})
         .. math:: M(r, 0) = 1
         """
-        # TODO: Implement.
-        pass
+        if n == 0:
+            return 1
+        else:
+            return (r / n) * max(0.2, 1 - (1.175 / float(n)))
 
     @staticmethod
     def demerit(r, n):
@@ -319,8 +324,10 @@ class Reinforcer(object):
         .. math:: D(r, n) = \min(1, \frac{r}{n} + \frac{n - r}{0.7n^2})
         .. math:: D(r, 0) = 0
         """
-        # TODO: Implement.
-        pass
+        if n == 0:
+            return 0
+        else:
+            return min(1, (r / n) + (n - r) / (0.7 * n ** 2))
 
 
 class OperantConditioningAgent(Agent):
@@ -371,19 +378,20 @@ class OperantConditioningAgent(Agent):
 
         self.best_predicates = []
 
-    def init_internal(self):
+        self.actions = {}
+
+    def init_internal(self, actions):
         # TODO: Implement.
         # Create action and observable predicates
-        # Initialize the conjunctions (start with the null conjunction)
-        self.conjunctions.append(Conjunction())
+        self.actions = actions
+        # TODO: What are the initial reinforcers?
+        pass
 
     def sense(self, observation):
         # Store observations for later conversion
         self.observations.append(observation)
 
     def act(self):
-        # TODO(Dennis): Implement.
-        # Age memory.
         self.memory.age()
         # Turn observations into predicates
         self.__store_observations()
@@ -402,6 +410,9 @@ class OperantConditioningAgent(Agent):
             self.memory.add_action(action)
 
         return actions
+
+    def set_primary_reinforcer(self, predicate):
+        self.reinforcers.append(Reinforcer(predicate))
 
     def __store_observations(self):
         """
@@ -485,7 +496,7 @@ class OperantConditioningAgent(Agent):
 
         return predicates
 
-    def __generate_predictors(self):
+    def __create_predictors(self):
         """
         Predictor: conjunction -> reinforcer w/ probability
 
@@ -511,13 +522,6 @@ class OperantConditioningAgent(Agent):
          one that is not specific enough to accurately express the reward
          contingencies."
 
-        "New predictors are created from the b est-scoring conjunctions currently
-         maintained for that reinforcer.
-         If several conjunctions are tied for top score, the ones with the fewest
-         number of terms are selected."
-        "If there are still several candidates, two are chosen at random to become
-         new predictors." (Enforces exploration.)
-
         "Two numerical measures are used to assign scores to conjunctions and
          predictors: merit and demerit.
          They estimate the lower and upper bounds, respectively, on the true reward
@@ -537,12 +541,48 @@ class OperantConditioningAgent(Agent):
         "As :math:`n` approaches :math:`\inf`, merit and demerit both converge to
          :math:`\frac{r}{n}`, the true reward rate."
 
-        "When creating new predictors, candidate conjunctions are sorted by merit
-         rather than raw reward rate to give greater weight to conjunctions that
-         have been sampled more heavily.
+
          When deleting predictors, demerit is used, so the program is conservative
          in its judgements and does not delete too quickly."
+        """
+        # TODO: Implement
+        # Check if predictors incomplete. (Unexpected reward. Reward but no prediction.)
+        # Check if false prediction of reward. (Erroneous predictor.).
+        if self.__are_predictors_incomplete() or self.__was_false_prediction():
+            # "New predictors are created from the best-scoring conjunctions currently
+            # maintained for that reinforcer.
+            # "When creating new predictors, candidate conjunctions are sorted by merit
+            # rather than raw reward rate to give greater weight to conjunctions that
+            # have been sampled more heavily."
+            # If several conjunctions are tied for top score, the ones with the fewest
+            # number of terms are selected."
+            # "If there are still several candidates, two are chosen at random to become
+            # new predictors." (Enforces exploration.)
+            pass
 
+    def __are_predictors_incomplete(self):
+        for p in self.memory.get_of_age(0):
+            if self.__has_acquired_reinforcer(p):
+                # Check for all predictors for reward if it could have been predicted.
+                r = self.__get_reinforcer(p)
+
+                predicted = False
+                for predictor in r.predictors:
+                    # Check if the predictor could have matched one time step before
+                    success, match = self.memory.is_match(predictor, 1)
+
+                    if success:
+                        predicted = True
+
+                if not predicted:
+                    return True
+        return False
+
+    def __was_false_prediction(self):
+        pass
+
+    def __delete_predictors(self):
+        """
         "Predictors are deleted in three circumstances.
 
          First, if the predictor has just given a false alarm, it may be deleted if
@@ -550,13 +590,24 @@ class OperantConditioningAgent(Agent):
          Second, if a reinforcer has just been correctly predicted, the predictor
          may be deleted if its demerit is less than the highest merit of any other
          successful predictor for that reinforcer. (Substitution for better one.)
-         Finally, a predictor will b e deleted if there is another predictor whose
+         Finally, a predictor will be deleted if there is another predictor whose
          antecedent uses a strict subset of the terms in this predictor's
          conjunction, whose merit is nearly as good, and whose number of trials is
          sufficiently high that there is reasonable confidence that the two
          predictors are equivalent.
         """
-        # TODO: Implement.
+        # false alarm (reward predicted, but no reward)
+        # delete if demerit below threshold
+
+        # if predictor successful
+        # delete if demerit is lower than highest merit of other successful predictor
+
+        # if there is a predictor with:
+        #  - antecedent strict subset of this predictor
+        #  - merit nearly as good
+        #  - number of trials sufficiently high to have reasonable confidence of
+        #    equivalence
+        # delete
         pass
 
     def __acquire_reinforcers(self):
@@ -600,7 +651,6 @@ class OperantConditioningAgent(Agent):
          facilitate exploration."
         """
         # TODO(Question): Use a different mechanism (i.e. not random) for exploration?
-        # TODO: Implement.
         # Check predictors to see which can be satisfied.
         # Prioritized by nature of the reinforcement.
         # (Number denoting primary, secondary, etc?)
@@ -631,3 +681,9 @@ class OperantConditioningAgent(Agent):
             if reinforcer.predicate == predicate:
                 return True
         return False
+
+    def __get_reinforcer(self, predicate):
+        for reinforcer in self.reinforcers:
+            if reinforcer.predicate == predicate:
+                return reinforcer
+        raise RuntimeError("Reinforcer not found.")
