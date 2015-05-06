@@ -109,6 +109,7 @@ class World(object):
     time
     log
     """
+    # TODO: Redesign event system, including area(?) of effect.
     def __init__(self):
         self.entities = {}
 
@@ -137,15 +138,15 @@ class World(object):
             self.time = i
 
             print "step " + str(i)
-            self.do_physics()
+            self.__do_physics()
 
-            self.queue_signals()
-            self.send_signals()
+            self.__queue_signals()
+            self.__send_signals()
 
-            self.query_actions()
-            self.execute_actions()
+            self.__queue_actions()
+            self.__execute_actions()
 
-            self.trigger_events()
+            self.__trigger_events()
 
             self.print_state()
 
@@ -183,14 +184,14 @@ class World(object):
         # TODO: Implement.
         pass
 
-    def do_physics(self):
+    def __do_physics(self):
         """
         Calls all Entities' physics method.
         """
         for entity in self.entities:
             self.entities[entity].physics()
 
-    def queue_signals(self):
+    def __queue_signals(self):
         """
         Takes all signals that were queued to be emitted and sends queues them
         to be sent to the appropriate receivers.
@@ -207,12 +208,12 @@ class World(object):
 
                         self.signals.append((sensor, signal))
 
-    def send_signals(self):
+    def __send_signals(self):
         while len(self.signals) > 0:
             n = self.signals.pop(0)
             n.sensor.notify(n.signal)
 
-    def query_actions(self):
+    def __queue_actions(self):
         """
         Makes all Entities prepare their actions.
 
@@ -225,14 +226,15 @@ class World(object):
         for entity in self.entities:
             self.entities[entity].queue_actions()
 
-    def execute_actions(self):
+    def __execute_actions(self):
         """
         Executes all actions
         """
         for entity in self.entities:
             entity.execute_actions()
 
-    def trigger_events(self):
+    def __trigger_events(self):
+        # TODO: Change to include area of effect.
         for cause in self.entities:
             while len(self.entities[cause].events) > 0:
                 attribute, value = self.entities[cause].events.pop(0)
