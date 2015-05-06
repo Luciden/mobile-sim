@@ -29,6 +29,7 @@ class WorkingMemory(object):
 
         self.memory = {}
         self.__init_now()
+        self.__oldest = 0
 
     def __init_now(self):
         self.memory[0] = ([], [])
@@ -38,13 +39,22 @@ class WorkingMemory(object):
         Updates all memory units' age by one time step.
         """
         # Create a new representation with all ages incremented.
-        aged = {}
-        for m in self.memory:
-            aged[m + 1] = self.memory[m]
+        oldest = 0
+        for m in range(self.__oldest, 0, -1):
+            if m > oldest:
+                oldest = m
+            if m == self._MAX_AGE:
+                # Delete the entry from memory
+                del self.memory[m]
+            else:
+                self.memory[m + 1] = self.memory[m]
+        self.__oldest = oldest
 
-        self.memory = aged
         # Prepare the current time slot
         self.__init_now()
+
+    def get_oldest(self):
+        return self.__oldest
 
     def add_sensory(self, predicate):
         """
@@ -138,12 +148,19 @@ class WorkingMemory(object):
 
 
 class Predicate(object):
+    """
+    Attributes
+    ----------
+    name : string
+        Name of the predicate.
+    vals : {name: value}
+    """
     def __init__(self, name, vals):
         self.name = name
         self.vals = vals
 
     def __eq__(self, other):
-        if isinstance(Predicate, other) and other.name == self.name:
+        if isinstance(other, Predicate) and other.name == self.name:
             # All same parameters
             self_set = set(self.vals.keys())
             other_set = set(other.vals.keys())
@@ -159,18 +176,18 @@ class Predicate(object):
 
 class Conjunction(object):
     def __init__(self):
-        self.predicates = set()
+        self.predicates = []
 
     def __eq__(self, other):
-        if isinstance(Conjunction, other):
+        if isinstance(other, Conjunction):
             # Check if all predicates are in the other conjunction too
             # i.e. if the intersection of predicates is the same as the current set
-            return len(self.predicates.intersection(other.predicates)) == len(self.predicates)
+            return len(set(self.predicates).intersection(set(other.predicates))) == len(set(self.predicates))
         else:
             return False
 
     def add_predicate(self, predicate):
-        self.predicates.add(predicate)
+        self.predicates.append(predicate)
 
 
 class Predictor(object):
@@ -212,6 +229,11 @@ class Predictor(object):
 
 
 class Reinforcer(object):
+    """
+    Attributes
+    ----------
+    predicate : Predicate
+    """
     def __init__(self, predicate):
         self.predicate = predicate
 
@@ -237,10 +259,10 @@ class Reinforcer(object):
                 self.conjunctions[i][1] += 1
                 return True
 
-        self.__add_conjunction(conjunction, satisfied=True)
+        self.add_conjunction(conjunction, satisfied=True)
         return False
 
-    def __add_conjunction(self, conjunction, satisfied=False, followed=False):
+    def add_conjunction(self, conjunction, satisfied=False, followed=False):
         s = 1 if satisfied else 0
         f = 1 if followed else 0
         self.conjunctions.append((conjunction, s, f))
@@ -255,7 +277,7 @@ class Reinforcer(object):
                 self.conjunctions[i][2] += 1
                 return True
 
-        self.__add_conjunction(conjunction, followed=True)
+        self.add_conjunction(conjunction, followed=True)
         return False
 
     def count(self, conjunction):
@@ -279,13 +301,20 @@ class Reinforcer(object):
 
         return f / s
 
-    def best_conjunctions(self):
+    def find_best_conjunctions(self):
+        # If less than two conjunctions, include all
+        if len(self.conjunctions) < 2:
+            return [c for (c, s, f) in self.conjunctions]
+
         # for conjunctions:
         rr = []
         rc = []
 
         for (_, s, f) in self.conjunctions:
-            rr.append(s / f)
+            if s == 0:
+                rr.append(0)
+            else:
+                rr.append(f / s)
             rc.append(f)
 
         # Calculate mean reward rate and standard deviation
@@ -402,7 +431,7 @@ class OperantConditioningAgent(Agent):
         self.__update_reinforcer_counts()
 
         # TODO: generate when reinforcers have been received
-        self.__generate_predictors()
+        self.__create_predictors()
 
         actions = self.__select_actions()
         # Add actions as predicates
@@ -411,8 +440,8 @@ class OperantConditioningAgent(Agent):
 
         return actions
 
-    def set_primary_reinforcer(self, predicate):
-        self.reinforcers.append(Reinforcer(predicate))
+    def set_primary_reinforcer(self, name, vals):
+        self.reinforcers.append(Reinforcer(Predicate(name, vals)))
 
     def __store_observations(self):
         """
@@ -427,7 +456,6 @@ class OperantConditioningAgent(Agent):
     def __update_reinforcer_counts(self):
         # TODO: Implement.
         observed = self.memory.get_of_age(0)
-        previous = self.memory.get_of_age(1)
 
         # increment all reinforcer/conjunction occurrences for the new
         # observations
@@ -439,13 +467,17 @@ class OperantConditioningAgent(Agent):
         # if there are any reinforcers for the current instant, increment
         # the values for all conjunctions that were followed by it in the
         # last timestep.
-        for conjunction in observed:
-            # for any reinforcer in the conjunction
-            for reinforcer in self.reinforcers:
-                if reinforcer in observed:
-                    # increment the followed for the reinforcer/conjunction
-                    for x in previous:
-                        reinforcer.inc_followed(conjunction)
+        # Only do this when there is actually a previous.
+        if self.memory.get_oldest() > 0:
+            previous = self.memory.get_of_age(1)
+
+            for conjunction in observed:
+                # for any reinforcer in the conjunction
+                for reinforcer in self.reinforcers:
+                    if reinforcer in observed:
+                        # increment the followed for the reinforcer/conjunction
+                        for x in previous:
+                            reinforcer.inc_followed(conjunction)
 
     def __generate_conjunctions(self):
         """
@@ -462,7 +494,7 @@ class OperantConditioningAgent(Agent):
             # Combine previously 'best' conjunctions with predicates and check
             # which conjunctions are 'best' next
             predicates = self.__derive_temporal_predicates()
-            best_conjunctions = reinforcer.__find_best_conjunctions()
+            best_conjunctions = reinforcer.find_best_conjunctions()
 
             for c in best_conjunctions:
                 for p in predicates:
@@ -484,15 +516,17 @@ class OperantConditioningAgent(Agent):
         predicates = []
 
         future = self.memory.get_of_age(0)
-        now = self.memory.get_of_age(1)
-        previous = self.memory.get_of_age(2)
-
         for p in future:
             predicates.append((p, FUT))
-        for p in now:
-            predicates.append((p, NOW))
-        for p in previous:
-            predicates.append((p, PREV))
+
+        if self.memory.get_oldest() > 0:
+            now = self.memory.get_of_age(1)
+            for p in now:
+                predicates.append((p, NOW))
+        if self.memory.get_oldest() > 1:
+            previous = self.memory.get_of_age(2)
+            for p in previous:
+                predicates.append((p, PREV))
 
         return predicates
 

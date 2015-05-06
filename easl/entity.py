@@ -58,7 +58,7 @@ class Entity(object):
         self.emission = lambda x: []
 
         self.actions = {}
-        # TODO: When creating attributes, an event function should be included.
+
         self.events = {}
         self.triggers = {}
 
