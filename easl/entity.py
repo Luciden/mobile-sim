@@ -59,6 +59,7 @@ class Entity(object):
 
         self.agent = agent
         self.action_queue = []
+        self.signal_queue = []
 
     def start(self):
         """
@@ -139,7 +140,16 @@ class Entity(object):
         self.sensors.append(sensor)
 
     def emit_signals(self):
-        return self.emission(self)
+        self.signal_queue += self.emission()
+
+    def get_queued_signals(self):
+        """
+        Pass all the queued signals so far and clear the queue.
+        """
+        signals = self.signal_queue
+        self.signal_queue = {}
+
+        return signals
 
     def set_emission(self, emission):
         self.emission = emission

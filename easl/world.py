@@ -36,12 +36,6 @@ class Signal(object):
         self.value = value
 
 
-class Notification(object):
-    def __init__(self, sensor, signal):
-        self.sensor = sensor
-        self.signal = signal
-
-
 class Log(object):
     """
     Simple log that contains all experiment information (actions, observations).
@@ -107,7 +101,8 @@ class World(object):
     ----------
     entities : {name: Entity}
         all entities in the world identified by name
-    notifications
+    signals : [(Sensor, Signal)]
+        All queued signals with their destinations.
     actions
     triggers : [(Entity, Entity, string)]
         the connections between entities that link actions and triggers
@@ -117,7 +112,7 @@ class World(object):
     def __init__(self):
         self.entities = {}
 
-        self.notifications = []
+        self.signals = []
         self.actions = []
 
         self.triggers = []
@@ -143,9 +138,13 @@ class World(object):
 
             print "step " + str(i)
             self.do_physics()
-            self.emit_signals()
+
+            self.queue_signals()
+            self.send_signals()
+
             self.query_actions()
             self.execute_actions()
+
             self.trigger_events()
 
             self.print_state()
@@ -191,14 +190,27 @@ class World(object):
         for entity in self.entities:
             self.entities[entity].physics()
 
-    def emit_signals(self):
-        for entity in self.entities:
-            signals = self.entities[entity].emit_signals()
-            for signal in signals:
-                print "emitting: " + signal.sig_type
-                self.add_signal(signal)
+    def queue_signals(self):
+        """
+        Takes all signals that were queued to be emitted and sends queues them
+        to be sent to the appropriate receivers.
+        """
+        for sender in self.entities:
+            # First see if it still emits more signals.
+            self.entities[sender].emit_signals()
 
-        self.send_signals()
+            for signal in self.entities[sender].get_queued_signals():
+                for receiver in self.entities:
+                    for sensor in self.entities[receiver].sensors:
+                        if not sensor.detects_modality(signal.modality):
+                            continue
+
+                        self.signals.append((sensor, signal))
+
+    def send_signals(self):
+        while len(self.signals) > 0:
+            n = self.signals.pop(0)
+            n.sensor.notify(n.signal)
 
     def query_actions(self):
         """
@@ -219,23 +231,6 @@ class World(object):
         """
         for entity in self.entities:
             entity.execute_actions()
-
-    def add_signal(self, signal):
-        # Go through all the sensors to find observers
-        for entity in self.entities:
-            for sensor in self.entities[entity].sensors:
-                # Should be able to sense the modality
-                if not sensor.detects_modality(signal.modality):
-                    continue
-
-                notification = Notification(sensor, signal)
-
-                self.notifications.append(notification)
-
-    def send_signals(self):
-        while len(self.notifications) > 0:
-            n = self.notifications.pop(0)
-            n.sensor.notify(n.signal)
 
     def trigger_events(self):
         for cause in self.entities:
