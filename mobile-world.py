@@ -6,6 +6,7 @@ import functools
 from easl import *
 from easl.agent import RandomAgent
 from easl.agent import OperantConditioningAgent
+from easl.agent import CausalLearningAgent
 
 
 def calc_direction(a, b):
@@ -36,8 +37,10 @@ class SightSensor(Sensor):
 
 if __name__ == '__main__':
     infant = Entity()
-    infant.set_agent(OperantConditioningAgent())
-    infant.agent.set_primary_reinforcer("movement", {"value": True})
+    #infant.set_agent(RandomAgent())
+    #infant.set_agent(OperantConditioningAgent())
+    #infant.agent.set_primary_reinforcer("movement", {"value": True})
+    infant.set_agent(CausalLearningAgent())
 
     def move(old, new):
         return "movement", {"direction": calc_direction(old, new)}

@@ -72,7 +72,7 @@ class Entity(object):
         Called when the experiment starts.
         """
         if self.agent is not None:
-            self.agent.init_internal(deepcopy(self.actions))
+            self.agent.init_internal(self.actions)
 
     def try_change(self, attribute, value):
         """
@@ -92,8 +92,10 @@ class Entity(object):
             self.a[attribute] = value
 
             # Call the event for this change
-            e, params = self.events[attribute](old, value)
-            self.event_queue.append((attribute, e, params))
+            event = self.events[attribute](old, value)
+            if event is not None:
+                e, params = event
+                self.event_queue.append((attribute, e, params))
 
             return True
         return False

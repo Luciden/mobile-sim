@@ -59,6 +59,9 @@ class Graph(object):
         """
         return [(a, b) for (a, _, b, _) in self.edges]
 
+    def get_connected(self, a):
+        return [a for (a, _) in self.edges]
+
     def get_triples(self):
         triples = [(a, b, c) for (a, _, b, _) in self.edges for (b, _, c, _) in self.edges if a != c]
         # also check edges that are stored in reverse

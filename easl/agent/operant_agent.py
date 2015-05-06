@@ -255,8 +255,10 @@ class Reinforcer(object):
         """
         # Find the conjunction and increment it
         for i in range(len(self.conjunctions)):
-            if self.conjunctions[i][0] == conjunction:
-                self.conjunctions[i][1] += 1
+            (c, s, f) = self.conjunctions[i]
+
+            if c == conjunction:
+                self.conjunctions[i] = (c, s + 1, f)
                 return True
 
         self.add_conjunction(conjunction, satisfied=True)
@@ -273,8 +275,10 @@ class Reinforcer(object):
         by the reinforcer.
         """
         for i in range(len(self.conjunctions)):
-            if self.conjunctions[i][0] == conjunction:
-                self.conjunctions[i][2] += 1
+            (c, s, f) = self.conjunctions[i]
+
+            if c == conjunction:
+                self.conjunctions[i] = (c, s, f + 1)
                 return True
 
         self.add_conjunction(conjunction, followed=True)
@@ -330,7 +334,7 @@ class Reinforcer(object):
         return [c
                 for (c, s, f)
                 in self.conjunctions
-                if float(s) / float(f) > m_rr + std_rr
+                if s != 0 and float(f) / float(s) > m_rr + std_rr
                 or f > m_rc + std_rc]
 
     def get_predictors(self):
@@ -376,8 +380,6 @@ class OperantConditioningAgent(Agent):
            David S. Touretzky & Lisa M. Saksida.
     """
     # TODO(Question): Where to get primary reinforcers?
-    # TODO: When to create new reinforcer?
-    # TODO: When new reinforcer, create new predictor.
 
     def __init__(self):
         """
@@ -414,7 +416,6 @@ class OperantConditioningAgent(Agent):
         # Create action and observable predicates
         self.actions = actions
         # TODO: What are the initial reinforcers?
-        pass
 
     def sense(self, observation):
         # Store observations for later conversion
@@ -619,7 +620,6 @@ class OperantConditioningAgent(Agent):
 
         pass
 
-
     def __was_predicted(self, reinforcer):
         # Check for all predictors for reward if it was predicted.
         for predictor in reinforcer.predictors:
@@ -721,9 +721,12 @@ class OperantConditioningAgent(Agent):
 
         # Select one of the matches with probability
         # ? (There is also some randomness to facilitate exploration.)
-        selected = random.choice(matches)
+        if len(matches) == 0:
+            return []
+        else:
+            selected = random.choice(matches)
 
-        return selected.get_action_predicates()
+            return selected.get_action_predicates()
 
     def __has_acquired_reinforcer(self, predicate):
         for reinforcer in self.reinforcers:

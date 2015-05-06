@@ -17,7 +17,6 @@ class RandomAgent(Agent):
         self.actions = {}
 
     def init_internal(self, actions):
-        # Store the actions
         self.actions = actions
 
     def sense(self, observation):

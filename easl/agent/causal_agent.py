@@ -1,5 +1,7 @@
 __author__ = 'Dennis'
 
+from copy import deepcopy
+
 import easl.utils
 from agent import Agent
 
@@ -18,22 +20,23 @@ class Data(object):
     def add_entry(self, vals):
         self.entries.append(vals)
 
-    def calculate_joint(self, names):
+    def calculate_joint(self, variables):
         """
         Calculates the joint probability distribution from data for the given
         variables.
 
         Parameters
         ----------
-        names : [string]
-            names of the variables to calculate the distribution for
+        variables : {name: {name: [value]}}
+            The variable names with their parameters and possible values for which
+            to calculate the distribution.
 
         Returns
         -------
         Distribution
             the joint probability table
         """
-        freq = easl.utils.Table(names)
+        freq = easl.utils.Table(variables)
 
         for entry in self.entries:
             freq.inc_value(entry)
@@ -41,16 +44,21 @@ class Data(object):
         n = len(self.entries)
         freq.do_operation(lambda x: x / n)
 
-        return easl.utils.Distribution(names, freq)
+        return easl.utils.Distribution(variables, freq)
 
 
-class CausalReasoningAgent(Agent):
+class CausalLearningAgent(Agent):
     """
     Uses Causal Bayes Nets based learning.
 
     Needs
      - conversion of observations to Variables
      - actions as interventions
+
+    Attributes
+    ----------
+    variables : {name: {name: value}}
+        All variable names that are considered at the moment.
 
     Notes
     -----
@@ -64,16 +72,22 @@ class CausalReasoningAgent(Agent):
     .. [1] "Thing by Gopnik," Gopnik et al.
     .. [2] Dissertation
     """
+
     def __init__(self):
-        super(CausalReasoningAgent, self).__init__()
+        super(CausalLearningAgent, self).__init__()
 
         self.data = Data()
 
         self.actions = []
         self.observations = []
 
+        self.variables = {}
+
     def init_internal(self, actions):
         self.actions = actions
+
+        # Add all actions to the variables
+        self.variables = deepcopy(self.actions)
 
     def sense(self, observation):
         # Simply store the information to use later.
@@ -85,12 +99,12 @@ class CausalReasoningAgent(Agent):
         self.__store_observations()
 
         # Get the causal network for the observations.
-        # TODO: How to get the variables?
-        net = self.__learn_causality(variables)
+        # TODO: How to get the variables? Take all actions and observations for now
+        net = self.__learn_causality(self.variables)
         # Find the action that would create the optimal reward.
         # TODO: Where is the reward?
         # For now:
-        #   Calculate the probability of the reward happening for all actions.
+        # Calculate the probability of the reward happening for all actions.
         #   Take the action with maximum reward.
         return []
 
@@ -116,7 +130,7 @@ class CausalReasoningAgent(Agent):
         # 1. Form the complete undirected graph on all variables
         #
         # - form complete (undirected) graph of variables
-        #  + node/edge representation
+        # + node/edge representation
         #  + add node
         #  + add edge between nodes
         c = easl.utils.Graph()
@@ -140,18 +154,19 @@ class CausalReasoningAgent(Agent):
         # Check independence by checking if P(A|B) = P(A)
         for i_a in range(len(variables)):
             a = variables[i_a]
-            for b in variables[i_a+1:]:
+            for b in variables[i_a + 1:]:
                 # Calculate P(A)
-                p_a = self.data.calculate_joint([a])
+                p_a = self.__calculate_joint([a])
+                p_a = self.__calculate_joint([a])
 
                 # Calculate P(B)
-                p_b = self.data.calculate_joint([b])
+                p_b = self.__calculate_joint([b])
 
                 # Calculate P(A & B)
-                p_ab = self.data.calculate_joint([a, b])
+                p_ab = self.__calculate_joint([a, b])
 
                 # Check for independence by checking P(A & B) = P(A) * P(B)
-                if CausalReasoningAgent.check_independence(p_a, p_b, p_ab):
+                if CausalLearningAgent.check_independence(p_a, p_b, p_ab):
                     c.del_edge(a, b)
 
         # 3. For each pair U, V of variables connected by an edge,
@@ -167,6 +182,7 @@ class CausalReasoningAgent(Agent):
         # Get all pairs of nodes connected by an edge
         for (u, v) in c.get_pairs():
             # Get all nodes connected to one of either nodes
+            # TODO: Implement.
             ts = set(c.get_connected(u) + c.get_connected(v))
 
             found = False
@@ -174,13 +190,13 @@ class CausalReasoningAgent(Agent):
             for t in ts:
                 # Test conditional independence
                 # Calculate P(T), P(U,T), P(V,T) and P(U,V,T)
-                p_t = self.data.calculate_joint([t])
-                p_ut = self.data.calculate_joint([u, t])
-                p_vt = self.data.calculate_joint([v, t])
-                p_uvt = self.data.calculate_joint([u, v, t])
+                p_t = self.__calculate_joint([t])
+                p_ut = self.__calculate_joint([u, t])
+                p_vt = self.__calculate_joint([v, t])
+                p_uvt = self.__.calculate_joint([u, v, t])
 
-                if CausalReasoningAgent.check_independence_conditional([u, v, t],
-                                                                               p_uvt, p_ut, p_vt, p_t):
+                if CausalLearningAgent.check_independence_conditional([u, v, t],
+                                                                      p_uvt, p_ut, p_vt, p_t):
                     found = True
                     continue
 
@@ -204,13 +220,13 @@ class CausalReasoningAgent(Agent):
 
             found = False
             for (t, s) in [(t, s) for t in ts for s in ts if t != s]:
-                p_uvst = self.data.calculate_joint([u, v, s, t])
-                p_ust = self.data.calculate_joint([u, s, t])
-                p_vst = self.data.calculate_joint([v, s, t])
-                p_st = self.data.calculate_joint([s, t])
+                p_uvst = self.__calculate_joint([u, v, s, t])
+                p_ust = self.__calculate_joint([u, s, t])
+                p_vst = self.__calculate_joint([v, s, t])
+                p_st = self.__calculate_joint([s, t])
 
-                if CausalReasoningAgent.check_independence_conditional([u, v, s, t],
-                                                                               p_uvst, p_ust, p_vst, p_st):
+                if CausalLearningAgent.check_independence_conditional([u, v, s, t],
+                                                                      p_uvst, p_ust, p_vst, p_st):
                     found = True
                     continue
 
@@ -319,3 +335,13 @@ class CausalReasoningAgent(Agent):
                     if abs(p_aby / p_y - (p_ay / p_y) * (p_by / p_y)) > 1e-6:
                         return False
         return True
+
+    def __variables_from_names(self, names):
+        variables = {}
+        for name in names:
+            variables[name] = self.variables[name]
+
+        return variables
+
+    def __calculate_joint(self, names):
+        return self.data.calculate_joint(self.__variables_from_names(names))

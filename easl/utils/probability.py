@@ -4,11 +4,14 @@ from copy import copy, deepcopy
 
 
 class Table(object):
+    """
+    variables : {name: {name: value}}
+    """
     def __init__(self, variables):
         self.table = {}
         self.variables = variables
 
-        self.order = [var for var in self.variables.keys()]
+        self.order = [var for var in self.variables.key()]
         self.last = self.order.pop()
 
         self.table = self.__make_table_rec(self.order)
