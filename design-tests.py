@@ -5,7 +5,7 @@ from easl.agent import RandomAgent
 
 
 def lamp_physics(self):
-    self.try_action("on", not self.a["on"])
+    self.__try_change("on", not self.a["on"])
 
 
 def lamp_emission(self):
@@ -60,7 +60,7 @@ def step3():
 
 def step4():
     def move(self, d):
-        self.try_action("position", d)
+        self.__try_change("position", d)
 
     arm = Entity()
     arm.add_attribute("position", "down")
@@ -81,7 +81,7 @@ def step4():
 
 def step5():
     def move(self, direction):
-        self.try_action("position", direction)
+        self.__try_change("position", direction)
 
     arm = Entity()
     arm.add_attribute("position", "down")

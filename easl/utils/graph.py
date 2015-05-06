@@ -69,8 +69,8 @@ class Graph(object):
     def get_triples_special(self):
         triples = self.get_triples()
         # T ->V
-        arrowheads = [(t, v, r) for (t, v, r) in triples for (t, _, v, ">") in self.edges]
-        arrowheads += [(t, v, r) for (t, v, r) in triples for (v, ">", t, _) in self.edges]
+        arrowheads = [(t, v, r) for (t, v, r) in triples for (t, _, v, a) in self.edges if a == ">"]
+        arrowheads += [(t, v, r) for (t, v, r) in triples for (v, a, t, _) in self.edges if a == ">"]
 
         # V - R
         neighbours = [(t, v, r) for (t, v, r) in arrowheads for (v, _, r, _) in self.edges]

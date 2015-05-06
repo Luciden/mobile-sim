@@ -64,9 +64,6 @@ class Log(object):
     def add_entry(self, time, kind, data):
         self.log.append([time, kind, data])
 
-    def filter_entity(self, name):
-        return filter(lambda x: x[2] == name)
-
     def write_file(self, name):
         f = open(name, 'wt')
         try:
@@ -106,15 +103,24 @@ class World(object):
        phase, which means all signals can be sent when all entities have been
        processed.
 
-    Attributes:
-        entities:
+    Attributes
+    ----------
+    entities : {name: Entity}
+        all entities in the world identified by name
+    notifications
+    actions
+    triggers : [(Entity, Entity, string)]
+        the connections between entities that link actions and triggers
+    time
+    log
     """
-    # TODO: Add logging functionality.
     def __init__(self):
         self.entities = {}
 
         self.notifications = []
         self.actions = []
+
+        self.triggers = []
 
         self.time = 0
 
@@ -128,6 +134,7 @@ class World(object):
         self.log = Log()
         self.log.set_verbose()
 
+        # Initialize initial states of all entities, including agents
         for e in self.entities:
             self.entities[e].start()
 
@@ -137,30 +144,52 @@ class World(object):
             print "step " + str(i)
             self.do_physics()
             self.emit_signals()
-            actions = self.query_actions()
-            self.do_actions(actions)
+            self.query_actions()
+            self.execute_actions()
             self.trigger_events()
 
             self.print_state()
 
         self.log.write_file("log.csv")
 
-    def print_state(self):
-        # Show all individual entity's state
-        for entity in self.entities:
-            print entity
-            print self.entities[entity].print_state()
-
     def add_entity(self, name, entity):
         self.entities[name] = entity
 
+    def set_in_area_of_effect(self, affected, event, area):
+        """
+        Setting the area of effect of an entity's change in attribute
+        means that the affected entity's triggers are triggered when the
+        attribute changes.
+
+        This can be used to model position etc.
+
+        Parameters
+        ----------
+        affected : string
+            name of the entity that is to be triggered by the action
+        event : string
+            name of the type of event
+        area : string
+            identifier of the area that is affected
+        """
+        self.area_of_effect.append((affected, event, area))
+
+    def set_area_of_effect(self, entity, action, event, area):
+        """
+
+        Parameters
+        ----------
+
+        """
+        # TODO: Implement.
+        pass
+
     def do_physics(self):
         """
-        Makes all Entities advance a time step.
+        Calls all Entities' physics method.
         """
-        # Execute the physics rules for every entity
         for entity in self.entities:
-            self.entities[entity].step()
+            self.entities[entity].physics()
 
     def emit_signals(self):
         for entity in self.entities:
@@ -173,26 +202,23 @@ class World(object):
 
     def query_actions(self):
         """
-        Collects which actions the Entities want to perform.
+        Makes all Entities prepare their actions.
 
-        Returns:
-            a dictionary of agent/actions pairs that should be executed.
+        The querying and execution phase of the actions should be separated,
+        because actions have effects on the Entities' attributes and all
+        actions should be selected at the same point in time.
         """
         # Collect the actions by all entities and put them in one list
-        actions = {}
+
         for entity in self.entities:
-            actions[entity] = self.entities[entity].prepare_actions()
+            self.entities[entity].queue_actions()
 
-        return actions
-
-    def do_actions(self, actions):
+    def execute_actions(self):
         """
         Executes all actions
         """
-        for entity in actions:
-            for (action, params) in actions[entity]:
-                self.entities[entity].do_action(action, params)
-                self.log.add_entry(self.time, "action", (entity, action, params))
+        for entity in self.entities:
+            entity.execute_actions()
 
     def add_signal(self, signal):
         # Go through all the sensors to find observers
@@ -213,9 +239,16 @@ class World(object):
 
     def trigger_events(self):
         for cause in self.entities:
-            for i in range(len(self.entities[cause].events)):
+            while len(self.entities[cause].events) > 0:
                 attribute, value = self.entities[cause].events.pop(0)
 
                 # Find all entities that are triggered by this event
-                for triggered in self.entities:
-                    self.entities[triggered].try_trigger(attribute, value)
+                for (e, c, a) in self.triggers:
+                    if c == cause and attribute == a:
+                        self.entities[e].try_trigger(attribute, value)
+
+    def print_state(self):
+        # Show all individual entity's state
+        for entity in self.entities:
+            print entity
+            print self.entities[entity].print_state()

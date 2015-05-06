@@ -4,6 +4,7 @@ from copy import deepcopy
 
 
 class Entity(object):
+    # TODO: Document.
     """
     The basic component in the simulation.
 
@@ -22,12 +23,27 @@ class Entity(object):
 
     Attributes
     ----------
+    attributes : {name: value}
+        physical representation of the Entity
+    sensors : [Sensor]
+    observations : {name: value}
     physics : function
         a function that changes the state using only the state's
         attributes
     emission : function
-        returns a list of signals to be emitted
-        in this frame, based on the Entity's internal state.
+        Returns a list of signals to be emitted in this frame, based on the
+        Entity's internal state.
+    actions : {name: (function, {name: [value]})}
+        All possible actions identified by their name, with the function that
+        describes how its parameters influence the internal state, and
+        parameter names with a list/generator of all possible values.
+    events
+    triggers : {name: function}
+        callback functions that change the attributes when called
+    agent : Agent
+    action_queue : [(name, {name: value})]
+        All action/parameter pairs that are queued to be executed.
+        Both name and its parameter name/value pairs are provided.
     """
     def __init__(self, agent=None):
         self.attributes = {}
@@ -42,15 +58,29 @@ class Entity(object):
         self.triggers = {}
 
         self.agent = agent
+        self.action_queue = []
 
     def start(self):
+        """
+        Called when the experiment starts.
+        """
         if self.agent is not None:
             self.agent.init_internal(deepcopy(self.actions))
 
-    def step(self):
-        self.physics(self)
+    def __try_change(self, attribute, value):
+        """
+        Checks to see if setting the specified attribute's value is different from the
+        current value, sets the attribute and notifies.
 
-    def try_action(self, attribute, value):
+        Returns
+        -------
+        bool
+            True if the attribute changes, False otherwise
+        """
+        # TODO: Redesign event system.
+        # The emission function is obscure.
+        # When attributes change, the modality these attributes are in should
+        # determine whether events/signals are sent or not.
         if self.a[attribute] != value:
             self.a[attribute] = value
             self.events.append((attribute, value))
@@ -58,29 +88,24 @@ class Entity(object):
             return True
         return False
 
-    def prepare_actions(self):
+    def queue_actions(self):
         """
-        X
-
-
-        Returns:
-        [(string, {string: value})]
-            all action/parameter/value structs that should be performed
+        Queues actions to be executed by consulting associated Agent, if available.
 
         See Also
         --------
         easl.agent.Agent.act : Functionality delegated to Agent.
         """
         if self.agent is None:
-            return []
+            self.action_queue = []
 
         # pass all observations to agent and have it convert to internal representation
         for observation in self.observations:
-            self.agent.sense(observation)
+            self.agent.sense(observation, self.observations[observation])
         self.observations = {}
 
         # ask agent to give actions
-        return self.agent.act()
+        self.action_queue = self.agent.act()
 
     def add_action(self, name, parameters, f):
         """
@@ -100,22 +125,14 @@ class Entity(object):
         """
         self.actions[name] = (f, parameters)
 
-    def do_action(self, name, parameters):
+    def execute_actions(self):
         """
-
-        Sending Actions:
-            name, {paramname: value}
-
-        Parameters
-        ----------
-        name : string
-            name of the action
-        parameters : {string: string}
-            parameter name/value pairs
+        Calls all queued actions and clears the queue.
         """
-        print parameters
-        parameters["self"] = self
-        self.actions[name][0](**parameters)
+        while len(self.action_queue) > 0:
+            name, parameters = self.action_queue.pop(0)
+            parameters["self"] = self
+            self.actions[name][0](**parameters)
 
     def add_sensor(self, sensor):
         sensor.set_observations(self.observations)
@@ -131,6 +148,7 @@ class Entity(object):
         """
         A Trigger changes the Entity's internal state if a match for a
         cause was found.
+
         """
         self.triggers[name] = trigger
 

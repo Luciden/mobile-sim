@@ -217,7 +217,7 @@ class Reinforcer(object):
 
         # Start with the null conjunction
         self.conjunctions = []
-        self.conjunctions.append(Conjunction())
+        self.add_conjunction(Conjunction())
 
         self.predictors = []
 
@@ -547,39 +547,54 @@ class OperantConditioningAgent(Agent):
         """
         # TODO: Implement
         # Check if predictors incomplete. (Unexpected reward. Reward but no prediction.)
+        reinforced = []
+        renew = []  # all reinforcers that should have new predictors created
+
+        # For all reinforcers that appear now
+        for predicate in self.memory.get_of_age(0):
+            if self.__has_acquired_reinforcer(predicate):
+                reinforcer = self.__get_reinforcer(predicate)
+                reinforced.append(reinforcer)
+                if not self.__was_predicted(reinforcer):
+                    # Create new predictors for the reinforcer
+                    renew.append(reinforcer)
+
+        # Find all reinforcers that were not found yet
         # Check if false prediction of reward. (Erroneous predictor.).
-        if self.__are_predictors_incomplete() or self.__was_false_prediction():
-            # "New predictors are created from the best-scoring conjunctions currently
-            # maintained for that reinforcer.
-            # "When creating new predictors, candidate conjunctions are sorted by merit
-            # rather than raw reward rate to give greater weight to conjunctions that
-            # have been sampled more heavily."
-            # If several conjunctions are tied for top score, the ones with the fewest
-            # number of terms are selected."
-            # "If there are still several candidates, two are chosen at random to become
-            # new predictors." (Enforces exploration.)
-            pass
+        for reinforcer in self.reinforcers:
+            if reinforcer not in reinforced:
+                # See if predictor actually predicted it.
+                if self.__was_predicted(reinforcer):
+                    # Create new predictors for the reinforcer
+                    renew.append(reinforcer)
 
-    def __are_predictors_incomplete(self):
-        for p in self.memory.get_of_age(0):
-            if self.__has_acquired_reinforcer(p):
-                # Check for all predictors for reward if it could have been predicted.
-                r = self.__get_reinforcer(p)
+    def __create_predictor(self, reinforcer):
+        # "New predictors are created from the best-scoring conjunctions currently
+        # maintained for that reinforcer.
+        # "When creating new predictors, candidate conjunctions are sorted by merit
+        # rather than raw reward rate to give greater weight to conjunctions that
+        # have been sampled more heavily."
+        # If several conjunctions are tied for top score, the ones with the fewest
+        # number of terms are selected."
+        # "If there are still several candidates, two are chosen at random to become
+        # new predictors." (Enforces exploration.)
+        # TODO: Implement.
+        # Calculate merit for every conjunction.
+        # Choose with highest merit.
+        conjunctions = [(c, Reinforcer.merit(r, n)) for (c, n, r) in reinforcer.conjunctions]
 
-                predicted = False
-                for predictor in r.predictors:
-                    # Check if the predictor could have matched one time step before
-                    success, match = self.memory.is_match(predictor, 1)
-
-                    if success:
-                        predicted = True
-
-                if not predicted:
-                    return True
-        return False
-
-    def __was_false_prediction(self):
         pass
+
+
+    def __was_predicted(self, reinforcer):
+        # Check for all predictors for reward if it was predicted.
+        for predictor in reinforcer.predictors:
+            # Check if the predictor could have matched one time step before
+            success, match = self.memory.is_match(predictor, 1)
+
+            if success:
+                return True
+        return False
 
     def __delete_predictors(self):
         """
