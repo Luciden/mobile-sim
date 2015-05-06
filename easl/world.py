@@ -174,22 +174,28 @@ class World(object):
         """
         self.area_of_effect.append((affected, event, area))
 
-    def set_area_of_effect(self, entity, action, event, area):
+    def set_area_of_effect(self, causing, attribute, event, affected):
         """
 
         Parameters
         ----------
-
+        causing : string
+            Name of the Entity that caused the event.
+        attribute : string
+            Name of the attribute of the Entity that caused the event.
+        event : string
+            Name of the type of event that occurred.
+        affected : string
+            Name of the Entity that is affected by the event.
         """
-        # TODO: Implement.
-        pass
+        self.triggers.append((causing, attribute, event, affected))
 
     def __do_physics(self):
         """
         Calls all Entities' physics method.
         """
         for entity in self.entities:
-            self.entities[entity].physics()
+            self.entities[entity].physics(self.entities[entity])
 
     def __queue_signals(self):
         """
@@ -234,15 +240,14 @@ class World(object):
             entity.execute_actions()
 
     def __trigger_events(self):
-        # TODO: Change to include area of effect.
         for cause in self.entities:
-            while len(self.entities[cause].events) > 0:
-                attribute, value = self.entities[cause].events.pop(0)
+            while len(self.entities[cause].event_queue) > 0:
+                attribute, event, params = self.entities[cause].event_queue.pop(0)
 
                 # Find all entities that are triggered by this event
-                for (e, c, a) in self.triggers:
-                    if c == cause and attribute == a:
-                        self.entities[e].try_trigger(attribute, value)
+                for (causer, causer_attribute, caused_event, affected) in self.triggers:
+                    if causer == cause and causer_attribute == attribute and caused_event == event:
+                        self.entities[affected].call_trigger(event, params)
 
     def print_state(self):
         # Show all individual entity's state

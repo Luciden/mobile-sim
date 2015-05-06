@@ -67,7 +67,7 @@ def step4():
     arm.add_action("move", ["up", "down"], move)
 
     def moved(self, direction):
-        self.a["position"] = direction
+        self.__try_change("position", direction)
 
     ball = Entity()
     ball.add_attribute("position", "down")
@@ -78,6 +78,7 @@ def step4():
     world.add_entity("ball", ball)
 
     world.run()
+
 
 def step5():
     def move(self, direction):

@@ -37,8 +37,12 @@ class Entity(object):
         All possible actions identified by their name, with the function that
         describes how its parameters influence the internal state, and
         parameter names with a list/generator of all possible values.
-    events
-    triggers : {name: function}
+    events : {name: function(old, new)}
+        Specifies for every attribute what events it triggers when it changes.
+        The functions return an event.
+        An event is a tuple of (name, {name: value}) of event name and its
+        parameters name/value pairs.
+    triggers : {name: function(self, ...)}
         callback functions that change the attributes when called
     agent : Agent
     action_queue : [(name, {name: value})]
@@ -54,12 +58,14 @@ class Entity(object):
         self.emission = lambda x: []
 
         self.actions = {}
-        self.events = []
+        # TODO: When creating attributes, an event function should be included.
+        self.events = {}
         self.triggers = {}
 
         self.agent = agent
         self.action_queue = []
         self.signal_queue = []
+        self.event_queue = []
 
     def start(self):
         """
@@ -78,13 +84,15 @@ class Entity(object):
         bool
             True if the attribute changes, False otherwise
         """
-        # TODO: Redesign event system.
         # The emission function is obscure.
         # When attributes change, the modality these attributes are in should
         # determine whether events/signals are sent or not.
         if self.a[attribute] != value:
+            old = self.a[attribute]
             self.a[attribute] = value
-            self.events.append((attribute, value))
+            # Call the event for this change
+            e, params = self.events[attribute](old, value)
+            self.event_queue.append(attribute, e, params)
 
             return True
         return False
@@ -108,6 +116,22 @@ class Entity(object):
         # ask agent to give actions
         self.action_queue = self.agent.act()
 
+    def add_attribute(self, name, initial_value, event):
+        """
+        Parameters
+        ----------
+        name : string
+            Name to identify the attribute by.
+        initial_value : value
+            Any value that the attribute is set to when the experiment begins.
+        event : function(old, new) : (name, value)
+            Function that is called when the attribute changes.
+            The function receives the old and new values and should return an
+            event, i.e. a name and value pair.
+        """
+        self.attributes[name] = initial_value
+        self.events[name] = event
+
     def add_action(self, name, parameters, f):
         """
         Adds an action to the possible actions.
@@ -126,6 +150,27 @@ class Entity(object):
         """
         self.actions[name] = (f, parameters)
 
+    def add_sensor(self, sensor):
+        sensor.set_observations(self.observations)
+        self.sensors.append(sensor)
+
+    def add_trigger(self, name, trigger):
+        """
+        A Trigger changes the Entity's internal state if a match for a
+        cause was found.
+
+        """
+        self.triggers[name] = trigger
+
+    def set_physics(self, physics):
+        self.physics = physics
+
+    def set_agent(self, agent):
+        self.agent = agent
+
+    def set_emission(self, emission):
+        self.emission = emission
+
     def execute_actions(self):
         """
         Calls all queued actions and clears the queue.
@@ -135,12 +180,8 @@ class Entity(object):
             parameters["self"] = self
             self.actions[name][0](**parameters)
 
-    def add_sensor(self, sensor):
-        sensor.set_observations(self.observations)
-        self.sensors.append(sensor)
-
     def emit_signals(self):
-        self.signal_queue += self.emission()
+        self.signal_queue += self.emission(self)
 
     def get_queued_signals(self):
         """
@@ -151,38 +192,16 @@ class Entity(object):
 
         return signals
 
-    def set_emission(self, emission):
-        self.emission = emission
-
-    def add_trigger(self, name, trigger):
-        """
-        A Trigger changes the Entity's internal state if a match for a
-        cause was found.
-
-        """
-        self.triggers[name] = trigger
-
     def call_trigger(self, name, params):
-        self.triggers[name](**params)
-
-    def try_trigger(self, attribute, value):
-        for trigger in self.triggers:
-            self.call_trigger(trigger, {attribute: value})
-
-    def set_physics(self, physics):
-        self.physics = physics
-
-    def set_agent(self, agent):
-        self.agent = agent
+        if name in self.triggers:
+            params["self"] = self
+            self.triggers[name](**params)
 
     def is_active(self):
         """
         If the entity performs any actions, i.e. has an associated agent.
         """
         return self.agent is not None
-
-    def add_attribute(self, name, value):
-        self.attributes[name] = value
 
     def print_state(self):
         for attr in self.attributes:
