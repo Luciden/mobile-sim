@@ -195,6 +195,15 @@ class Predictor(object):
         self.sensory = []
         self.action = []
 
+    def __eq__(self, other):
+        if isinstance(other, Predictor):
+            same_sensory = len(set(self.sensory).intersection(set(other.sensory))) == len(set(self.sensory))
+            same_action = len(set(self.action).intersection(set(other.action))) == len(set(self.action))
+
+            return same_sensory and same_action
+        else:
+            return False
+
     def add_sensory_predicate(self, predicate):
         """
         Parameters
@@ -220,6 +229,15 @@ class Predictor(object):
         temporal tags.
         """
         return [p for (p, _) in self.action]
+
+    def get_conjunction(self):
+        conjunction = Conjunction()
+        for sensory in self.sensory:
+            conjunction.add_predicate(sensory)
+        for action in self.action:
+            conjunction.add_predicate(action)
+
+        return conjunction
 
     def get_sensory_temporal(self):
         return self.sensory
@@ -340,6 +358,45 @@ class Reinforcer(object):
     def get_predictors(self):
         return deepcopy(self.predictors)
 
+    def create_predictor(self):
+        self.predictors += self.__create_predictor()
+
+    def remove_predictor(self, predictor):
+        for i in range(len(self.predictors)):
+            if self.predictors[i] == predictor:
+                del self.predictors[i]
+
+    def __create_predictor(self):
+        # "If there are still several candidates, two are chosen at random to become
+        # new predictors." (Enforces exploration.)
+        # "New predictors are created from the best-scoring conjunctions currently
+        # maintained for that reinforcer.
+        # "When creating new predictors, candidate conjunctions are sorted by merit
+        # rather than raw reward rate to give greater weight to conjunctions that
+        # have been sampled more heavily."
+        conjunctions = sorted([(c, Reinforcer.merit(r, n)) for (c, n, r) in self.conjunctions],
+                              key=lambda x:x [1],
+                              reverse=True)
+
+        if len(conjunctions) == 0:
+            return []
+        if len(conjunctions) <= 2:
+            return [c for (c, m) in conjunctions]
+
+        # "If several conjunctions are tied for top score, the ones with the fewest
+        # number of terms are selected."
+        top = []
+        top_conjunction, top_score = conjunctions[0]
+
+        for c, m in conjunctions:
+            if abs(m - top_score) <= 1e-6:
+                top.append(c)
+
+        if len(top) > 2:
+            return sorted(top, key=lambda x: len(x.predicates))[:1]
+        else:
+            return top
+
     @staticmethod
     def merit(r, n):
         """
@@ -400,22 +457,17 @@ class OperantConditioningAgent(Agent):
             All current predictors.
         """
         super(OperantConditioningAgent, self).__init__()
-        self.memory = WorkingMemory()
-
-        self.reinforcers = []
-        self.predictors = []
-
+        self.actions = {}
         self.observations = []
 
-        self.best_predicates = []
+        self.memory = WorkingMemory()
+        self.reinforcers = []
 
-        self.actions = {}
+        # TODO(Question): What to set this threshold as?
+        self._DEMERIT_THRESHOLD = 2
 
     def init_internal(self, actions):
-        # TODO: Implement.
-        # Create action and observable predicates
         self.actions = actions
-        # TODO: What are the initial reinforcers?
 
     def sense(self, observation):
         # Store observations for later conversion
@@ -431,8 +483,14 @@ class OperantConditioningAgent(Agent):
 
         self.__update_reinforcer_counts()
 
+        # "New predictors for a given reinforcer are created only when that
+        #  reinforcer has just been received and the reward counts updated.
+        #  At that point, the program can check candidate predictors against its
+        #  working memory, so that it only constructs predictors that would have
+        #  predicted the reward it just got."
         # TODO: generate when reinforcers have been received
         self.__create_predictors()
+        self.__delete_predictors()
 
         actions = self.__select_actions()
         # Add actions as predicates
@@ -467,7 +525,7 @@ class OperantConditioningAgent(Agent):
 
         # if there are any reinforcers for the current instant, increment
         # the values for all conjunctions that were followed by it in the
-        # last timestep.
+        # last time step.
         # Only do this when there is actually a previous.
         if self.memory.get_oldest() > 0:
             previous = self.memory.get_of_age(1)
@@ -545,18 +603,6 @@ class OperantConditioningAgent(Agent):
 
         Predictor Creation and Deletion
 
-        "New predictors for a given reinforcer are created only when that reinforcer
-         has just been received and the reward counts updated.
-         At that point, the program can check candidate predictors against its
-         working memory, so that it only constructs predictors that would have
-         predicted the reward it just got."
-        "Furthermore, in order for new predictors to be created the reward must
-         either have been unexpected, meaning the current set of predictors is
-         incomplete, or there must have been at least one false prediction since
-         the last reward was encountered, meaning there is an erroneous predictor,
-         one that is not specific enough to accurately express the reward
-         contingencies."
-
         "Two numerical measures are used to assign scores to conjunctions and
          predictors: merit and demerit.
          They estimate the lower and upper bounds, respectively, on the true reward
@@ -576,59 +622,51 @@ class OperantConditioningAgent(Agent):
         "As :math:`n` approaches :math:`\inf`, merit and demerit both converge to
          :math:`\frac{r}{n}`, the true reward rate."
 
-
          When deleting predictors, demerit is used, so the program is conservative
          in its judgements and does not delete too quickly."
         """
-        # TODO: Implement
-        # Check if predictors incomplete. (Unexpected reward. Reward but no prediction.)
+        # "Furthermore, in order for new predictors to be created the reward must
+        #  either have been unexpected, meaning the current set of predictors is
+        #  incomplete, or there must have been at least one false prediction since
+        #  the last reward was encountered, meaning there is an erroneous predictor,
+        #  one that is not specific enough to accurately express the reward
+        #  contingencies."
+        # Check if the current set of predictors is incomplete.
+        # I.e. unexpected reward, or reward but no prediction.
         reinforced = []
         renew = []  # all reinforcers that should have new predictors created
 
-        # For all reinforcers that appear now
+        # Check if there were any incomplete predictors
         for predicate in self.memory.get_of_age(0):
             if self.__has_acquired_reinforcer(predicate):
                 reinforcer = self.__get_reinforcer(predicate)
                 reinforced.append(reinforcer)
-                if not self.__was_predicted(reinforcer):
+                if len(self.__was_predicted(reinforcer)) == 0:
                     # Create new predictors for the reinforcer
                     renew.append(reinforcer)
 
-        # Find all reinforcers that were not found yet
+        # For all reinforcers that are not already being renewed
         # Check if false prediction of reward. (Erroneous predictor.).
         for reinforcer in self.reinforcers:
             if reinforcer not in reinforced:
-                # See if predictor actually predicted it.
-                if self.__was_predicted(reinforcer):
+                # See if predictor actually predicted it
+                if len(self.__was_predicted(reinforcer)) > 0:
                     # Create new predictors for the reinforcer
                     renew.append(reinforcer)
 
-    def __create_predictor(self, reinforcer):
-        # "New predictors are created from the best-scoring conjunctions currently
-        # maintained for that reinforcer.
-        # "When creating new predictors, candidate conjunctions are sorted by merit
-        # rather than raw reward rate to give greater weight to conjunctions that
-        # have been sampled more heavily."
-        # If several conjunctions are tied for top score, the ones with the fewest
-        # number of terms are selected."
-        # "If there are still several candidates, two are chosen at random to become
-        # new predictors." (Enforces exploration.)
-        # TODO: Implement.
-        # Calculate merit for every conjunction.
-        # Choose with highest merit.
-        conjunctions = [(c, Reinforcer.merit(r, n)) for (c, n, r) in reinforcer.conjunctions]
-
-        pass
+        for reinforcer in renew:
+            reinforcer.create_predictor(reinforcer)
 
     def __was_predicted(self, reinforcer):
         # Check for all predictors for reward if it was predicted.
+        predictors = []
         for predictor in reinforcer.predictors:
             # Check if the predictor could have matched one time step before
             success, match = self.memory.is_match(predictor, 1)
 
             if success:
-                return True
-        return False
+                predictors.append(predictor)
+        return predictors
 
     def __delete_predictors(self):
         """
@@ -645,11 +683,50 @@ class OperantConditioningAgent(Agent):
          sufficiently high that there is reasonable confidence that the two
          predictors are equivalent.
         """
+        # Get all reinforcers that were just reinforced
+        reinforced = []
+        for predicate in self.memory.get_of_age(0):
+            if self.__has_acquired_reinforcer(predicate):
+                reinforced.append(self.__get_reinforcer(predicate))
+
         # false alarm (reward predicted, but no reward)
         # delete if demerit below threshold
+        for reinforcer in self.reinforcers:
+            # Only check reinforcers that were not predicted
+            if reinforcer not in reinforced:
+                predicted_by = self.__was_predicted(reinforcer)
+                if len(predicted_by) > 0:
+                    # Delete if demerit below threshold
+                    for predictor in predicted_by:
+                        n, r = reinforcer.count(predictor.get_conjunction())
+
+                        if Reinforcer.demerit(r, n) < self._DEMERIT_THRESHOLD:
+                            reinforcer.remove_predictor(predictor)
 
         # if predictor successful
         # delete if demerit is lower than highest merit of other successful predictor
+        for reinforcer in self.reinforcers:
+            if reinforcer in reinforced:
+                predicted_by = self.__was_predicted(reinforcer)
+                if len(predicted_by) > 0:
+                    for p in predicted_by:
+                        s, f = reinforcer.count(p.get_conjunction())
+                        demerit = Reinforcer.demerit(f, s)
+                        highest_predictor, highest_merit = None, 0
+                        # Find merits of successful predictors
+                        for predictor in reinforcer.predictors:
+                            if predictor == p:
+                                continue
+
+                            n, r = reinforcer.count(predictor.get_conjunction())
+                            merit = Reinforcer.merit(r, n)
+                            if merit > highest_merit:
+                                highest_predictor = predictor
+                                highest_merit = merit
+
+                        if highest_predictor is not None:
+                            if demerit < merit:
+                                reinforcer.remove_predictor(p)
 
         # if there is a predictor with:
         #  - antecedent strict subset of this predictor
