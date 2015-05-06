@@ -11,7 +11,7 @@ class Table(object):
         self.table = {}
         self.variables = variables
 
-        self.order = [var for var in self.variables.key()]
+        self.order = [var for var in self.variables.keys()]
         self.last = self.order.pop()
 
         self.table = self.__make_table_rec(self.order)
@@ -20,7 +20,13 @@ class Table(object):
         # make the full joint of the provided variables by making a tree of
         # variable name/value dicts and storing the probabilities at the end.
         if len(order) == 0:
-            return dict([(value, 0) for value in self.variables[self.last]])
+            values = {}
+            names = self.variables[self.last]
+            # TODO: Only actions with a single parameter are taken into account here.
+            for name in names:
+                for v in names[name]:
+                    values[v] = 0
+            return values
         else:
             current = {}
 

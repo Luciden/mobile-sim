@@ -155,25 +155,6 @@ class World(object):
     def add_entity(self, name, entity):
         self.entities[name] = entity
 
-    def set_in_area_of_effect(self, affected, event, area):
-        """
-        Setting the area of effect of an entity's change in attribute
-        means that the affected entity's triggers are triggered when the
-        attribute changes.
-
-        This can be used to model position etc.
-
-        Parameters
-        ----------
-        affected : string
-            name of the entity that is to be triggered by the action
-        event : string
-            name of the type of event
-        area : string
-            identifier of the area that is affected
-        """
-        self.area_of_effect.append((affected, event, area))
-
     def set_area_of_effect(self, causing, attribute, event, affected):
         """
 

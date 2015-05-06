@@ -18,6 +18,8 @@ class Data(object):
         self.entries = []
 
     def add_entry(self, vals):
+        # TODO: Assumes all variables have their value given.
+        # TODO: How to deal with incomplete observations? On Agent level? I guess
         self.entries.append(vals)
 
     def calculate_joint(self, variables):
@@ -86,8 +88,12 @@ class CausalLearningAgent(Agent):
     def init_internal(self, actions):
         self.actions = actions
 
-        # Add all actions to the variables
-        self.variables = deepcopy(self.actions)
+        # Add all actions to the variables, with functions stripped.
+        # actions = {name: (function, {name: [value]})}
+        # variables = {name: {name: [value]}}
+
+        for action in self.actions:
+            self.variables[action] = self.actions[action][1]
 
     def sense(self, observation):
         # Simply store the information to use later.
@@ -100,7 +106,7 @@ class CausalLearningAgent(Agent):
 
         # Get the causal network for the observations.
         # TODO: How to get the variables? Take all actions and observations for now
-        net = self.__learn_causality(self.variables)
+        net = self.__learn_causality(self.variables.keys())
         # Find the action that would create the optimal reward.
         # TODO: Where is the reward?
         # For now:
