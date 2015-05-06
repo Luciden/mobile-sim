@@ -4,6 +4,10 @@ __author__ = 'Dennis'
 class Graph(object):
     # TODO(Dennis): Make more efficient. (Store edges symmetrically?)
     """
+    Attributes
+    ----------
+    nodes : [name]
+    edges : (name, tag, name, tag)
     """
     def __init__(self):
         self.nodes = []
@@ -38,10 +42,14 @@ class Graph(object):
         self.empty()
         self.nodes = variables
 
-        for a in range(len(self.nodes)):
-            for b in range(a+1, len(self.nodes)):
-                edge = (self.nodes[a], "", self.nodes[b], "")
-                self.edges.append(edge)
+        n = len(self.nodes)
+
+        if n <= 1:
+            return
+
+        for a in range(n - 1):
+            for b in range(a+1, n):
+                self.add_edge(self.nodes[a], self.nodes[b])
 
     def are_adjacent(self, a, b):
         for e in self.edges:

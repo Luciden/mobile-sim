@@ -157,7 +157,6 @@ class CausalLearningAgent(Agent):
             for b in variables[i_a + 1:]:
                 # Calculate P(A)
                 p_a = self.__calculate_joint([a])
-                p_a = self.__calculate_joint([a])
 
                 # Calculate P(B)
                 p_b = self.__calculate_joint([b])
@@ -182,7 +181,6 @@ class CausalLearningAgent(Agent):
         # Get all pairs of nodes connected by an edge
         for (u, v) in c.get_pairs():
             # Get all nodes connected to one of either nodes
-            # TODO: Implement.
             ts = set(c.get_connected(u) + c.get_connected(v))
 
             found = False
@@ -193,7 +191,7 @@ class CausalLearningAgent(Agent):
                 p_t = self.__calculate_joint([t])
                 p_ut = self.__calculate_joint([u, t])
                 p_vt = self.__calculate_joint([v, t])
-                p_uvt = self.__.calculate_joint([u, v, t])
+                p_uvt = self.__calculate_joint([u, v, t])
 
                 if CausalLearningAgent.check_independence_conditional([u, v, t],
                                                                       p_uvt, p_ut, p_vt, p_t):
@@ -331,9 +329,9 @@ class CausalLearningAgent(Agent):
                         p_by = by.prob(s_by)
                         p_y = y.prob(s_y)
 
-                    # When the probabilities are not 'equal'
-                    if abs(p_aby / p_y - (p_ay / p_y) * (p_by / p_y)) > 1e-6:
-                        return False
+                        # When the probabilities are not 'equal'
+                        if abs(p_aby / p_y - (p_ay / p_y) * (p_by / p_y)) > 1e-6:
+                            return False
         return True
 
     def __variables_from_names(self, names):
