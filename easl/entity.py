@@ -74,7 +74,7 @@ class Entity(object):
         if self.agent is not None:
             self.agent.init_internal(deepcopy(self.actions))
 
-    def __try_change(self, attribute, value):
+    def try_change(self, attribute, value):
         """
         Checks to see if setting the specified attribute's value is different from the
         current value, sets the attribute and notifies.
@@ -90,9 +90,10 @@ class Entity(object):
         if self.a[attribute] != value:
             old = self.a[attribute]
             self.a[attribute] = value
+
             # Call the event for this change
             e, params = self.events[attribute](old, value)
-            self.event_queue.append(attribute, e, params)
+            self.event_queue.append((attribute, e, params))
 
             return True
         return False
@@ -107,6 +108,7 @@ class Entity(object):
         """
         if self.agent is None:
             self.action_queue = []
+            return
 
         # pass all observations to agent and have it convert to internal representation
         for observation in self.observations:
@@ -188,7 +190,7 @@ class Entity(object):
         Pass all the queued signals so far and clear the queue.
         """
         signals = self.signal_queue
-        self.signal_queue = {}
+        self.signal_queue = []
 
         return signals
 

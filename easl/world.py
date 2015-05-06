@@ -237,7 +237,7 @@ class World(object):
         Executes all actions
         """
         for entity in self.entities:
-            entity.execute_actions()
+            self.entities[entity].execute_actions()
 
     def __trigger_events(self):
         for cause in self.entities:
