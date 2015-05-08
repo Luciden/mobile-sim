@@ -85,6 +85,7 @@ class CausalLearningAgent(Agent):
         data : Data
         actions : {name: {name: [value]}}
         default_actions : {name: {name: value}}
+        default_signals : {name: value}
         network : Graph
         observations : {name: value}
         variables : {name: {name: [value]}}
@@ -96,7 +97,9 @@ class CausalLearningAgent(Agent):
         self.data = Data()
 
         self.actions = {}
+        self.signals = {}
         self.default_actions = {}
+        self.default_signals = {}
         self.observations = {}
 
         self.variables = {}
@@ -121,7 +124,14 @@ class CausalLearningAgent(Agent):
         # Get possible sensed signals
         signals = {}
         for sensor in entity.sensors:
-            signals.update(sensor.signals)
+            s = {}
+            for signal in sensor.signals:
+                s[signal] = {"value": sensor.signals[signal]}
+
+            signals.update(s)
+
+            self.signals.update(sensor.signals)
+            self.default_signals.update(sensor.default_signals)
 
         # Add all together into variables
         self.variables.update(attributes)
@@ -165,6 +175,8 @@ class CausalLearningAgent(Agent):
                 if variable in self.actions:
                     # Find the default action.
                     self.observations[variable] = self.default_actions[variable]
+                elif variable in self.signals:
+                    self.observations[variable] = {"value": self.default_signals[variable]}
                 else:
                     raise RuntimeError("Variable {0} not in observation".format(variable))
 

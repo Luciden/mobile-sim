@@ -28,6 +28,7 @@ def relative_direction(self, direction, attribute):
 class SightSensor(Sensor):
     def init(self):
         self.signals.update({"movement": [True, False]})
+        self.default_signals.update({"movement": False})
 
     def detects_modality(self, modality):
         return modality == "sight"
