@@ -23,79 +23,131 @@ class Table(object):
         self.order = [var for var in self.variables.keys()]
         self.last = self.order.pop()
 
-        self.table = self.__make_table_rec(self.order)
+        # {name: []}
+        self.parameter_order = {}
+        # {name: name}
+        self.parameter_last = {}
+        for variable in self.variables:
+            self.parameter_order[variable] = []
+            self.parameter_order[variable] = [par for par in self.variables[variable].keys()]
+            self.parameter_last[variable] = self.parameter_order[variable].pop()
+
+        self.table = self.__make_table_rec(self.order, None)
         print self.table
 
-    def __make_table_rec(self, order):
-        # TODO: Only actions with a single parameter are taken into account here.
-        # To include multiple parameters, have to create orders within variable order.
-        # I.e. for every variable determine what the order of parameters is.
+    def __make_table_rec(self, order, p_order):
+        """
+        Parameters
+        ----------
+        p_order : [name]
+            Set to the list of orders for the current variable.
+        """
         # make the full joint of the provided variables by making a tree of
         # variable name/value dicts and storing the probabilities at the end.
+        # When a new variable was chosen and we have to get the parameter order
+        if p_order is None:
+            # When we are not yet at the last variable
+            if len(order) > 0:
+                # Take the parameter order of the next variable
+                p_order = self.parameter_order[order[0]]
+            # When we are at the last variable
+            else:
+                # Take the parameter order of the last variable
+                p_order = self.parameter_order[self.last]
+
         if len(order) == 0:
-            values = {}
-            # self.variables[self.last] : {name: [value]}
-            names = self.variables[self.last]
-            # For every parameter
-            for name in names:
-                # For every value
-                for v in names[name]:
-                    # Create a place to store the number
-                    values[v] = 0
-            return values
+            # If at the last parameter of the last variable
+            if len(p_order) == 0:
+                # Create the holders for the counts for all parameter values
+                counts = {}
+
+                # For all values of this last parameter
+                for value in self.variables[self.last][self.parameter_last[self.last]]:
+                    counts[value] = 0
+
+                return counts
+            # If this is not yet the last parameter
+            else:
+                current = {}
+
+                for value in self.variables[self.last][p_order[0]]:
+                    current[value] = self.__make_table_rec(order, p_order[1:])
+
+                return current
+        # When there is still variables to expand
         else:
-            current = {}
+            if len(p_order) == 0:
+                current = {}
 
-            for value in self.variables[order[0]]:
-                current[value] = self.__make_table_rec(order[1:])
+                for value in self.variables[order[0]][self.parameter_last[order[0]]]:
+                    # Expand the next variable and choose the appropriate p_order
+                    current[value] = self.__make_table_rec(order[1:], None)
 
-            return current
+                return current
+            # Still parameters to expand
+            else:
+                current = {}
+
+                for value in self.variables[order[0]][p_order[0]]:
+                    current[value] = self.__make_table_rec(order, p_order[1:])
+
+                return current
 
     def set_value(self, vals, value):
         """
-
         Parameters
         ----------
-        vals : dict
-            pairs of variable name/value. should contain all variables in the
-            distribution.
-        p : number
-            probability of the situation
+        vals : {name: {name: value}}
+        value : value
         """
         current = self.table
-        for name in self.order:
-            current = current[vals[name]]
 
-        current[vals[self.last]] = value
+        for name in self.order:
+            for param in self.parameter_order[name]:
+                current = current[vals[name][param]]
+            current = current[vals[name][self.parameter_last[name]]]
+
+        for param in self.parameter_order[self.last]:
+            current = current[vals[self.last][param]]
+
+        current[vals[self.last][self.parameter_last[self.last]]] = value
 
     def inc_value(self, vals):
         """
         Parameters
         ----------
-        vals :
+        vals : {name: value}
         """
         # Go down the path taking the turn appropriate for the value in the
         # entry.
         # Then increment.
         current = self.table
-        for name in self.order:
-            current = current[vals[name]]
 
-        current[vals[self.last]] += 1
+        # Go through the variables
+        for name in self.order:
+            for param in self.parameter_order[name]:
+                current = current[vals[name][param]]
+            # Take the last parameter into account for every variable
+            current = current[vals[name][self.parameter_last[name]]]
+
+        # Go through the last variable's parameters
+        for param in self.parameter_order[self.last]:
+            current = current[vals[self.last][param]]
+
+        current[vals[self.last][self.parameter_last[self.last]]] += 1
 
     def get_value(self, vals):
-        """
-
-        Parameters
-        ----------
-        vals : dict
-            pairs of variable name/value
-        """
         current = self.table
-        for name in self.order:
-            current = current[vals[name]]
 
-        return current[vals[self.last]]
+        for name in self.order:
+            for param in self.parameter_order[name]:
+                current = current[vals[name][param]]
+            current = current[vals[name][self.parameter_last[name]]]
+
+        for param in self.parameter_order[self.last]:
+            current = current[vals[self.last][param]]
+
+        return current[vals[self.last][self.parameter_last[self.last]]]
 
     def do_operation(self, f):
         """

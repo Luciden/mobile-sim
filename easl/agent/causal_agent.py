@@ -150,7 +150,8 @@ class CausalLearningAgent(Agent):
         observation : (name, value)
         """
         # Simply store the information to use later.
-        self.observations[observation[0]] = observation[1]
+        # TODO: Fix
+        self.observations.update(observation)
 
     def act(self):
         # TODO: Implement.
