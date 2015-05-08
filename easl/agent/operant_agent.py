@@ -359,6 +359,7 @@ class Reinforcer(object):
         return deepcopy(self.predictors)
 
     def create_predictor(self):
+        print "creating predictor"
         self.predictors += self.__create_predictor()
 
     def remove_predictor(self, predictor):
@@ -421,15 +422,12 @@ class Reinforcer(object):
 
 
 class OperantConditioningAgent(Agent):
-    # TODO(Dennis): Implement.
+    # TODO(Dennis): Debug. Something seems to go wrong with making predictors.
     """
     Uses operant conditioning based learning.
 
     Primary reinforcers can reinforce behavior without the animal having had
     any prior experience with them (e.g., food, water).
-
-    Needs
-     - link between action predicates and actual actions
 
     References
     ----------
@@ -464,7 +462,7 @@ class OperantConditioningAgent(Agent):
         self.reinforcers = []
 
         # TODO(Question): What to set this threshold as?
-        self._DEMERIT_THRESHOLD = 2
+        self._DEMERIT_THRESHOLD = 1000
 
     def init_internal(self, actions):
         self.actions = actions
@@ -488,7 +486,6 @@ class OperantConditioningAgent(Agent):
         #  At that point, the program can check candidate predictors against its
         #  working memory, so that it only constructs predictors that would have
         #  predicted the reward it just got."
-        # TODO: generate when reinforcers have been received
         self.__create_predictors()
         self.__delete_predictors()
 
@@ -513,7 +510,6 @@ class OperantConditioningAgent(Agent):
         self.observations = []
 
     def __update_reinforcer_counts(self):
-        # TODO: Implement.
         observed = self.memory.get_of_age(0)
 
         # increment all reinforcer/conjunction occurrences for the new
@@ -638,6 +634,7 @@ class OperantConditioningAgent(Agent):
 
         # Check if there were any incomplete predictors
         for predicate in self.memory.get_of_age(0):
+            print "checking"
             if self.__has_acquired_reinforcer(predicate):
                 reinforcer = self.__get_reinforcer(predicate)
                 reinforced.append(reinforcer)
@@ -752,7 +749,6 @@ class OperantConditioningAgent(Agent):
             for predictor in reinforcer.get_predictors():
                 # if there is a sensory predicate that is not already a
                 # reinforcer, add the reinforcer.
-
                 for sensory in predictor.get_sensory_predicates():
                     if not self.__has_acquired_reinforcer(sensory):
                         self.reinforcers.append(sensory)
@@ -784,8 +780,11 @@ class OperantConditioningAgent(Agent):
 
         # TODO: Store matches (tag mappings) together with predictors, to later check actions.
         for reinforcer in self.reinforcers:
+            print "reinforcer"
             for predictor in reinforcer.predictors:
+                print "predictor"
                 if self.memory.is_match(predictor):
+                    print "match"
                     matches.append(predictor)
 
         # If all sensory predicates in a predictor are true (match items in

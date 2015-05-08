@@ -1,7 +1,5 @@
 __author__ = 'Dennis'
 
-import csv
-
 
 class Sensor(object):
     def __init__(self):
@@ -25,56 +23,18 @@ class Sensor(object):
 class Signal(object):
     def __init__(self, modality=None, sig_type=None, value=None):
         """
-        Attributes:
-            modality: string describing the modality that this signal is for
-            type: string describing the type of signal this is; an abstract
-                description
-            value: any value associated with the signal
+        Attributes
+        ----------
+        modality : string
+            Describes the modality that this signal is in.
+        type : string
+            An abstract description of what this signal represents.
+        value : value
+            The value associated with the type
         """
         self.modality = modality
         self.sig_type = sig_type
         self.value = value
-
-
-class Log(object):
-    """
-    Simple log that contains all experiment information (actions, observations).
-
-    Time based. Logs for every time step what happened.
-
-    Can (not yet) be read from/to files etc.
-    """
-    # TODO: How to get information from Agent? Make local Log?
-    def __init__(self, fname=None):
-        self.log = []
-        self.verbose = False
-
-        if fname is not None:
-            self.__from_file(fname)
-
-    def set_verbose(self):
-        self.verbose = True
-
-    def add_entry(self, time, kind, data):
-        self.log.append([time, kind, data])
-
-    def write_file(self, name):
-        f = open(name, 'wt')
-        try:
-            writer = csv.writer(f)
-            for entry in self.log:
-                writer.writerow(entry)
-        finally:
-            f.close()
-
-    def __from_file(self, name):
-        f = open(name, 'rt')
-        try:
-            reader = csv.reader(f)
-            for row in reader:
-                self.log.append(tuple(row))
-        finally:
-            f.close()
 
 
 class World(object):
@@ -109,7 +69,6 @@ class World(object):
     time
     log
     """
-    # TODO: Redesign event system, including area(?) of effect.
     def __init__(self):
         self.entities = {}
 

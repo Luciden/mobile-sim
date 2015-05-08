@@ -4,9 +4,7 @@ Containing the experiment based on the mobile experiment.
 import functools
 
 from easl import *
-from easl.agent import RandomAgent
-from easl.agent import OperantConditioningAgent
-from easl.agent import CausalLearningAgent
+from easl.agent import *
 
 
 def calc_direction(a, b):
@@ -51,7 +49,7 @@ if __name__ == '__main__':
     infant.add_attribute("right-foot-position", "down", move)
 
     def new_position(position, direction):
-        if direction == "up" and position == "up" or direction == "down" and position == "down":
+        if direction == "still" or direction == "up" and position == "up" or direction == "down" and position == "down":
             # Already at maximum, so nothing changes
             return position
         elif direction == "up":
@@ -68,19 +66,19 @@ if __name__ == '__main__':
         raise RuntimeError("Unhandled movement {1} from {0}.".format(position, direction))
 
     infant.add_action("left-hand",
-                      {"direction": ["up", "down"]},
+                      {"direction": ["up", "still", "down"]},
                       functools.partial(relative_direction, attribute="left-hand-position"))
 
     infant.add_action("right-hand",
-                      {"direction": ["up", "down"]},
+                      {"direction": ["up", "still", "down"]},
                       functools.partial(relative_direction, attribute="right-hand-position"))
 
     infant.add_action("left-foot",
-                      {"direction": ["up", "down"]},
+                      {"direction": ["up", "still", "down"]},
                       functools.partial(relative_direction, attribute="left-foot-position"))
 
     infant.add_action("right-foot",
-                      {"direction": ["up", "down"]},
+                      {"direction": ["up", "still", "down"]},
                       functools.partial(relative_direction, attribute="right-foot-position"))
 
     infant.add_sensor(SightSensor())

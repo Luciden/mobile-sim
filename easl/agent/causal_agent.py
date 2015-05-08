@@ -1,7 +1,5 @@
 __author__ = 'Dennis'
 
-from copy import deepcopy
-
 import easl.utils
 from agent import Agent
 
@@ -118,6 +116,10 @@ class CausalLearningAgent(Agent):
         """
         Takes the observations in this time step and stores them in the database.
         """
+        # TODO: What is representation of observations?
+        # TODO: Give all attributes as observations (on Entity level).
+        # Take all observations from senses
+        # And all feedback from own attributes
         self.data.add_entry(dict(self.observations))
         self.observations = []
 

@@ -39,4 +39,5 @@ class RandomAgent(Agent):
         for p in parameters:
             params[p] = random.choice(parameters[p])
 
+        print action, params
         return [(action, params)]
