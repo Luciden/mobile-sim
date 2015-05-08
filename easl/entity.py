@@ -40,6 +40,9 @@ class Entity(object):
         All possible actions identified by their name, with the function that
         describes how its parameters influence the internal state, and
         parameter names with a list/generator of all possible values.
+    default_actions : {name: {name: value}}
+        A default action that is considered to be equivalent to the absence
+        of the action.
     events : {name: function(old, new)}
         Specifies for every attribute what events it triggers when it changes.
         The functions return an event.
@@ -65,6 +68,7 @@ class Entity(object):
         self.emission = lambda x: []
 
         self.actions = {}
+        self.default_actions = {}
 
         self.events = {}
         self.triggers = {}
@@ -172,7 +176,7 @@ class Entity(object):
         self.attribute_values[name] = values
         self.events[name] = event
 
-    def add_action(self, name, parameters, f):
+    def add_action(self, name, parameters, default, f):
         """
         Adds an action to the possible actions.
 
@@ -189,6 +193,7 @@ class Entity(object):
             callback that is called for an entity when the action is performed
         """
         self.actions[name] = (f, parameters)
+        self.default_actions[name] = default
 
     def add_sensor(self, sensor):
         sensor.set_observations(self.observations)

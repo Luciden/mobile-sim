@@ -82,6 +82,9 @@ class CausalLearningAgent(Agent):
         """
         Attributes
         ----------
+        data : Data
+        actions : {name: {name: [value]}}
+        default_actions : {name: {name: value}}
         network : Graph
         observations : {name: value}
         variables : {name: {name: [value]}}
@@ -92,7 +95,8 @@ class CausalLearningAgent(Agent):
 
         self.data = Data()
 
-        self.actions = []
+        self.actions = {}
+        self.default_actions = {}
         self.observations = {}
 
         self.variables = {}
@@ -105,12 +109,14 @@ class CausalLearningAgent(Agent):
             attributes[attribute] = {"value": entity.attribute_values[attribute]}
 
         # Get actions with possible values
-        # TODO: Maybe rewrite without using self.variables?
-        self.actions = entity.actions
+        actions = {}
         # actions = {name: (function, {name: [value]})}
         # variables = {name: {name: [value]}}
-        for action in self.actions:
-            self.variables[action] = self.actions[action][1]
+        for action in entity.actions:
+            actions[action] = entity.actions[action][1]
+
+        self.actions = actions
+        self.default_actions = entity.default_actions
 
         # Get possible sensed signals
         signals = {}
@@ -119,6 +125,7 @@ class CausalLearningAgent(Agent):
 
         # Add all together into variables
         self.variables.update(attributes)
+        self.variables.update(actions)
         self.variables.update(signals)
 
     def sense(self, observation):
@@ -148,9 +155,19 @@ class CausalLearningAgent(Agent):
     def __store_observations(self):
         """
         Takes the observations in this time step and stores them in the database.
+
+        Makes sure all variables under consideration are present.
         """
         # Take all observations from senses
         # And all feedback from own attributes
+        for variable in self.variables:
+            if variable not in self.observations:
+                if variable in self.actions:
+                    # Find the default action.
+                    self.observations[variable] = self.default_actions[variable]
+                else:
+                    raise RuntimeError("Variable {0} not in observation".format(variable))
+
         self.data.add_entry(self.observations)
         self.observations = {}
 

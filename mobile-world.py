@@ -70,18 +70,22 @@ if __name__ == '__main__':
 
     infant.add_action("left-hand",
                       {"direction": ["up", "still", "down"]},
+                      {"direction": "still"},
                       functools.partial(relative_direction, attribute="left-hand-position"))
 
     infant.add_action("right-hand",
                       {"direction": ["up", "still", "down"]},
+                      {"direction": "still"},
                       functools.partial(relative_direction, attribute="right-hand-position"))
 
     infant.add_action("left-foot",
                       {"direction": ["up", "still", "down"]},
+                      {"direction": "still"},
                       functools.partial(relative_direction, attribute="left-foot-position"))
 
     infant.add_action("right-foot",
                       {"direction": ["up", "still", "down"]},
+                      {"direction": "still"},
                       functools.partial(relative_direction, attribute="right-foot-position"))
 
     infant.add_sensor(SightSensor())
