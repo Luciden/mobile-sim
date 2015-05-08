@@ -242,7 +242,7 @@ class CausalLearningAgent(Agent):
                 p_ab = self.__calculate_joint([a, b])
 
                 # Check for independence by checking P(A & B) = P(A) * P(B)
-                if CausalLearningAgent.check_independence(p_a, p_b, p_ab):
+                if CausalLearningAgent.check_independence((a, b), p_a, p_b, p_ab):
                     c.del_edge(a, b)
 
         # 3. For each pair U, V of variables connected by an edge,
@@ -342,6 +342,11 @@ class CausalLearningAgent(Agent):
     def check_independence(names, a, b, ab):
         """
         Checks the distributions according to P(A & B) = P(A) * P(B)
+
+        Parameters
+        ----------
+        names : (string, string)
+            Names for variable A and B respectively.
 
         Returns
         -------
