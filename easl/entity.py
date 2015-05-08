@@ -26,6 +26,8 @@ class Entity(object):
     log : Log
     attributes : {name: value}
         physical representation of the Entity
+    attribute_values : {name: []}
+        List of possible values for every attribute.
     sensors : [Sensor]
     observations : {name: value}
     physics : function
@@ -56,6 +58,7 @@ class Entity(object):
 
         self.attributes = {}
         self.a = self.attributes
+        self.attribute_values = {}
         self.sensors = []
         self.observations = {}
         self.physics = lambda x: None
@@ -76,7 +79,7 @@ class Entity(object):
         Called when the experiment starts.
         """
         if self.agent is not None:
-            self.agent.init_internal(self.actions)
+            self.agent.init_internal(self)
 
     def try_change(self, attribute, value):
         """
@@ -140,13 +143,19 @@ class Entity(object):
             self.log.do_log("observation",
                             {"entity": self.name, "observation": observation, "value": self.observations[observation]})
 
-            self.agent.sense(observation, self.observations[observation])
+            self.agent.sense((observation, self.observations[observation]))
         self.observations = {}
+
+        # Also add internal representation as observations
+        for observation in self.attributes:
+            self.log.do_log("observation",
+                            {"entity": self.name, "observation": observation, "value": self.attributes[observation]})
+            self.agent.sense((observation, self.attributes[observation]))
 
         # ask agent to give actions
         self.action_queue = self.agent.act()
 
-    def add_attribute(self, name, initial_value, event):
+    def add_attribute(self, name, initial_value, values, event):
         """
         Parameters
         ----------
@@ -160,6 +169,7 @@ class Entity(object):
             event, i.e. a name and value pair.
         """
         self.attributes[name] = initial_value
+        self.attribute_values[name] = values
         self.events[name] = event
 
     def add_action(self, name, parameters, f):
@@ -214,13 +224,17 @@ class Entity(object):
             self.actions[name][0](**parameters)
 
     def emit_signals(self):
-        self.signal_queue += self.emission(self)
+        emitting = self.emission(self)
+        for signal in emitting:
+            self.log.do_log("emission", {"entity": self.name, "signal": signal})
+
+            self.signal_queue.append(signal)
 
     def get_queued_signals(self):
         """
         Pass all the queued signals so far and clear the queue.
         """
-        signals = self.signal_queue
+        signals = copy(self.signal_queue)
         self.signal_queue = []
 
         return signals

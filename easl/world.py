@@ -6,6 +6,16 @@ from log import Log
 class Sensor(object):
     def __init__(self):
         self.observations = None
+        self.signals = {}
+
+        self.init()
+
+    def init(self):
+        """
+        Used to specify the signals and signal values that this Sensor can
+        sense.
+        """
+        raise NotImplementedError()
 
     def set_observations(self, observations):
         """
@@ -23,7 +33,7 @@ class Sensor(object):
 
 
 class Signal(object):
-    def __init__(self, modality=None, sig_type=None, value=None):
+    def __init__(self, modality, sig_type, value, values):
         """
         Attributes
         ----------
@@ -33,10 +43,13 @@ class Signal(object):
             An abstract description of what this signal represents.
         value : value
             The value associated with the type
+        values : []
+            All possible values this signal can have.
         """
         self.modality = modality
         self.sig_type = sig_type
         self.value = value
+        self.values = values
 
 
 class World(object):
@@ -152,15 +165,13 @@ class World(object):
             for signal in self.entities[sender].get_queued_signals():
                 for receiver in self.entities:
                     for sensor in self.entities[receiver].sensors:
-                        if not sensor.detects_modality(signal.modality):
-                            continue
-
-                        self.signals.append((sensor, signal))
+                        if sensor.detects_modality(signal.modality):
+                            self.signals.append((sensor, signal))
 
     def __send_signals(self):
         while len(self.signals) > 0:
             n = self.signals.pop(0)
-            n.sensor.notify(n.signal)
+            n[0].notify(n[1])
 
     def __queue_actions(self):
         """

@@ -16,7 +16,7 @@ class Agent(object):
     def set_log(self, log):
         self.log = log
 
-    def init_internal(self, actions):
+    def init_internal(self, entity):
         """
         Called at the beginning of simulation to initialize internal representation.
 
@@ -24,8 +24,7 @@ class Agent(object):
 
         Parameters
         ----------
-        actions : {string:[]}
-            lists the possible actions and respective possible parameters
+        entity : Entity
         """
         raise NotImplementedError("Hmm.")
 

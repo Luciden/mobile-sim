@@ -1,23 +1,28 @@
 __author__ = 'Dennis'
 
+from copy import copy
+
 import easl.utils
 from agent import Agent
 
 
 class Data(object):
+    """
+    Stores all previous observations.
+    """
     def __init__(self):
         """
-
         Attributes
         ----------
-        entries : list
+        entries : [{name: value}]
             list of dictionaries of variable name/value pairs
         """
         self.entries = []
 
     def add_entry(self, vals):
-        # TODO: Assumes all variables have their value given.
+        # TODO: An entry can be a subset of all variables.
         # TODO: How to deal with incomplete observations? On Agent level? I guess
+        # TODO: Assume that all variables are observed.
         self.entries.append(vals)
 
     def calculate_joint(self, variables):
@@ -74,28 +79,56 @@ class CausalLearningAgent(Agent):
     """
 
     def __init__(self):
+        """
+        Attributes
+        ----------
+        network : Graph
+        observations : {name: value}
+        variables : {name: {name: [value]}}
+        """
+        # TODO: Make sure variables has all variable names/values that will be be observed.
+        # TODO: Make sure that all variables always have values assigned when sensed.
         super(CausalLearningAgent, self).__init__()
 
         self.data = Data()
 
         self.actions = []
-        self.observations = []
+        self.observations = {}
 
         self.variables = {}
+        self.network = None
 
-    def init_internal(self, actions):
-        self.actions = actions
+    def init_internal(self, entity):
+        # Get attributes with possible values
+        attributes = copy(entity.attributes)
+        for attribute in attributes:
+            attributes[attribute] = {"value": entity.attribute_values[attribute]}
 
-        # Add all actions to the variables, with functions stripped.
+        # Get actions with possible values
+        # TODO: Maybe rewrite without using self.variables?
+        self.actions = entity.actions
         # actions = {name: (function, {name: [value]})}
         # variables = {name: {name: [value]}}
-
         for action in self.actions:
             self.variables[action] = self.actions[action][1]
 
+        # Get possible sensed signals
+        signals = {}
+        for sensor in entity.sensors:
+            signals.update(sensor.signals)
+
+        # Add all together into variables
+        self.variables.update(attributes)
+        self.variables.update(signals)
+
     def sense(self, observation):
+        """
+        Parameters
+        ----------
+        observation : (name, value)
+        """
         # Simply store the information to use later.
-        self.observations.append(observation)
+        self.observations[observation[0]] = observation[1]
 
     def act(self):
         # TODO: Implement.
@@ -104,7 +137,7 @@ class CausalLearningAgent(Agent):
 
         # Get the causal network for the observations.
         # TODO: How to get the variables? Take all actions and observations for now
-        net = self.__learn_causality(self.variables.keys())
+        self.network = self.__learn_causality(self.variables.keys())
         # Find the action that would create the optimal reward.
         # TODO: Where is the reward?
         # For now:
@@ -116,12 +149,10 @@ class CausalLearningAgent(Agent):
         """
         Takes the observations in this time step and stores them in the database.
         """
-        # TODO: What is representation of observations?
-        # TODO: Give all attributes as observations (on Entity level).
         # Take all observations from senses
         # And all feedback from own attributes
-        self.data.add_entry(dict(self.observations))
-        self.observations = []
+        self.data.add_entry(self.observations)
+        self.observations = {}
 
     def __learn_causality(self, variables):
         """

@@ -464,8 +464,8 @@ class OperantConditioningAgent(Agent):
         # TODO(Question): What to set this threshold as?
         self._DEMERIT_THRESHOLD = 1000
 
-    def init_internal(self, actions):
-        self.actions = actions
+    def init_internal(self, entity):
+        self.actions = entity.actions
 
     def sense(self, observation):
         # Store observations for later conversion

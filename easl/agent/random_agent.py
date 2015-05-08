@@ -16,8 +16,8 @@ class RandomAgent(Agent):
 
         self.actions = {}
 
-    def init_internal(self, actions):
-        self.actions = actions
+    def init_internal(self, entity):
+        self.actions = entity.actions
 
     def sense(self, observation):
         # Not necessary since this Agent only acts.

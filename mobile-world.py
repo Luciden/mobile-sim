@@ -26,6 +26,9 @@ def relative_direction(self, direction, attribute):
 
 
 class SightSensor(Sensor):
+    def init(self):
+        self.signals.update({"movement": [True, False]})
+
     def detects_modality(self, modality):
         return modality == "sight"
 
@@ -35,18 +38,18 @@ class SightSensor(Sensor):
 
 if __name__ == '__main__':
     infant = Entity("infant")
-    infant.set_agent(RandomAgent())
+    #infant.set_agent(RandomAgent())
     #infant.set_agent(OperantConditioningAgent())
     #infant.agent.set_primary_reinforcer("movement", {"value": True})
-    #infant.set_agent(CausalLearningAgent())
+    infant.set_agent(CausalLearningAgent())
 
     def move(old, new):
         return "movement", {"direction": calc_direction(old, new)}
 
-    infant.add_attribute("left-hand-position", "down", move)
-    infant.add_attribute("right-hand-position", "down", move)
-    infant.add_attribute("left-foot-position", "down", move)
-    infant.add_attribute("right-foot-position", "down", move)
+    infant.add_attribute("left-hand-position", "down", ["down", "middle", "up"], move)
+    infant.add_attribute("right-hand-position", "down", ["down", "middle", "up"], move)
+    infant.add_attribute("left-foot-position", "down", ["down", "middle", "up"], move)
+    infant.add_attribute("right-foot-position", "down", ["down", "middle", "up"], move)
 
     def new_position(position, direction):
         if direction == "still" or direction == "up" and position == "up" or direction == "down" and position == "down":
@@ -87,18 +90,26 @@ if __name__ == '__main__':
 
     def swing(self):
         speed = self.a["speed"]
-        if 0 < speed <= 30:
+        if 0 < speed <= 10:
             self.try_change("speed", speed - 1)
-        if speed > 30:
-            self.try_change("speed", 30)
+        if speed > 10:
+            self.try_change("speed", 10)
 
     def moved(self, direction):
-        self.a["speed"] += 10
+        self.a["speed"] += 30
 
-    mobile.add_attribute("speed", 0, lambda old, new: None)
+    def movement_emission(self):
+        s = []
+        if self.a["speed"] > 0:
+            s.append(Signal("sight", "movement", True, [True, False]))
+
+        return s
+
+    mobile.add_attribute("speed", 0, range(0, 10), lambda old, new: None)
     mobile.set_physics(swing)
 
     mobile.add_trigger("movement", moved)
+    mobile.set_emission(movement_emission)
 
     world = World()
     world.add_entity(infant)

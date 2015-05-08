@@ -11,7 +11,7 @@ def lamp_physics(self):
 def lamp_emission(self):
     s = []
     if self.a["on"]:
-        s.append(Signal("sight", "light", 1))
+        s.append(Signal("sight", "light", 1, [0, 1]))
 
     return s
 
