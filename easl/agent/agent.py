@@ -11,7 +11,10 @@ class Agent(object):
     Need some kind of time representation.
     """
     def __init__(self):
-        pass
+        self.log = None
+
+    def set_log(self, log):
+        self.log = log
 
     def init_internal(self, actions):
         """

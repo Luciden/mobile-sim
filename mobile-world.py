@@ -34,7 +34,7 @@ class SightSensor(Sensor):
             self.observations["movement"] = True
 
 if __name__ == '__main__':
-    infant = Entity()
+    infant = Entity("infant")
     infant.set_agent(RandomAgent())
     #infant.set_agent(OperantConditioningAgent())
     #infant.agent.set_primary_reinforcer("movement", {"value": True})
@@ -83,7 +83,7 @@ if __name__ == '__main__':
 
     infant.add_sensor(SightSensor())
 
-    mobile = Entity()
+    mobile = Entity("mobile")
 
     def swing(self):
         speed = self.a["speed"]
@@ -101,8 +101,8 @@ if __name__ == '__main__':
     mobile.add_trigger("movement", moved)
 
     world = World()
-    world.add_entity("infant", infant)
-    world.add_entity("mobile", mobile)
+    world.add_entity(infant)
+    world.add_entity(mobile)
     world.set_area_of_effect("infant", "right-foot-position", "movement", "mobile")
 
     world.run(10)

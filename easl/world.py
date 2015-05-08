@@ -1,5 +1,7 @@
 __author__ = 'Dennis'
 
+from log import Log
+
 
 class Sensor(object):
     def __init__(self):
@@ -91,12 +93,13 @@ class World(object):
 
         # Initialize initial states of all entities, including agents
         for e in self.entities:
+            self.entities[e].set_log(self.log)
             self.entities[e].start()
 
         for i in range(iterations):
             self.time = i
+            self.log.time_tick(i)
 
-            print "step " + str(i)
             self.__do_physics()
 
             self.__queue_signals()
@@ -107,12 +110,12 @@ class World(object):
 
             self.__trigger_events()
 
-            self.print_state()
+            self.__measure_entities()
 
         self.log.write_file("log.csv")
 
-    def add_entity(self, name, entity):
-        self.entities[name] = entity
+    def add_entity(self, entity):
+        self.entities[entity.name] = entity
 
     def set_area_of_effect(self, causing, attribute, event, affected):
         """
@@ -189,8 +192,9 @@ class World(object):
                     if causer == cause and causer_attribute == attribute and caused_event == event:
                         self.entities[affected].call_trigger(event, params)
 
-    def print_state(self):
-        # Show all individual entity's state
+    def __measure_entities(self):
+        """
+        Logs all entities' attributes to be used for analysis.
+        """
         for entity in self.entities:
-            print entity
-            print self.entities[entity].print_state()
+            self.entities[entity].measure()

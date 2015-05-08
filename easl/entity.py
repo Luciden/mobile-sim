@@ -1,6 +1,6 @@
 __author__ = 'Dennis'
 
-from copy import deepcopy
+from copy import copy
 
 
 class Entity(object):
@@ -23,6 +23,7 @@ class Entity(object):
 
     Attributes
     ----------
+    log : Log
     attributes : {name: value}
         physical representation of the Entity
     sensors : [Sensor]
@@ -49,7 +50,10 @@ class Entity(object):
         All action/parameter pairs that are queued to be executed.
         Both name and its parameter name/value pairs are provided.
     """
-    def __init__(self, agent=None):
+    def __init__(self, name, agent=None):
+        self.log = None
+        self.name = name
+
         self.attributes = {}
         self.a = self.attributes
         self.sensors = []
@@ -79,6 +83,11 @@ class Entity(object):
         Checks to see if setting the specified attribute's value is different from the
         current value, sets the attribute and notifies.
 
+        Parameters
+        ----------
+        attribute : string
+        value : value
+
         Returns
         -------
         bool
@@ -93,12 +102,25 @@ class Entity(object):
 
             # Call the event for this change
             event = self.events[attribute](old, value)
+            self.log.do_log("event", {"name": self.name, "attribute": attribute, "old": old, "new": value})
+
             if event is not None:
                 e, params = event
                 self.event_queue.append((attribute, e, params))
 
             return True
         return False
+
+    def set_log(self, log):
+        """
+        Parameters
+        ----------
+        log : Log
+            Log to use.
+        """
+        self.log = log
+        if self.agent is not None:
+            self.agent.set_log(log)
 
     def queue_actions(self):
         """
@@ -114,6 +136,10 @@ class Entity(object):
 
         # pass all observations to agent and have it convert to internal representation
         for observation in self.observations:
+            print "x"
+            self.log.do_log("observation",
+                            {"entity": self.name, "observation": observation, "value": self.observations[observation]})
+
             self.agent.sense(observation, self.observations[observation])
         self.observations = {}
 
@@ -181,6 +207,9 @@ class Entity(object):
         """
         while len(self.action_queue) > 0:
             name, parameters = self.action_queue.pop(0)
+
+            self.log.do_log("action", {"entity": self.name, "name": name, "parameters": parameters})
+
             parameters["self"] = self
             self.actions[name][0](**parameters)
 
@@ -198,6 +227,8 @@ class Entity(object):
 
     def call_trigger(self, name, params):
         if name in self.triggers:
+            self.log.do_log("trigger", {"name": name})
+
             params["self"] = self
             self.triggers[name](**params)
 
@@ -207,9 +238,16 @@ class Entity(object):
         """
         return self.agent is not None
 
-    def print_state(self):
-        for attr in self.attributes:
-            print attr + ": " + str(self.attributes[attr])
-        for obs in self.observations:
-            print obs + ": " + str(self.observations[obs])
-        print "\n"
+    def measure(self):
+        """
+        Log all attribute values.
+
+        Parameters
+        ----------
+        name : string
+            Name to identify the measurement by.
+        """
+        measurement = copy(self.attributes)
+        measurement["entity"] = self.name
+
+        self.log.do_log("measurement", measurement)
