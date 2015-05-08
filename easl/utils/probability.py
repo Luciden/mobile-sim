@@ -7,7 +7,16 @@ class Table(object):
     """
     variables : {name: {name: value}}
     """
+    # TODO: CHECK IMPLEMENTATION.
     def __init__(self, variables):
+        """
+        Attributes
+        ----------
+        table : {name: {name: ... {name: value} ... }}
+        variables : {name: {name: [value]}}
+        order : [name]
+        last : name
+        """
         self.table = {}
         self.variables = variables
 
@@ -15,16 +24,23 @@ class Table(object):
         self.last = self.order.pop()
 
         self.table = self.__make_table_rec(self.order)
+        print self.table
 
     def __make_table_rec(self, order):
+        # TODO: Only actions with a single parameter are taken into account here.
+        # To include multiple parameters, have to create orders within variable order.
+        # I.e. for every variable determine what the order of parameters is.
         # make the full joint of the provided variables by making a tree of
         # variable name/value dicts and storing the probabilities at the end.
         if len(order) == 0:
             values = {}
+            # self.variables[self.last] : {name: [value]}
             names = self.variables[self.last]
-            # TODO: Only actions with a single parameter are taken into account here.
+            # For every parameter
             for name in names:
+                # For every value
                 for v in names[name]:
+                    # Create a place to store the number
                     values[v] = 0
             return values
         else:
@@ -53,6 +69,14 @@ class Table(object):
         current[vals[self.last]] = value
 
     def inc_value(self, vals):
+        """
+        Parameters
+        ----------
+        vals :
+        """
+        # Go down the path taking the turn appropriate for the value in the
+        # entry.
+        # Then increment.
         current = self.table
         for name in self.order:
             current = current[vals[name]]

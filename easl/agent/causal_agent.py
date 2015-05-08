@@ -23,6 +23,7 @@ class Data(object):
         # TODO: An entry can be a subset of all variables.
         # TODO: How to deal with incomplete observations? On Agent level? I guess
         # TODO: Assume that all variables are observed.
+        print vals
         self.entries.append(vals)
 
     def calculate_joint(self, variables):
@@ -41,9 +42,11 @@ class Data(object):
         Distribution
             the joint probability table
         """
+        print variables
         freq = easl.utils.Table(variables)
 
         for entry in self.entries:
+            print entry
             freq.inc_value(entry)
 
         n = len(self.entries)
@@ -138,6 +141,8 @@ class CausalLearningAgent(Agent):
         self.variables.update(actions)
         self.variables.update(signals)
 
+        print self.variables
+
     def sense(self, observation):
         """
         Parameters
@@ -170,17 +175,20 @@ class CausalLearningAgent(Agent):
         """
         # Take all observations from senses
         # And all feedback from own attributes
+        observations = {}
         for variable in self.variables:
-            if variable not in self.observations:
+            if variable in self.observations:
+                observations[variable] = self.observations[variable]
+            else:
                 if variable in self.actions:
                     # Find the default action.
-                    self.observations[variable] = self.default_actions[variable]
+                    observations[variable] = self.default_actions[variable]
                 elif variable in self.signals:
-                    self.observations[variable] = {"value": self.default_signals[variable]}
+                    observations[variable] = {"value": self.default_signals[variable]}
                 else:
                     raise RuntimeError("Variable {0} not in observation".format(variable))
 
-        self.data.add_entry(self.observations)
+        self.data.add_entry(observations)
         self.observations = {}
 
     def __learn_causality(self, variables):
