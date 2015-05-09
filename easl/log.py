@@ -25,6 +25,7 @@ class Log(object):
         self.verbose = False
 
         self.time = 0
+        self.length = 0
 
     def read_file(self, file_name):
         """
@@ -38,6 +39,17 @@ class Log(object):
     def set_verbose(self, verbose=True):
         self.verbose = verbose
 
+    def get_length(self):
+        return self.length
+
+    def get_at_time(self, time):
+        entries = []
+        for e in self.log:
+            if e["_time"] == time:
+                entries.append(e)
+
+        return entries
+
     def time_tick(self, time=None):
         if time is None:
             self.time += 1
@@ -48,13 +60,14 @@ class Log(object):
             print "t {0}".format(self.time)
 
     def do_log(self, kind, data):
-        entry = [self.time, kind]
-
-        for k, v in data.items():
-            entry.extend([k, v])
+        # TODO: Make log into dict
+        entry = {"_time": self.time, "_type": kind}
+        entry.update(data)
 
         self.log.append(entry)
-        print entry
+        self.length = self.time
+        if self.verbose:
+            print entry
 
     def write_file(self, name):
         """
@@ -65,9 +78,10 @@ class Log(object):
         name : string
             Name of the file to write to.
         """
+        # TODO: Fix.
         f = open(name, 'wt')
         try:
-            writer = csv.writer(f)
+            writer = csv.DictWriter(f)
             for entry in self.log:
                 writer.writerow(entry)
         finally:
@@ -84,8 +98,8 @@ class Log(object):
         """
         f = open(name, 'rt')
         try:
-            reader = csv.reader(f)
+            reader = csv.DictReader(f)
             for row in reader:
-                self.log.append(tuple(row))
+                self.log.append(row)
         finally:
             f.close()

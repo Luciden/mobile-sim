@@ -51,7 +51,7 @@ class Entity(object):
     triggers : {name: function(self, ...)}
         callback functions that change the attributes when called
     agent : Agent
-    action_queue : [(name, {name: value})]
+    action_queue : [(name, value)]
         All action/parameter pairs that are queued to be executed.
         Both name and its parameter name/value pairs are provided.
     """
@@ -158,6 +158,11 @@ class Entity(object):
 
         # ask agent to give actions
         self.action_queue = self.agent.act()
+
+        for action in self.action_queue:
+            self.log.do_log("observation",
+                            {"entity": self.name, "name": action[0], "value": action[1]})
+            self.agent.sense({action[0]: action[1]})
 
     def add_attribute(self, name, initial_value, values, event):
         """

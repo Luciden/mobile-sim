@@ -5,6 +5,7 @@ import functools
 
 from easl import *
 from easl.agent import *
+from easl.visualize import Visualizer
 
 
 def calc_direction(a, b):
@@ -39,12 +40,12 @@ class SightSensor(Sensor):
 
 if __name__ == '__main__':
     infant = Entity("infant")
-    #infant.set_agent(RandomAgent())
+    infant.set_agent(RandomAgent())
     #infant.set_agent(OperantConditioningAgent())
     #infant.agent.set_primary_reinforcer("movement", {"value": True})
-    cla = CausalLearningAgent()
-    cla.set_values({"movement": True})
-    infant.set_agent(cla)
+    #cla = CausalLearningAgent()
+    #cla.set_values({"movement": True})
+    #infant.set_agent(cla)
 
     def move(old, new):
         return "movement", {"direction": calc_direction(old, new)}
@@ -123,4 +124,7 @@ if __name__ == '__main__':
     world.add_entity(mobile)
     world.set_area_of_effect("infant", "right-foot-position", "movement", "mobile")
 
-    world.run(10)
+    world.run(30)
+
+    v = Visualizer()
+    v.visualize(world.log)

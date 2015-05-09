@@ -135,8 +135,6 @@ class World(object):
 
             self.__measure_entities()
 
-        self.log.write_file("log.csv")
-
     def add_entity(self, entity):
         self.entities[entity.name] = entity
 

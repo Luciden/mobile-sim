@@ -1,6 +1,6 @@
 __author__ = 'Dennis'
 
-from copy import copy
+from copy import copy, deepcopy
 import random
 
 import easl.utils
@@ -27,10 +27,8 @@ class Data(object):
         vals : {name: value}
             For every observed variable, what the value was for that observation.
         """
-        # TODO: An entry can be a subset of all variables.
-        # TODO: How to deal with incomplete observations? On Agent level? I guess
-        # TODO: Assume that all variables are observed.
-        self.entries.append(vals)
+        # TODO: For some reason Data always gets the same entry.
+        self.entries.append(deepcopy(vals))
 
     def calculate_joint(self, variables):
         """

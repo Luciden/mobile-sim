@@ -33,10 +33,6 @@ class RandomAgent(Agent):
         """
         # Select one random action to perform.
         action = random.choice(self.actions.keys())
-        parameters = self.actions[action][1]
-        # Select a random value for every parameter
-        params = {}
-        for p in parameters:
-            params[p] = random.choice(parameters[p])
+        value = random.choice(self.actions[action][1])
 
-        return [(action, params)]
+        return [(action, value)]
