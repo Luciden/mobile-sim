@@ -224,11 +224,11 @@ class Entity(object):
         Calls all queued actions and clears the queue.
         """
         while len(self.action_queue) > 0:
-            name, parameters = self.action_queue.pop(0)
+            name, value = self.action_queue.pop(0)
 
-            self.log.do_log("action", {"entity": self.name, "name": name, "parameters": parameters})
+            self.log.do_log("action", {"entity": self.name, "name": name, "value": value})
 
-            parameters["self"] = self
+            parameters = {"self": self, "value": value}
             self.actions[name][0](**parameters)
 
     def emit_signals(self):

@@ -1,6 +1,7 @@
 __author__ = 'Dennis'
 
 from copy import copy
+import random
 
 import easl.utils
 from agent import Agent
@@ -89,12 +90,14 @@ class CausalLearningAgent(Agent):
         Attributes
         ----------
         data : Data
-        actions : {name: {name: [value]}}
+        actions : {name: [value]}
         default_action : {name: value}
         default_signals : {name: value}
         network : Graph
         observations : {name: value}
         variables : {name: [value]}
+        values : {name: value}
+            Variable/value pairs that have value set to '1' for action selection.
         """
         # TODO: Make sure variables has all variable names/values that will be be observed.
         # TODO: Make sure that all variables always have values assigned when sensed.
@@ -111,6 +114,8 @@ class CausalLearningAgent(Agent):
         self.variables = {}
         self.network = None
 
+        self.values = {}
+
     def init_internal(self, entity):
         """
         """
@@ -119,7 +124,6 @@ class CausalLearningAgent(Agent):
 
         # Get actions with possible values
         actions = {}
-        # TODO: Change representation of actions to be {name: (function, [value])}, i.e. single parameter actions.
         # actions = {name: (function, [value])}
         # variables = {name: [value]}
         for action in entity.actions:
@@ -141,6 +145,20 @@ class CausalLearningAgent(Agent):
         self.variables.update(actions)
         self.variables.update(signals)
 
+    def set_values(self, vals):
+        """
+        Sets the values that are used for action selection.
+
+        All variable/value pairs that are provided will have its value set to 1.
+        All others are considered to be 0.
+
+        Parameters
+        ----------
+        vals : {name: value}
+            The variable/value pairs for which to set the value to 1.
+        """
+        self.values.update(vals)
+
     def sense(self, observation):
         """
         Parameters
@@ -148,23 +166,16 @@ class CausalLearningAgent(Agent):
         observation : (name, value)
         """
         # Simply store the information to use later.
-        # TODO: Fix
         self.observations.update(observation)
 
     def act(self):
-        # TODO: Implement.
         # Convert observations into an entry in the Database.
         self.__store_observations()
 
         # Get the causal network for the observations.
-        # TODO: How to get the variables? Take all actions and observations for now
         self.network = self.__learn_causality(self.variables.keys())
         # Find the action that would create the optimal reward.
-        # TODO: Where is the reward?
-        # For now:
-        # Calculate the probability of the reward happening for all actions.
-        #   Take the action with maximum reward.
-        return []
+        return [self.__select_action()]
 
     def __store_observations(self):
         """
@@ -172,14 +183,15 @@ class CausalLearningAgent(Agent):
 
         Makes sure all variables under consideration are present.
         """
-        # Take all observations from senses
-        # And all feedback from own attributes
         observations = {}
         for variable in self.variables:
+            # Take the variables that were observed as-is
             if variable in self.observations:
                 observations[variable] = self.observations[variable]
+            # If the variable was not observed, but is an action, take the default
             elif variable in self.actions:
                 observations[variable] = self.default_action[variable]
+            # If the variable was not observed, but is a signal, take the default
             elif variable in self.signals:
                 observations[variable] = self.default_signals[variable]
             else:
@@ -333,6 +345,59 @@ class CausalLearningAgent(Agent):
             c.orient_half(v, r)
 
         return c
+
+    def __select_action(self):
+        """
+        Selects one action by using the network and values that were set.
+
+        Returns
+        -------
+        (name, value)
+            The variable name and its value.
+        """
+        # TODO: Fix. Probabilities do not seem to update.
+        action = None
+        # calculate argmax_A P(M=true | A)
+        # for any variable M that we are 'interested in'
+        for var_m in self.values:
+            val_m = self.values[var_m]
+
+            # find argmax_A,a P(M=m | A=a) for actions A=a
+            argmax = None
+            for var_a in self.actions:
+                for val_a in self.actions[var_a]:
+                    p_ma = self.__calculate_joint([var_m, var_a])
+                    p_a = self.__calculate_joint([var_a])
+
+                    p_conditional = CausalLearningAgent.conditional_probability([var_m, var_a], p_ma, p_a, val_m, val_a)
+                    if argmax is None:
+                        argmax = (var_a, val_a, p_conditional)
+                    elif p_conditional > argmax[2]:
+                        argmax = (var_a, val_a, p_conditional)
+
+            if argmax is not None and argmax[2] != 0:
+                action = (argmax[0], argmax[1])
+
+        # if none selected, select at random (?)
+        if action is None:
+            print "RANDOM"
+            a = random.choice(self.actions.keys())
+            v = random.choice(self.actions[a])
+            action = (a, v)
+
+        return action
+
+    @staticmethod
+    def conditional_probability(names, ab, b, val_a, val_b):
+        """
+        P(A=a | B=b) = P(A=a & B=b) / P(B=b)
+        """
+        var_a, var_b = names
+
+        p_ab = ab.prob({var_a: val_a, var_b: val_b})
+        p_b = b.prob({var_b: val_b})
+
+        return 0 if p_b == 0 else p_ab / p_b
 
     @staticmethod
     def check_independence(names, a, b, ab):

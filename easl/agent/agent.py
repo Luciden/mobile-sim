@@ -50,7 +50,7 @@ class Agent(object):
 
         Returns
         -------
-        list
+        []
             All actions that should be performed in this time step.
         """
         raise NotImplementedError("Hmm.")

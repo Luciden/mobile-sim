@@ -21,8 +21,8 @@ def calc_direction(a, b):
         return "down"
 
 
-def relative_direction(self, direction, attribute):
-    self.try_change(attribute, new_position(self.a[attribute], direction))
+def relative_direction(self, value, attribute):
+    self.try_change(attribute, new_position(self.a[attribute], value))
 
 
 class SightSensor(Sensor):
@@ -42,7 +42,9 @@ if __name__ == '__main__':
     #infant.set_agent(RandomAgent())
     #infant.set_agent(OperantConditioningAgent())
     #infant.agent.set_primary_reinforcer("movement", {"value": True})
-    infant.set_agent(CausalLearningAgent())
+    cla = CausalLearningAgent()
+    cla.set_values({"movement": True})
+    infant.set_agent(cla)
 
     def move(old, new):
         return "movement", {"direction": calc_direction(old, new)}
@@ -69,7 +71,6 @@ if __name__ == '__main__':
 
         raise RuntimeError("Unhandled movement {1} from {0}.".format(position, direction))
 
-    # TODO: Change actions to be name, [value], default, function.
     infant.add_action("left-hand",
                       ["up", "still", "down"],
                       "still",
@@ -102,7 +103,7 @@ if __name__ == '__main__':
             self.try_change("speed", 10)
 
     def moved(self, direction):
-        self.a["speed"] += 30
+        self.a["speed"] += 4
 
     def movement_emission(self):
         s = []
