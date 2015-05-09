@@ -4,12 +4,13 @@ from copy import copy, deepcopy
 
 
 class Table(object):
-    """
-    variables : {name: {name: value}}
-    """
-    # TODO: CHECK IMPLEMENTATION.
+    # TODO: Revert implementation to consider only 1-parameter variables?
     def __init__(self, variables):
         """
+        Parameters
+        ----------
+        variables : {name: [value]}
+
         Attributes
         ----------
         table : {name: {name: ... {name: value} ... }}
@@ -23,94 +24,50 @@ class Table(object):
         self.order = [var for var in self.variables.keys()]
         self.last = self.order.pop()
 
-        # {name: []}
-        self.parameter_order = {}
-        # {name: name}
-        self.parameter_last = {}
-        for variable in self.variables:
-            self.parameter_order[variable] = []
-            self.parameter_order[variable] = [par for par in self.variables[variable].keys()]
-            self.parameter_last[variable] = self.parameter_order[variable].pop()
-
-        self.table = self.__make_table_rec(self.order, None)
+        self.table = self.__make_table_rec(self.order)
         print self.table
 
-    def __make_table_rec(self, order, p_order):
+    def __make_table_rec(self, order):
         """
         Parameters
         ----------
-        p_order : [name]
-            Set to the list of orders for the current variable.
+        order : [name]
+            Order of the rest of the variables to consider.
         """
         # make the full joint of the provided variables by making a tree of
         # variable name/value dicts and storing the probabilities at the end.
         # When a new variable was chosen and we have to get the parameter order
-        if p_order is None:
-            # When we are not yet at the last variable
-            if len(order) > 0:
-                # Take the parameter order of the next variable
-                p_order = self.parameter_order[order[0]]
-            # When we are at the last variable
-            else:
-                # Take the parameter order of the last variable
-                p_order = self.parameter_order[self.last]
-
         if len(order) == 0:
-            # If at the last parameter of the last variable
-            if len(p_order) == 0:
-                # Create the holders for the counts for all parameter values
-                counts = {}
+            counts = {}
 
-                # For all values of this last parameter
-                for value in self.variables[self.last][self.parameter_last[self.last]]:
-                    counts[value] = 0
+            for value in self.variables[self.last]:
+                counts[value] = 0
 
-                return counts
-            # If this is not yet the last parameter
-            else:
-                current = {}
-
-                for value in self.variables[self.last][p_order[0]]:
-                    current[value] = self.__make_table_rec(order, p_order[1:])
-
-                return current
-        # When there is still variables to expand
+            return counts
         else:
-            if len(p_order) == 0:
-                current = {}
+            current = {}
 
-                for value in self.variables[order[0]][self.parameter_last[order[0]]]:
-                    # Expand the next variable and choose the appropriate p_order
-                    current[value] = self.__make_table_rec(order[1:], None)
+            for value in self.variables[order[0]]:
+                current[value] = self.__make_table_rec(order[1:])
 
-                return current
-            # Still parameters to expand
-            else:
-                current = {}
+            return current
 
-                for value in self.variables[order[0]][p_order[0]]:
-                    current[value] = self.__make_table_rec(order, p_order[1:])
-
-                return current
+    def get_variables(self):
+        return self.variables.copy()
 
     def set_value(self, vals, value):
         """
         Parameters
         ----------
-        vals : {name: {name: value}}
+        vals : {name: value}
         value : value
         """
         current = self.table
 
         for name in self.order:
-            for param in self.parameter_order[name]:
-                current = current[vals[name][param]]
-            current = current[vals[name][self.parameter_last[name]]]
+            current = current[vals[name]]
 
-        for param in self.parameter_order[self.last]:
-            current = current[vals[self.last][param]]
-
-        current[vals[self.last][self.parameter_last[self.last]]] = value
+        current[vals[self.last]] = value
 
     def inc_value(self, vals):
         """
@@ -123,31 +80,23 @@ class Table(object):
         # Then increment.
         current = self.table
 
-        # Go through the variables
         for name in self.order:
-            for param in self.parameter_order[name]:
-                current = current[vals[name][param]]
-            # Take the last parameter into account for every variable
-            current = current[vals[name][self.parameter_last[name]]]
+            current = current[vals[name]]
 
-        # Go through the last variable's parameters
-        for param in self.parameter_order[self.last]:
-            current = current[vals[self.last][param]]
-
-        current[vals[self.last][self.parameter_last[self.last]]] += 1
+        current[vals[self.last]] += 1
 
     def get_value(self, vals):
+        """
+        Parameters
+        ----------
+        vals :
+        """
         current = self.table
 
         for name in self.order:
-            for param in self.parameter_order[name]:
-                current = current[vals[name][param]]
-            current = current[vals[name][self.parameter_last[name]]]
+            current = current[vals[name]]
 
-        for param in self.parameter_order[self.last]:
-            current = current[vals[self.last][param]]
-
-        return current[vals[self.last][self.parameter_last[self.last]]]
+        return current[vals[self.last]]
 
     def do_operation(self, f):
         """
@@ -164,40 +113,18 @@ class Table(object):
                 self.__do_operation_rec(f, current[value], order[1:])
 
 
-class Distribution(object):
+class Distribution(Table):
     def __init__(self, variables, freq=None):
-        self.table = {}
-        self.variables = variables
-
-        if freq is not None:
-            self.variables = copy(freq.variables)
-            self.order = copy(freq.order)
-            self.last = copy(freq.last)
+        if freq is None:
+            super(Distribution, self).__init__(variables)
+        elif isinstance(freq, Table):
+            self.variables = deepcopy(freq.variables)
+            self.order = deepcopy(freq.order)
+            self.last = deepcopy(freq.last)
 
             self.table = deepcopy(freq.table)
         else:
-            # get the order of variables, but keep the last one
-            # for accessing the probabilities
-            self.order = [var for var in self.variables.keys()]
-            self.last = self.order.pop()
-
-            self.table = self.__make_table_rec(self.order)
-
-    def __make_table_rec(self, order):
-        # make the full joint of the provided variables by making a tree of
-        # variable name/value dicts and storing the probabilities at the end.
-        if len(order) == 0:
-            return dict([(value, 0) for value in self.variables[self.last]])
-        else:
-            current = {}
-
-            for value in self.variables[order[0]]:
-                current[value] = self.__make_table_rec(order[1:])
-
-            return current
-
-    def get_variables(self):
-        return self.variables.copy()
+            raise RuntimeError("Not a Table.")
 
     def set_prob(self, vals, p):
         """
@@ -210,57 +137,61 @@ class Distribution(object):
         p : number
             probability of the situation
         """
-        current = self.table
-        for name in self.order:
-            current = current[vals[name]]
-
-        current[vals[self.last]] = p
+        self.set_value(vals, p)
 
     def prob(self, vals):
         """
 
         Parameters
         ----------
-        vals : dict
-            pairs of variable name/value
+        vals : {name: {name: value}}
         """
-        current = self.table
-        for name in self.order:
-            current = current[vals[name]]
-
-        return current[vals[self.last]]
+        self.get_value(vals)
 
     def single_prob(self, variable, value):
         """
         Get the probability for a partial specification with only one variable.
 
+        Marginalizing?
+
         Parameters
         ----------
-        val : (string, string)
-            variable name and value pair to check for
+        variable : string
+            Name of variable to get probability for.
+        value : string
         """
         return self.__single_prob_rec(variable, value, self.table, self.order)
 
     def __single_prob_rec(self, variable, value, current, order):
+        """
+        Calculates the probability of one variable having a certain value.
+
+        By summing all branches of other variables and then only taking the
+        probabilities of the branches that go through the variable=value branch.
+
+        """
         p = 0
 
-        # if variable is found, sum all probabilities in branch with appropriate value
-        if order[0] == variable:
-            p += self.__sum_prob_rec(current[value], order[1:])
-        # keep searching for variable and take all branches into account
+        if len(order) > 0:
+            # If we found the variable
+            if order[0] == variable:
+                # Take only the branch with the specified value
+                p += self.__single_prob_rec(current[value], order[1:])
+            # If the variable is a different one
+            else:
+                # Take all the branches
+                for branch in current:
+                    p += self.__single_prob_rec(variable, value, current[branch], order[1:])
         else:
-            for branch in current:
-                p += self.__single_prob_rec(variable, value, current[branch], order[1:])
-
-        return p
-
-    def __sum_prob_rec(self, current, order):
-        p = 0
-        if len(order) == 0:
-            for value in current:
+            # If this is the variable
+            if self.last == variable:
+                # Get only the value of the specified variable
                 p += current[value]
-        else:
-            for value in current:
-                p += self.__sum_prob_rec(current[value], order[1:])
+            # If it is a different one
+            else:
+                # Sum all possible ones (because we should have passed variable)
+                # TODO: Build in a check to see if we passed variable.
+                for value in current:
+                    p += current[value]
 
         return p

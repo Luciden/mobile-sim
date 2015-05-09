@@ -340,6 +340,8 @@ class CausalLearningAgent(Agent):
 
     @staticmethod
     def check_independence(names, a, b, ab):
+        # TODO: Alter to use N-parameters. Should I? Don't know now.
+        # TODO: I think this should stay as-is, but I made a mistake somewhere else.
         """
         Checks the distributions according to P(A & B) = P(A) * P(B)
 
@@ -347,7 +349,12 @@ class CausalLearningAgent(Agent):
         ----------
         names : (string, string)
             Names for variable A and B respectively.
-
+        a : Distribution
+        b : Distribution
+        ab : Distribution
+            Joint probability distributions calculated from the data.
+            These list for every variable and their possible values what
+            the probability is.
         Returns
         -------
         bool
@@ -359,6 +366,7 @@ class CausalLearningAgent(Agent):
         v_a = a.get_variables()
         v_b = b.get_variables()
 
+        # Check for all possible values of the parameters of A and B
         for val_a in v_a[var_a]:
             for val_b in v_b[var_b]:
                 # P(A & B) = P(A) * P(B)
