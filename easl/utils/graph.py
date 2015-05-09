@@ -32,12 +32,17 @@ class Graph(object):
             self.edges.append((b, mb, a, ma))
 
     def del_edge(self, a, b):
+        self.__del_edge(a, b)
+        self.__del_edge(b, a)
+
+    def __del_edge(self, a, b):
         if a in self.nodes and b in self.nodes:
             for i in range(len(self.edges)):
                 edge = self.edges[i]
 
                 if edge[0] == a and edge[2] == b or edge[2] == a and edge[0] == b:
                     del self.edges[i]
+                    return
 
     def empty(self):
         """
@@ -105,13 +110,13 @@ class Graph(object):
         return neighbours
 
     def orient(self, t, v, r):
-        for (a, ma, b, mb) in self.edges:
+        for i in range(len(self.edges)):
+            (a, ma, b, mb) = self.edges[i]
+
             if (a == t and b == v) or (a == r and b == v):
-                ma = "o"
-                mb = ">"
+                self.edges[i] = (a, "o", b, ">")
             elif (b == t and a == v) or (b == r and a == v):
-                mb = "o"
-                ma = ">"
+                self.edges[i] = (a, ">", b, "o")
             else:
                 raise LookupError("Edge not found.")
 
@@ -119,10 +124,12 @@ class Graph(object):
         """
         Orient X - Y as X -> Y
         """
-        for (a, ma, b, mb) in self.edges:
+        for i in range(len(self.edges)):
+            (a, ma, b, mb) = self.edges[i]
+
             if a == x and b == y:
-                mb = ">"
+                self.edges[i] = (a, ma, b, ">")
             elif b == x and a == y:
-                ma = ">"
+                self.edges[i] = (a, ">", b, mb)
             else:
                 raise LookupError("Edge not found.")

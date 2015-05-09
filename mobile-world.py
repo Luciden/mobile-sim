@@ -69,24 +69,25 @@ if __name__ == '__main__':
 
         raise RuntimeError("Unhandled movement {1} from {0}.".format(position, direction))
 
+    # TODO: Change actions to be name, [value], default, function.
     infant.add_action("left-hand",
-                      {"direction": ["up", "still", "down"]},
-                      {"direction": "still"},
+                      ["up", "still", "down"],
+                      "still",
                       functools.partial(relative_direction, attribute="left-hand-position"))
 
     infant.add_action("right-hand",
-                      {"direction": ["up", "still", "down"]},
-                      {"direction": "still"},
+                      ["up", "still", "down"],
+                      "still",
                       functools.partial(relative_direction, attribute="right-hand-position"))
 
     infant.add_action("left-foot",
-                      {"direction": ["up", "still", "down"]},
-                      {"direction": "still"},
+                      ["up", "still", "down"],
+                      "still",
                       functools.partial(relative_direction, attribute="left-foot-position"))
 
     infant.add_action("right-foot",
-                      {"direction": ["up", "still", "down"]},
-                      {"direction": "still"},
+                      ["up", "still", "down"],
+                      "still",
                       functools.partial(relative_direction, attribute="right-foot-position"))
 
     infant.add_sensor(SightSensor())

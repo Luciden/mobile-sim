@@ -37,7 +37,7 @@ class Agent(object):
 
         Parameters
         ----------
-        observation : (string, value)
+        observation : {name: value}
             name/value pair of what was observed, which can be processed/stored
             according to the Agent's needs
         """

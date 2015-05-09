@@ -36,11 +36,11 @@ class Entity(object):
     emission : function
         Returns a list of signals to be emitted in this frame, based on the
         Entity's internal state.
-    actions : {name: (function, {name: [value]})}
+    actions : {name: (function, [value])}
         All possible actions identified by their name, with the function that
-        describes how its parameters influence the internal state, and
-        parameter names with a list/generator of all possible values.
-    default_actions : {name: {name: value}}
+        describes how its parameters influence the internal state,
+        a list/generator of all possible values.
+    default_action : {name: value}
         A default action that is considered to be equivalent to the absence
         of the action.
     events : {name: function(old, new)}
@@ -68,7 +68,7 @@ class Entity(object):
         self.emission = lambda x: []
 
         self.actions = {}
-        self.default_actions = {}
+        self.default_action = {}
 
         self.events = {}
         self.triggers = {}
@@ -147,14 +147,14 @@ class Entity(object):
             self.log.do_log("observation",
                             {"entity": self.name, "observation": observation, "value": self.observations[observation]})
 
-            self.agent.sense({observation: {"value": self.observations[observation]}})
+            self.agent.sense({observation: self.observations[observation]})
         self.observations = {}
 
         # Also add internal representation as observations
         for observation in self.attributes:
             self.log.do_log("observation",
                             {"entity": self.name, "observation": observation, "value": self.attributes[observation]})
-            self.agent.sense({observation: {"value": self.attributes[observation]}})
+            self.agent.sense({observation: self.attributes[observation]})
 
         # ask agent to give actions
         self.action_queue = self.agent.act()
@@ -176,7 +176,7 @@ class Entity(object):
         self.attribute_values[name] = values
         self.events[name] = event
 
-    def add_action(self, name, parameters, default, f):
+    def add_action(self, name, values, default, f):
         """
         Adds an action to the possible actions.
 
@@ -187,13 +187,16 @@ class Entity(object):
         ----------
         name : string
             name the action will be identified/called by
-        parameters : {string: [values]}
-            pairs of parameter names and respective possible values
+        values : [values]
+            Possible values for this action.
+        default : value
+            Default value to be used when the action is absent.
+            Considered to be equivalent to doing no action.
         f : function
             callback that is called for an entity when the action is performed
         """
-        self.actions[name] = (f, parameters)
-        self.default_actions[name] = default
+        self.actions[name] = (f, values)
+        self.default_action[name] = default
 
     def add_sensor(self, sensor):
         sensor.set_observations(self.observations)

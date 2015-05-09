@@ -20,10 +20,15 @@ class Data(object):
         self.entries = []
 
     def add_entry(self, vals):
+        """
+        Parameters
+        ----------
+        vals : {name: value}
+            For every observed variable, what the value was for that observation.
+        """
         # TODO: An entry can be a subset of all variables.
         # TODO: How to deal with incomplete observations? On Agent level? I guess
         # TODO: Assume that all variables are observed.
-        print vals
         self.entries.append(vals)
 
     def calculate_joint(self, variables):
@@ -42,11 +47,9 @@ class Data(object):
         Distribution
             the joint probability table
         """
-        print variables
         freq = easl.utils.Table(variables)
 
         for entry in self.entries:
-            print entry
             freq.inc_value(entry)
 
         n = len(self.entries)
@@ -87,11 +90,11 @@ class CausalLearningAgent(Agent):
         ----------
         data : Data
         actions : {name: {name: [value]}}
-        default_actions : {name: {name: value}}
+        default_action : {name: value}
         default_signals : {name: value}
         network : Graph
         observations : {name: value}
-        variables : {name: {name: [value]}}
+        variables : {name: [value]}
         """
         # TODO: Make sure variables has all variable names/values that will be be observed.
         # TODO: Make sure that all variables always have values assigned when sensed.
@@ -101,7 +104,7 @@ class CausalLearningAgent(Agent):
 
         self.actions = {}
         self.signals = {}
-        self.default_actions = {}
+        self.default_action = {}
         self.default_signals = {}
         self.observations = {}
 
@@ -109,29 +112,26 @@ class CausalLearningAgent(Agent):
         self.network = None
 
     def init_internal(self, entity):
+        """
+        """
         # Get attributes with possible values
-        attributes = copy(entity.attributes)
-        for attribute in attributes:
-            attributes[attribute] = {"value": entity.attribute_values[attribute]}
+        attributes = copy(entity.attribute_values)
 
         # Get actions with possible values
         actions = {}
-        # actions = {name: (function, {name: [value]})}
-        # variables = {name: {name: [value]}}
+        # TODO: Change representation of actions to be {name: (function, [value])}, i.e. single parameter actions.
+        # actions = {name: (function, [value])}
+        # variables = {name: [value]}
         for action in entity.actions:
             actions[action] = entity.actions[action][1]
 
         self.actions = actions
-        self.default_actions = entity.default_actions
+        self.default_action = entity.default_action
 
         # Get possible sensed signals
         signals = {}
         for sensor in entity.sensors:
-            s = {}
-            for signal in sensor.signals:
-                s[signal] = {"value": sensor.signals[signal]}
-
-            signals.update(s)
+            signals.update(sensor.signals)
 
             self.signals.update(sensor.signals)
             self.default_signals.update(sensor.default_signals)
@@ -140,8 +140,6 @@ class CausalLearningAgent(Agent):
         self.variables.update(attributes)
         self.variables.update(actions)
         self.variables.update(signals)
-
-        print self.variables
 
     def sense(self, observation):
         """
@@ -180,14 +178,12 @@ class CausalLearningAgent(Agent):
         for variable in self.variables:
             if variable in self.observations:
                 observations[variable] = self.observations[variable]
+            elif variable in self.actions:
+                observations[variable] = self.default_action[variable]
+            elif variable in self.signals:
+                observations[variable] = self.default_signals[variable]
             else:
-                if variable in self.actions:
-                    # Find the default action.
-                    observations[variable] = self.default_actions[variable]
-                elif variable in self.signals:
-                    observations[variable] = {"value": self.default_signals[variable]}
-                else:
-                    raise RuntimeError("Variable {0} not in observation".format(variable))
+                raise RuntimeError("Variable {0} not in observation".format(variable))
 
         self.data.add_entry(observations)
         self.observations = {}
@@ -340,8 +336,6 @@ class CausalLearningAgent(Agent):
 
     @staticmethod
     def check_independence(names, a, b, ab):
-        # TODO: Alter to use N-parameters. Should I? Don't know now.
-        # TODO: I think this should stay as-is, but I made a mistake somewhere else.
         """
         Checks the distributions according to P(A & B) = P(A) * P(B)
 

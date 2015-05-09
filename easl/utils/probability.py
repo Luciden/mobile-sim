@@ -4,7 +4,6 @@ from copy import copy, deepcopy
 
 
 class Table(object):
-    # TODO: Revert implementation to consider only 1-parameter variables?
     def __init__(self, variables):
         """
         Parameters
@@ -14,7 +13,7 @@ class Table(object):
         Attributes
         ----------
         table : {name: {name: ... {name: value} ... }}
-        variables : {name: {name: [value]}}
+        variables : {name: [name]}
         order : [name]
         last : name
         """
@@ -25,7 +24,6 @@ class Table(object):
         self.last = self.order.pop()
 
         self.table = self.__make_table_rec(self.order)
-        print self.table
 
     def __make_table_rec(self, order):
         """
@@ -89,7 +87,7 @@ class Table(object):
         """
         Parameters
         ----------
-        vals :
+        vals : {name: value}
         """
         current = self.table
 
@@ -101,6 +99,10 @@ class Table(object):
     def do_operation(self, f):
         """
         Perform function f(x) on every element.
+
+        Parameters
+        ----------
+        f : function x: f(x)
         """
         self.__do_operation_rec(f, self.table, self.order)
 
@@ -146,7 +148,7 @@ class Distribution(Table):
         ----------
         vals : {name: {name: value}}
         """
-        self.get_value(vals)
+        return self.get_value(vals)
 
     def single_prob(self, variable, value):
         """
