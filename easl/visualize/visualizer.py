@@ -44,7 +44,7 @@ class Visualizer(object):
 
             time += 1
             pygame.display.flip()
-            pygame.time.delay(1000)
+            pygame.time.delay(100)
 
     def __draw_limb(self, name, value, position):
         x, y = position

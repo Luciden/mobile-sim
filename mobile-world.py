@@ -155,7 +155,7 @@ def create_mobile():
     return mobile
 
 
-def create_experimenter(log):
+def create_experimenter(experiment_log):
     """
     Parameters
     ----------
@@ -163,9 +163,10 @@ def create_experimenter(log):
         Log to play back kicking behavior from.
     """
     experimenter = Entity("experimenter")
-    # TODO: Implement LogAgent.
     # second argument is dictionary of which actions of the original log match which actions.
-    experimenter.set_agent(LogAgent(log), {"right-foot": "mechanical-hand"})
+    agent = LogAgent("infant", experiment_log)
+    agent.set_watched("right-foot-position", "mechanical-hand", calc_direction)
+    experimenter.set_agent(agent)
 
     experimenter.add_attribute("mechanical-hand-position", "down", ["down", "middle", "up"], move)
 
@@ -191,10 +192,10 @@ def experimental_condition():
     return world.log
 
 
-def control_condition(log):
+def control_condition(experiment_log):
     infant = create_infant("random")
     mobile = create_mobile()
-    experimenter = create_experimenter(log)
+    experimenter = create_experimenter(experiment_log)
 
     world = World()
     world.add_entity(infant)
@@ -204,6 +205,8 @@ def control_condition(log):
 
     world.run(30)
 
+    return world.log
+
 
 if __name__ == '__main__':
     log = experimental_condition()
@@ -211,4 +214,6 @@ if __name__ == '__main__':
     v = Visualizer()
     v.visualize(log)
 
-    control_condition(log)
+    log2 = control_condition(log)
+
+    v.visualize(log2)
