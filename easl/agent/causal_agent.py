@@ -210,12 +210,15 @@ class CausalLearningAgent(Agent):
             contains data on variable instances used to check for independence
             a table of entries of lists of variable/value pairs
         """
-        # TODO: Rewrite to only calculate the joint probability table once.
         # 1. Form the complete undirected graph on all variables
         c = easl.utils.Graph()
         c.make_complete(variables)
 
         sepset = []
+
+        # Calculate the probability distribution from the observations once
+        # to be used later.
+        distribution = self.__calculate_joint(self.variables.keys())
 
         # 2. Test each pair of variables for independence.
         #    Eliminate the edges between any pair of variables found to be
@@ -224,7 +227,7 @@ class CausalLearningAgent(Agent):
         #    P(A) * P(B) = P(A & B)
         #    P(B|A) = P(B)
         #    P(A|B) = P(A)
-        self.__learn_causality_step_2(variables, c)
+        self.__learn_causality_step_2(variables, c, distribution)
 
         # 3. For each pair U, V of variables connected by an edge,
         #    and for each T connected to one or both U, V, test whether
@@ -234,7 +237,7 @@ class CausalLearningAgent(Agent):
         #    P(A,B|C) = P(A|C) * P(B|C)
         #    P(A,B,C)/P(C) = P(A,C)/P(C) * P(B,C)/P(C)
         # Get all pairs of nodes connected by an edge
-        self.__learn_causality_step_3(c, sepset)
+        self.__learn_causality_step_3(c, sepset, distribution)
 
         # 4. For each pair U, V connected by an edge and each pair of T, S of
         #    variables, each of which is connected by an edge to either U or V,
@@ -243,7 +246,7 @@ class CausalLearningAgent(Agent):
         #
         #    P(A,B|C,D) = P(A|C,D) * P(B|C,D)
         #    P(A,B,C,D)/P(C,D) = P(A,C,D)/P(C,D) * P(B,C,D)/P(C,D)
-        self.__learn_causality_step_4(c, sepset)
+        self.__learn_causality_step_4(c, sepset, distribution)
 
         # 5. For each triple of variables T, V, R such that T - V - R and
         #    there is no edge between T and R, orient as To -> V <- oR if
@@ -265,25 +268,16 @@ class CausalLearningAgent(Agent):
 
         return c
 
-    def __learn_causality_step_2(self, variables, graph):
+    def __learn_causality_step_2(self, variables, graph, distribution):
         # Check independence by checking if P(A|B) = P(A)
         for i_a in range(len(variables)):
             a = variables[i_a]
             for b in variables[i_a + 1:]:
-                # Calculate P(A)
-                p_a = self.__calculate_joint([a])
-
-                # Calculate P(B)
-                p_b = self.__calculate_joint([b])
-
-                # Calculate P(A & B)
-                p_ab = self.__calculate_joint([a, b])
-
                 # Check for independence by checking P(A & B) = P(A) * P(B)
-                if CausalLearningAgent.are_independent(a, b, p_ab):
+                if CausalLearningAgent.are_independent(a, b, distribution):
                     graph.del_edge(a, b)
 
-    def __learn_causality_step_3(self, graph, sepset):
+    def __learn_causality_step_3(self, graph, sepset, distribution):
         for (u, v) in graph.get_pairs():
             # Get all nodes connected to one of either nodes
             ts = set(graph.get_connected(u) + graph.get_connected(v))
@@ -291,14 +285,7 @@ class CausalLearningAgent(Agent):
             found = False
 
             for t in ts:
-                # Test conditional independence
-                # Calculate P(T), P(U,T), P(V,T) and P(U,V,T)
-                p_t = self.__calculate_joint([t])
-                p_ut = self.__calculate_joint([u, t])
-                p_vt = self.__calculate_joint([v, t])
-                p_uvt = self.__calculate_joint([u, v, t])
-
-                if CausalLearningAgent.are_conditionally_independent(u, v, [t], p_uvt):
+                if CausalLearningAgent.are_conditionally_independent(u, v, [t], distribution):
                     found = True
                     continue
 
@@ -308,18 +295,13 @@ class CausalLearningAgent(Agent):
                 sepset.append((v, u))
                 continue
 
-    def __learn_causality_step_4(self, graph, sepset):
+    def __learn_causality_step_4(self, graph, sepset, distribution):
         for (u, v) in graph.get_pairs():
             ts = graph.get_connected(u) + graph.get_connected(v)
 
             found = False
             for (t, s) in [(t, s) for t in ts for s in ts if t != s]:
-                p_uvst = self.__calculate_joint([u, v, s, t])
-                p_ust = self.__calculate_joint([u, s, t])
-                p_vst = self.__calculate_joint([v, s, t])
-                p_st = self.__calculate_joint([s, t])
-
-                if CausalLearningAgent.are_conditionally_independent(u, v, [s, t], p_uvst):
+                if CausalLearningAgent.are_conditionally_independent(u, v, [s, t], distribution):
                     found = True
                     continue
 
