@@ -2,6 +2,7 @@ __author__ = 'Dennis'
 
 from copy import copy, deepcopy
 import random
+import itertools
 
 import easl.utils
 from agent import Agent
@@ -27,7 +28,6 @@ class Data(object):
         vals : {name: value}
             For every observed variable, what the value was for that observation.
         """
-        # TODO: For some reason Data always gets the same entry.
         self.entries.append(deepcopy(vals))
 
     def calculate_joint(self, variables):
@@ -99,8 +99,6 @@ class CausalLearningAgent(Agent):
         values : {name: value}
             Variable/value pairs that have value set to '1' for action selection.
         """
-        # TODO: Make sure variables has all variable names/values that will be be observed.
-        # TODO: Make sure that all variables always have values assigned when sensed.
         super(CausalLearningAgent, self).__init__()
 
         self.data = Data()
@@ -212,6 +210,7 @@ class CausalLearningAgent(Agent):
             contains data on variable instances used to check for independence
             a table of entries of lists of variable/value pairs
         """
+        # TODO: Rewrite to only calculate the joint probability table once.
         # 1. Form the complete undirected graph on all variables
         c = easl.utils.Graph()
         c.make_complete(variables)
@@ -281,7 +280,7 @@ class CausalLearningAgent(Agent):
                 p_ab = self.__calculate_joint([a, b])
 
                 # Check for independence by checking P(A & B) = P(A) * P(B)
-                if CausalLearningAgent.check_independence((a, b), p_a, p_b, p_ab):
+                if CausalLearningAgent.are_independent(a, b, p_ab):
                     graph.del_edge(a, b)
 
     def __learn_causality_step_3(self, graph, sepset):
@@ -299,8 +298,7 @@ class CausalLearningAgent(Agent):
                 p_vt = self.__calculate_joint([v, t])
                 p_uvt = self.__calculate_joint([u, v, t])
 
-                if CausalLearningAgent.check_independence_conditional([u, v, t],
-                                                                      p_uvt, p_ut, p_vt, p_t):
+                if CausalLearningAgent.are_conditionally_independent(u, v, [t], p_uvt):
                     found = True
                     continue
 
@@ -321,8 +319,7 @@ class CausalLearningAgent(Agent):
                 p_vst = self.__calculate_joint([v, s, t])
                 p_st = self.__calculate_joint([s, t])
 
-                if CausalLearningAgent.check_independence_conditional([u, v, s, t],
-                                                                      p_uvst, p_ust, p_vst, p_st):
+                if CausalLearningAgent.are_conditionally_independent(u, v, [s, t], p_uvst):
                     found = True
                     continue
 
@@ -388,6 +385,17 @@ class CausalLearningAgent(Agent):
     def conditional_probability(names, ab, b, val_a, val_b):
         """
         P(A=a | B=b) = P(A=a & B=b) / P(B=b)
+
+        Parameters
+        ----------
+        names : (string, string)
+            Names of variables A, B respectively.
+        ab : Distribution
+        b : Distribution
+        val_a : value
+            a in A=a
+        val_b : value
+            b in B=b
         """
         var_a, var_b = names
 
@@ -397,38 +405,26 @@ class CausalLearningAgent(Agent):
         return 0 if p_b == 0 else p_ab / p_b
 
     @staticmethod
-    def check_independence(names, a, b, ab):
+    def are_independent(a, b, d):
         """
         Checks the distributions according to P(A & B) = P(A) * P(B)
 
         Parameters
         ----------
-        names : (string, string)
-            Names for variable A and B respectively.
-        a : Distribution
-        b : Distribution
-        ab : Distribution
-            Joint probability distributions calculated from the data.
-            These list for every variable and their possible values what
-            the probability is.
-        Returns
-        -------
-        bool
-            True if A and B pass the independence check, False otherwise
+        a : string
+            Name of variable A
+        b : string
+            Name of variable B
+        d : Distribution
+            Distribution containing variables A and B.
         """
-        # Assume the distributions are correct
-        # Get variables
-        var_a, var_b = names
-        v_a = a.get_variables()
-        v_b = b.get_variables()
-
         # Check for all possible values of the parameters of A and B
-        for val_a in v_a[var_a]:
-            for val_b in v_b[var_b]:
+        for val_a in d.get_variable_values(a):
+            for val_b in d.get_variable_values(b):
                 # P(A & B) = P(A) * P(B)
-                p_ab = ab.prob({var_a: val_a, var_b: val_b})
-                p_a = a.prob({var_a: val_a})
-                p_b = b.prob({var_b: val_b})
+                p_ab = d.partial_prob({a: val_a, b: val_b})
+                p_a = d.single_prob(a, val_a)
+                p_b = d.single_prob(b, val_b)
 
                 # When the probabilities are not 'equal'
                 if abs(p_ab - p_a * p_b) > 1e-6:
@@ -436,7 +432,7 @@ class CausalLearningAgent(Agent):
         return True
 
     @staticmethod
-    def check_independence_conditional(names, aby, ay, by, y):
+    def are_conditionally_independent(a, b, y, d):
         """
         Calculates the conditional probability.
 
@@ -449,48 +445,39 @@ class CausalLearningAgent(Agent):
 
         Parameters
         ----------
-        names : [string]
-            List of names in order of A, B and the names of variables in Y.
-        aby :
-        ay :
-        by :
-        y :
+        a : string
+            Name for variable A.
+        b : string
+            Name for variable B.
+        y : [string]
+            Names for the conditional variables Y.
+        d : Distribution
         """
-        # TODO: Make this more readable/maintainable/beautiful.
-        v_aby = aby.get_variables()
-        var_a = names[0]
-        var_b = names[1]
-        vars_y = names[2:]
+        values = [d.get_variable_values(variable) for variable in y]
 
-        # Systematically loop through all possible assignments of values to
-        # the considered variables,
-        # and check if the conditional probability equality holds.
-        s_aby = {}
-        s_ay = {}
-        s_by = {}
-        s_y = {}
-        for val_a in v_aby[var_a]:
-            s_aby[var_a] = val_a
-            s_ay[var_a] = val_a
-            for val_b in v_aby[var_b]:
-                s_aby[var_b] = val_b
-                s_by[var_b] = val_b
-                for var_x in vars_y:
-                    for val_x in vars_y[var_x]:
-                        s_aby[var_x] = val_x
-                        s_ay[var_x] = val_x
-                        s_by[var_x] = val_x
-                        s_y[var_x] = val_x
+        for val_a in d.get_variable_values(a):
+            for val_b in d.get_variable_values(b):
+                vals_aby = {a: val_a, b: val_b}
+                vals_ay = {a: val_a}
+                vals_by = {b: val_b}
+                vals_y = {}
 
-                        # P(A,B,C)/P(C) = P(A,C)/P(C) * P(B,C)/P(C)
-                        p_aby = aby.prob(s_aby)
-                        p_ay = ay.prob(s_ay)
-                        p_by = by.prob(s_by)
-                        p_y = y.prob(s_y)
+                for combination in list(itertools.product(*values)):
+                    for i in range(len(combination)):
+                        x = y[i]
 
-                        # When the probabilities are not 'equal'
-                        if abs(p_aby / p_y - (p_ay / p_y) * (p_by / p_y)) > 1e-6:
-                            return False
+                        vals_aby[x] = combination[i]
+                        vals_ay[x] = combination[i]
+                        vals_by[x] = combination[i]
+                        vals_y[x] = combination[i]
+
+                    p_aby = d.partial_prob(vals_aby)
+                    p_ay = d.partial_prob(vals_ay)
+                    p_by = d.partial_prob(vals_by)
+                    p_y = d.partial_prob(vals_y)
+
+                    if abs(p_aby / p_y - (p_ay / p_y) * (p_by / p_y)) > 1e-6:
+                                return False
         return True
 
     def __variables_from_names(self, names):

@@ -22,6 +22,8 @@ class TestDistribution(TestCase):
 
         d.set_prob({"Coin1": "heads", "Coin2": "heads"}, 0.25)
         d.set_prob({"Coin1": "heads", "Coin2": "tails"}, 0.25)
+        d.set_prob({"Coin1": "tails", "Coin2": "heads"}, 0.25)
+        d.set_prob({"Coin1": "tails", "Coin2": "tails"}, 0.25)
 
         self.assertEqual(0.25, d.prob({"Coin1": "heads", "Coin2": "tails"}))
 

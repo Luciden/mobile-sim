@@ -1,6 +1,6 @@
 __author__ = 'Dennis'
 
-from copy import copy, deepcopy
+from copy import deepcopy
 
 
 class Table(object):
@@ -55,6 +55,9 @@ class Table(object):
 
     def get_variables(self):
         return self.variables.copy()
+
+    def get_variable_values(self, name):
+        return self.variables[name]
 
     def set_value(self, vals, value):
         """
