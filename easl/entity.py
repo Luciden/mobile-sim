@@ -23,9 +23,12 @@ class Entity(object):
 
     Attributes
     ----------
+    name : string
+        A name for identifying purposes (for example, in the log).
     log : Log
+        Log to use to document changes in this Entity.
     attributes : {name: value}
-        physical representation of the Entity
+        The attributes constituting the physical representation of the Entity.
     attribute_values : {name: []}
         List of possible values for every attribute.
     sensors : [Sensor]
@@ -56,8 +59,8 @@ class Entity(object):
         Both name and its parameter name/value pairs are provided.
     """
     def __init__(self, name, agent=None):
-        self.log = None
         self.name = name
+        self.log = None
 
         self.attributes = {}
         self.a = self.attributes
