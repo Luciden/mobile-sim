@@ -450,6 +450,7 @@ class CausalLearningAgent(Agent):
         Parameters
         ----------
         names : [string]
+            List of names in order of A, B and the names of variables in Y.
         aby :
         ay :
         by :

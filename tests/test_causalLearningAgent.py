@@ -10,4 +10,3 @@ class TestCausalLearningAgent(TestCase):
     def test_check_independence_conditional(self):
         self.fail()
 
-

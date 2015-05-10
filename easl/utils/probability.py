@@ -20,7 +20,10 @@ class Table(object):
         self.table = {}
         self.variables = variables
 
-        self.order = [var for var in self.variables.keys()]
+        # Sort the variables so the representation is more predictable
+        self.order = list(self.variables.keys())
+        self.order.sort()
+
         self.last = self.order.pop()
 
         self.table = self.__make_table_rec(self.order)
@@ -63,6 +66,8 @@ class Table(object):
         current = self.table
 
         for name in self.order:
+            if name not in vals:
+                raise IndexError("There is no variable {0} in this Table".format(name))
             current = current[vals[name]]
 
         current[vals[self.last]] = value
@@ -117,6 +122,16 @@ class Table(object):
 
 class Distribution(Table):
     def __init__(self, variables, freq=None):
+        """
+        Parameters
+        ----------
+        {name: [value]}
+
+        Attributes
+        ----------
+        variables : {name: [value]}
+            Variables and for each a list of their possible values.
+        """
         if freq is None:
             super(Distribution, self).__init__(variables)
         elif isinstance(freq, Table):
@@ -162,11 +177,19 @@ class Distribution(Table):
             Name of variable to get probability for.
         value : string
         """
-        return self.__single_prob_rec(variable, value, self.table, self.order)
+        return self.partial_prob({variable: value})
 
-    def __single_prob_rec(self, variable, value, current, order):
+    def partial_prob(self, vals):
+        # Check if all variables are here
+        for variable in vals:
+            if variable not in self.order and variable != self.last:
+                raise IndexError("Variable {0} is not in this distribution.".format(variable))
+
+        return self.__partial_prob_rec(vals, self.table, self.order)
+
+    def __partial_prob_rec(self, vals, current, order):
         """
-        Calculates the probability of one variable having a certain value.
+        Calculates the probability of a set of variable=value pairs.
 
         By summing all branches of other variables and then only taking the
         probabilities of the branches that go through the variable=value branch.
@@ -176,23 +199,23 @@ class Distribution(Table):
 
         if len(order) > 0:
             # If we found the variable
-            if order[0] == variable:
-                # Take only the branch with the specified value
-                p += self.__single_prob_rec(current[value], order[1:])
-            # If the variable is a different one
+            if order[0] in vals:
+                # Take only the branch with the specified value for that variable
+                p += self.__partial_prob_rec(vals, current[vals[order[0]]], order[1:])
+            # If the variable is one we do not have a particular value for
             else:
-                # Take all the branches
+                # Sum the probabilities of all possible values for that variable
                 for branch in current:
-                    p += self.__single_prob_rec(variable, value, current[branch], order[1:])
+                    p += self.__partial_prob_rec(vals, current[branch], order[1:])
+        # When we're at the end (with the values)
         else:
             # If this is the variable
-            if self.last == variable:
-                # Get only the value of the specified variable
-                p += current[value]
-            # If it is a different one
+            if self.last in vals:
+                # Only take the number for the value that the variable was set to
+                p += current[vals[self.last]]
+            # If its a different variable
             else:
-                # Sum all possible ones (because we should have passed variable)
-                # TODO: Build in a check to see if we passed variable.
+                # Sum over all the values
                 for value in current:
                     p += current[value]
 
