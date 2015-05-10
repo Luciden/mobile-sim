@@ -210,7 +210,6 @@ class CausalLearningAgent(Agent):
             contains data on variable instances used to check for independence
             a table of entries of lists of variable/value pairs
         """
-        # TODO: Rewrite to only calculate the joint probability table once.
         # 1. Form the complete undirected graph on all variables
         c = easl.utils.Graph()
         c.make_complete(variables)
@@ -351,9 +350,8 @@ class CausalLearningAgent(Agent):
             for var_a in self.actions:
                 for val_a in self.actions[var_a]:
                     p_ma = self.__calculate_joint([var_m, var_a])
-                    p_a = self.__calculate_joint([var_a])
 
-                    p_conditional = CausalLearningAgent.conditional_probability([var_m, var_a], p_ma, p_a, val_m, val_a)
+                    p_conditional = CausalLearningAgent.conditional_probability([var_m, var_a], p_ma, val_m, val_a)
                     if argmax is None:
                         argmax = (var_a, val_a, p_conditional)
                     elif p_conditional > argmax[2]:
@@ -372,7 +370,7 @@ class CausalLearningAgent(Agent):
         return action
 
     @staticmethod
-    def conditional_probability(names, ab, b, val_a, val_b):
+    def conditional_probability(names, ab, val_a, val_b):
         """
         P(A=a | B=b) = P(A=a & B=b) / P(B=b)
 
@@ -389,8 +387,8 @@ class CausalLearningAgent(Agent):
         """
         var_a, var_b = names
 
-        p_ab = ab.prob({var_a: val_a, var_b: val_b})
-        p_b = b.prob({var_b: val_b})
+        p_ab = ab.partial_prob({var_a: val_a, var_b: val_b})
+        p_b = ab.partial_prob({var_b: val_b})
 
         return 0 if p_b == 0 else p_ab / p_b
 
