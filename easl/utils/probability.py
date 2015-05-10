@@ -1,6 +1,11 @@
 __author__ = 'Dennis'
 
 from copy import deepcopy
+import itertools
+
+
+class DifferentVariableError(Exception):
+    pass
 
 
 class Table(object):
@@ -145,6 +150,38 @@ class Distribution(Table):
             self.table = deepcopy(freq.table)
         else:
             raise RuntimeError("Not a Table.")
+
+    def __eq__(self, other):
+        if not isinstance(other, Distribution):
+            return False
+
+        # Check if variables and values are the same
+        for variable in self.variables:
+            if variable not in other.variables:
+                return False
+            else:
+                a = self.variables[variable]
+                b = self.variables[variable]
+
+                if not set(a) == set(b):
+                    return False
+
+        # Check if all values are the same
+        values = []
+        for variable in self.order:
+            values.append(self.variables[variable])
+        values.append(self.variables[self.last])
+
+        for combination in list(itertools.product(*values)):
+            vals = {}
+            for i in range(len(self.order)):
+                vals[self.order[i]] = combination[i]
+            vals[self.last] = combination[-1]
+
+            if self.get_value(vals) != other.get_value(vals):
+                return False
+
+        return True
 
     def set_prob(self, vals, p):
         """

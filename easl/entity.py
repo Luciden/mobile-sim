@@ -132,6 +132,9 @@ class Entity(object):
         if self.agent is not None:
             self.agent.set_log(log)
 
+    def add_observation(self, observation):
+        self.observations.update(observation)
+
     def queue_actions(self):
         """
         Queues actions to be executed by consulting associated Agent, if available.

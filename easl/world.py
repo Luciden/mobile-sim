@@ -38,9 +38,6 @@ class Sensor(object):
     def detects_modality(self, modality):
         return False
 
-    def notify(self, signal):
-        pass
-
 
 class Signal(object):
     def __init__(self, modality, sig_type, value, values):
@@ -174,12 +171,13 @@ class World(object):
                 for receiver in self.entities:
                     for sensor in self.entities[receiver].sensors:
                         if sensor.detects_modality(signal.modality):
-                            self.signals.append((sensor, signal))
+                            self.signals.append((receiver, signal))
 
     def __send_signals(self):
         while len(self.signals) > 0:
-            n = self.signals.pop(0)
-            n[0].notify(n[1])
+            receiver, signal = self.signals.pop(0)
+
+            self.entities[receiver].add_observation({signal.sig_type: signal.value})
 
     def __queue_actions(self):
         """

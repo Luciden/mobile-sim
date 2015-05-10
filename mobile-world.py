@@ -87,10 +87,6 @@ class SightSensor(Sensor):
     def detects_modality(self, modality):
         return modality == "sight"
 
-    def notify(self, signal):
-        if signal.sig_type == "movement":
-            self.observations["movement"] = True
-
 
 def create_infant(agent):
     """
