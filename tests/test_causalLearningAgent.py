@@ -14,12 +14,7 @@ class TestCausalLearningAgent(TestCase):
         ab.set_prob({"Coin1": "tails", "Coin2": "heads"}, 0.25)
         ab.set_prob({"Coin1": "tails", "Coin2": "tails"}, 0.25)
 
-        b = Distribution({"Coin2": ["heads", "tails"]})
-
-        b.set_prob({"Coin2": "heads"}, 0.5)
-        b.set_prob({"Coin2": "tails"}, 0.5)
-
-        self.assertEqual(0.5, CausalLearningAgent.conditional_probability(["Coin1", "Coin2"], ab, b, "heads", "tails"))
+        self.assertEqual(0.5, CausalLearningAgent.conditional_probability(["Coin1", "Coin2"], ab, "heads", "tails"))
 
     def test_are_independent_independent(self):
         d = Distribution({"Coin1": ["heads", "tails"], "Coin2": ["heads", "tails"]})

@@ -338,8 +338,6 @@ class CausalLearningAgent(Agent):
         (name, value)
             The variable name and its value.
         """
-        # TODO: Fix. Probabilities do not seem to update. argmax2] is always 0
-        # TODO: Doesn't get movement updates.
         action = None
         # calculate argmax_A P(M=true | A)
         # for any variable M that we are 'interested in'
