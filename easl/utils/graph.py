@@ -1,13 +1,32 @@
 __author__ = 'Dennis'
 
 
+class NonExistentNodeError(Exception):
+    pass
+
+
+class NonExistentEdgeError(Exception):
+    pass
+
+
+class NodesNotUniqueError(Exception):
+    pass
+
+
 class Graph(object):
     # TODO: make more efficient by using dicts as internal representation.
     """
+    Representation of a graph that is used as a DAG representation for
+    a Causal Bayes Net.
+
+    Stores edges symmetrically (i.e. both a -> b and b -> a) for efficiency
+    for the
+    reasons.
+
     Attributes
     ----------
     nodes : [name]
-    edges : (name, tag, name, tag)
+    edges : [(name, tag, name, tag)]
     """
     def __init__(self):
         self.nodes = []
@@ -18,9 +37,15 @@ class Graph(object):
         if name not in self.nodes:
             self.nodes.append(name)
 
-    def add_edge(self, a, b, ma="", mb=""):
-        # Check if nodes actually exist
-        if a in self.nodes and b in self.nodes:
+    def add_edge(self, a, b):
+        # Don't add edges reflexively to the same node
+        if a == b:
+            pass
+        elif a not in self.nodes:
+            raise NonExistentNodeError("{0} is not a node.".format(a))
+        elif b not in self.nodes:
+            raise NonExistentNodeError("{0} is not a node.".format(b))
+        else:
             # Check if edge does not already exist
             for (x, mx, y, my) in self.edges:
                 # When edge already exists, do nothing.
@@ -28,8 +53,8 @@ class Graph(object):
                     return
 
             # Store edges symmetrically
-            self.edges.append((a, ma, b, mb))
-            self.edges.append((b, mb, a, ma))
+            self.edges.append((a, "", b, ""))
+            self.edges.append((b, "", a, ""))
 
     def del_edge(self, a, b):
         self.__del_edge(a, b)
@@ -50,6 +75,12 @@ class Graph(object):
         """
         self.nodes = []
         self.edges = []
+
+    def is_node(self, name):
+        return name in self.nodes
+
+    def is_edge(self, a, b):
+        return (a, b) in [(p, q) for (p, x, q, y) in self.edges]
 
     def make_complete(self, variables):
         """
@@ -72,6 +103,14 @@ class Graph(object):
                 self.add_edge(self.nodes[a], self.nodes[b])
 
     def are_adjacent(self, a, b):
+        """
+        Parameters
+        ----------
+        a : string
+            Variable name.
+        b : string
+            Variable name.
+        """
         for e in self.edges:
             if e[0] == a and e[2] == b or e[0] == b and e[2] == a:
                 return True
@@ -79,27 +118,67 @@ class Graph(object):
 
     def get_pairs(self):
         """
+        All pairs A, B that are connected by an edge.
+
+        Only contains edges in one direction, so if (A, B) is in pairs, (B, A)
+        is not.
 
         Returns
         -------
-        list
+        [(string, string)]
             pairs of variable names that are connected by an edge
         """
-        return [(a, b) for (a, _, b, _) in self.edges]
+        pairs = []
+
+        # Consider all pairs, but contains reversed pairs as well (a, b) and
+        # (b, a)
+        for (a, b) in [(a, b) for (a, _1, b, _2) in self.edges]:
+            # Only add if
+            if (b, a) in pairs:
+                pass
+            else:
+                pairs.append((a, b))
+
+        return pairs
 
     def get_connected(self, a):
-        return [x for (b, x) in self.edges if b == a]
+        """
+        Finds all nodes that are connected by an edge to a specified node.
+
+        Returns
+        -------
+        [string]
+            Names of the nodes that it is connected to.
+        """
+        return [x for (b, _1, x, _2) in self.edges if b == a]
 
     def get_triples(self):
-        return [(a, b, c) for (a, _, b, _) in self.edges for (b, _, c, _) in self.edges if a != c]
+        """
+        All triples of nodes A, B, C that are connected as A - B - C.
+
+        Returns
+        -------
+        [(string, string, string)]
+        """
+        pairs = self.get_pairs()
+
+        return [(a, b, c)
+                for (a, b) in pairs
+                for (b, c) in pairs
+                if a != c and a != b and b != c]
 
     def get_triples_special(self):
         triples = self.get_triples()
         # T ->V
-        arrowheads = [(t, v, r) for (t, v, r) in triples for (t, _, v, a) in self.edges if a == ">"]
+        arrowheads = [(t, v, r)
+                      for (t, v, r) in triples
+                      for (t, _, v, a) in self.edges
+                      if a == ">"]
 
         # V - R
-        neighbours = [(t, v, r) for (t, v, r) in arrowheads for (v, _, r, _) in self.edges]
+        neighbours = [(t, v, r)
+                      for (t, v, r) in arrowheads
+                      for (v, _1, r, _2) in self.edges]
 
         # T   R
         for i in range(len(neighbours)):
@@ -110,6 +189,18 @@ class Graph(object):
         return neighbours
 
     def orient(self, t, v, r):
+        """
+        For T - V - R, orients towards T -> V <- R
+
+        Parameters
+        ----------
+        t : string
+        v : string
+        r : string
+        """
+        if t == v or t == r or v == r:
+            raise NodesNotUniqueError("{0}, {1} and {2} are not unique nodes.".format(t, v, r))
+
         for i in range(len(self.edges)):
             (a, ma, b, mb) = self.edges[i]
 
@@ -124,6 +215,9 @@ class Graph(object):
         """
         Orient X - Y as X -> Y
         """
+        if not self.is_edge(x, y):
+            raise NonExistentEdgeError("No edge between {0} and {1}".format(x, y))
+
         for i in range(len(self.edges)):
             (a, ma, b, mb) = self.edges[i]
 
@@ -131,5 +225,3 @@ class Graph(object):
                 self.edges[i] = (a, ma, b, ">")
             elif b == x and a == y:
                 self.edges[i] = (a, ">", b, mb)
-            else:
-                raise LookupError("Edge not found.")

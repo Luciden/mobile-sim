@@ -179,7 +179,7 @@ def create_experimenter(experiment_log):
 
 
 def experimental_condition():
-    infant = create_infant("random")
+    infant = create_infant("causal")
     mobile = create_mobile()
 
     world = World()
