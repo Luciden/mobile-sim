@@ -88,6 +88,8 @@ class CausalLearningAgent(Agent):
         Attributes
         ----------
         data : Data
+            Stores previous observations.
+            Used to calculate (conditional) probabilities.
         actions : {name: [value]}
         default_action : {name: value}
         default_signals : {name: value}
@@ -211,11 +213,6 @@ class CausalLearningAgent(Agent):
             a table of entries of lists of variable/value pairs
         """
         # 1. Form the complete undirected graph on all variables
-        #
-        # - form complete (undirected) graph of variables
-        # + node/edge representation
-        #  + add node
-        #  + add edge between nodes
         c = easl.utils.Graph()
         c.make_complete(variables)
 
@@ -228,12 +225,48 @@ class CausalLearningAgent(Agent):
         #    P(A) * P(B) = P(A & B)
         #    P(B|A) = P(B)
         #    P(A|B) = P(A)
-        #
-        # - test two variables on independence given data
-        # - eliminate edge between nodes
-        # - calculate probability P(X) from data
-        # - calculate probability P(X|Y) from data
+        self.__learn_causality_step_2(variables, c)
 
+        # 3. For each pair U, V of variables connected by an edge,
+        #    and for each T connected to one or both U, V, test whether
+        #    U _|_ V | T
+        #    If an independence is found, remove the edge between U and V.
+        #
+        #    P(A,B|C) = P(A|C) * P(B|C)
+        #    P(A,B,C)/P(C) = P(A,C)/P(C) * P(B,C)/P(C)
+        # Get all pairs of nodes connected by an edge
+        self.__learn_causality_step_3(c, sepset)
+
+        # 4. For each pair U, V connected by an edge and each pair of T, S of
+        #    variables, each of which is connected by an edge to either U or V,
+        #    test the hypothesis that U _|_ V | {T, S}.
+        #    If an independence is found, remove the edge between U, V.
+        #
+        #    P(A,B|C,D) = P(A|C,D) * P(B|C,D)
+        #    P(A,B,C,D)/P(C,D) = P(A,C,D)/P(C,D) * P(B,C,D)/P(C,D)
+        self.__learn_causality_step_4(c, sepset)
+
+        # 5. For each triple of variables T, V, R such that T - V - R and
+        #    there is no edge between T and R, orient as To -> V <- oR if
+        #    and only if V was not conditioned on when removing the T - R
+        #    edge.
+        #
+        #    The last part means to keep record of which edges were removed
+        #    and to check against those.
+        #
+        #    According to Spirtes et al. this means leaving the original
+        #    mark on the T and R nodes and putting arrow marks on the V
+        #    end.
+        self.__learn_causality_step_5(c, sepset)
+
+        # 6. For each triple of variables T, V, R such that T has an edge
+        #    with an arrowhead directed into V and V - R, and T has no edge
+        #    connecting it to R, orient V - R as V -> R.
+        self.__learn_causality_step_6(c)
+
+        return c
+
+    def __learn_causality_step_2(self, variables, graph):
         # Check independence by checking if P(A|B) = P(A)
         for i_a in range(len(variables)):
             a = variables[i_a]
@@ -249,22 +282,12 @@ class CausalLearningAgent(Agent):
 
                 # Check for independence by checking P(A & B) = P(A) * P(B)
                 if CausalLearningAgent.check_independence((a, b), p_a, p_b, p_ab):
-                    c.del_edge(a, b)
+                    graph.del_edge(a, b)
 
-        # 3. For each pair U, V of variables connected by an edge,
-        #    and for each T connected to one or both U, V, test whether
-        #    U _|_ V | T
-        #    If an independence is found, remove the edge between U and V.
-        #
-        #    P(A,B|C) = P(A|C) * P(B|C)
-        #    P(A,B,C)/P(C) = P(A,C)/P(C) * P(B,C)/P(C)
-        #
-        # - test three variables on conditional independence
-        # - find all nodes connected to one node
-        # Get all pairs of nodes connected by an edge
-        for (u, v) in c.get_pairs():
+    def __learn_causality_step_3(self, graph, sepset):
+        for (u, v) in graph.get_pairs():
             # Get all nodes connected to one of either nodes
-            ts = set(c.get_connected(u) + c.get_connected(v))
+            ts = set(graph.get_connected(u) + graph.get_connected(v))
 
             found = False
 
@@ -282,22 +305,14 @@ class CausalLearningAgent(Agent):
                     continue
 
             if found:
-                c.del_edge(u, v)
+                graph.del_edge(u, v)
                 sepset.append((u, v))
                 sepset.append((v, u))
                 continue
 
-        # 4. For each pair U, V connected by an edge and each pair of T, S of
-        #    variables, each of which is connected by an edge to either U or V,
-        #    test the hypothesis that U _|_ V | {T, S}.
-        #    If an independence is found, remove the edge between U, V.
-        #
-        #    P(A,B|C,D) = P(A|C,D) * P(B|C,D)
-        #    P(A,B,C,D)/P(C,D) = P(A,C,D)/P(C,D) * P(B,C,D)/P(C,D)
-        #
-        # - test conditional independence on set of variables
-        for (u, v) in c.get_pairs():
-            ts = c.get_connected(u) + c.get_connected(v)
+    def __learn_causality_step_4(self, graph, sepset):
+        for (u, v) in graph.get_pairs():
+            ts = graph.get_connected(u) + graph.get_connected(v)
 
             found = False
             for (t, s) in [(t, s) for t in ts for s in ts if t != s]:
@@ -312,37 +327,21 @@ class CausalLearningAgent(Agent):
                     continue
 
             if found:
-                c.del_edge(u, v)
+                graph.del_edge(u, v)
                 sepset.append((u, v))
                 sepset.append((v, u))
                 continue
 
-        # 5. For each triple of variables T, V, R such that T - V - R and
-        #    there is no edge between T and R, orient as To -> V <- oR if
-        #    and only if V was not conditioned on when removing the T - R
-        #    edge.
-        #
-        #    The last part means to keep record of which edges were removed
-        #    and to check against those.
-        #
-        #    According to Spirtes et al. this means leaving the original
-        #    mark on the T and R nodes and putting arrow marks on the V
-        #    end.
-        #
-        # - create marked edges (empty, o, >)
+    def __learn_causality_step_5(self, graph, sepset):
         # get triples T - V - R
-        for (t, v, r) in c.get_triples():
+        for (t, v, r) in graph.get_triples():
             # if T - R not in sepset, orient edges
             if (t, r) not in sepset:
-                c.orient(t, v, r)
+                graph.orient(t, v, r)
 
-        # 6. For each triple of variables T, V, R such that T has an edge
-        #    with an arrowhead directed into V and V - R, and T has no edge
-        #    connecting it to R, orient V - R as V -> R.
-        for (t, v, r) in c.get_triples_special():
-            c.orient_half(v, r)
-
-        return c
+    def __learn_causality_step_6(self, graph):
+        for (t, v, r) in graph.get_triples_special():
+            graph.orient_half(v, r)
 
     def __select_action(self):
         """
@@ -447,12 +446,24 @@ class CausalLearningAgent(Agent):
         Generalized:
         P(A,B|Y) = P(A|Y) * P(B|Y)
         P(A,B,Y) / P(Y) = P(A,Y) / P(Y) * P(B,Y) / P(Y)
+
+        Parameters
+        ----------
+        names : [string]
+        aby :
+        ay :
+        by :
+        y :
         """
+        # TODO: Make this more readable/maintainable/beautiful.
         v_aby = aby.get_variables()
         var_a = names[0]
         var_b = names[1]
         vars_y = names[2:]
 
+        # Systematically loop through all possible assignments of values to
+        # the considered variables,
+        # and check if the conditional probability equality holds.
         s_aby = {}
         s_ay = {}
         s_by = {}
