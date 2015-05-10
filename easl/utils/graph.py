@@ -14,7 +14,6 @@ class NodesNotUniqueError(Exception):
 
 
 class Graph(object):
-    # TODO: make more efficient by using dicts as internal representation.
     """
     Representation of a graph that is used as a DAG representation for
     a Causal Bayes Net.
@@ -63,9 +62,9 @@ class Graph(object):
     def __del_edge(self, a, b):
         if a in self.nodes and b in self.nodes:
             for i in range(len(self.edges)):
-                edge = self.edges[i]
+                (x, _, y, _) = self.edges[i]
 
-                if edge[0] == a and edge[2] == b or edge[2] == a and edge[0] == b:
+                if x == a and y == b or y == a and x == b:
                     del self.edges[i]
                     return
 
@@ -168,6 +167,10 @@ class Graph(object):
                 if a != c and a != b and b != c]
 
     def get_triples_special(self):
+        """
+        Get the triples T, V, R for which T has an edge with an arrowhead
+        directed into V and V - R, and T has no edge connecting it to R.
+        """
         triples = self.get_triples()
         # T ->V
         arrowheads = [(t, v, r)
@@ -180,11 +183,11 @@ class Graph(object):
                       for (t, v, r) in arrowheads
                       for (v, _1, r, _2) in self.edges]
 
-        # T   R
-        for i in range(len(neighbours)):
-            t, v, r = neighbours[i]
-            if self.are_adjacent(t, r):
-                del neighbours[i]
+        # Remove those for which T and R are connected
+        # T   R, 'T has no edge connecting it to R.'
+        neighbours = [(t, v, r)
+                      for (t, v, r) in neighbours
+                      if not self.are_adjacent(t, r)]
 
         return neighbours
 

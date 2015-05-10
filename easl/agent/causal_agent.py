@@ -339,7 +339,7 @@ class CausalLearningAgent(Agent):
         # 6. For each triple of variables T, V, R such that T has an edge
         #    with an arrowhead directed into V and V - R, and T has no edge
         #    connecting it to R, orient V - R as V -> R.
-        for (t, v, r) in c.get_triples():
+        for (t, v, r) in c.get_triples_special():
             c.orient_half(v, r)
 
         return c

@@ -82,6 +82,18 @@ class TestGraph(TestCase):
         self.assertEqual(0, len(g.nodes))
         self.assertEqual(0, len(g.edges))
 
+    def test_is_node_normal(self):
+        g = Graph()
+
+        g.add_node("a")
+
+        self.assertTrue(g.is_node("a"))
+
+    def test_is_node_none(self):
+        g = Graph()
+
+        self.assertFalse(g.is_node("a"))
+
     def test_is_edge_normal(self):
         g = Graph()
 
@@ -240,3 +252,25 @@ class TestGraph(TestCase):
 
         self.assertRaises(NonExistentEdgeError, g.orient_half, "a", "b")
 
+    def test_get_triples_special_single(self):
+        g = Graph()
+
+        g.add_node("t")
+        g.add_node("v")
+        g.add_node("r")
+
+        g.add_edge("t", "v")
+        g.orient_half("t", "v")
+
+        g.add_edge("v", "r")
+
+        triples = g.get_triples_special()
+
+        self.assertTrue(("t", "v", "r") in triples)
+
+    def test_get_triples_special_empty(self):
+        g = Graph()
+
+        triples = g.get_triples_special()
+
+        self.assertEqual([], triples)
