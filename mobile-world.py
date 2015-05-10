@@ -207,8 +207,8 @@ def control_condition(experiment_log):
 if __name__ == '__main__':
     log = experimental_condition()
 
-    #v = Visualizer()
-    #v.visualize(log)
+    v = Visualizer()
+    v.visualize(log)
 
     #log2 = control_condition(log)
 

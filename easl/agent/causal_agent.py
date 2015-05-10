@@ -465,8 +465,13 @@ class CausalLearningAgent(Agent):
                     p_by = d.partial_prob(vals_by)
                     p_y = d.partial_prob(vals_y)
 
-                    if abs(p_aby / p_y - (p_ay / p_y) * (p_by / p_y)) > 1e-6:
-                                return False
+                    # P(A,B,Y) / P(Y) = P(A,Y) / P(Y) * P(B,Y) / P(Y)
+                    if p_y != float(0):
+                        left = p_aby / float(p_y)
+                        right = (p_ay / float(p_y)) * (p_by / float(p_y))
+
+                        if abs(left - right) > 1e-6:
+                            return False
         return True
 
     def __variables_from_names(self, names):
