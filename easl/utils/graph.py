@@ -228,3 +228,14 @@ class Graph(object):
                 self.edges[i] = (a, ma, b, ">")
             elif b == x and a == y:
                 self.edges[i] = (a, ">", b, mb)
+
+    def causal_paths(self, x):
+        """
+        Find all variables that have a causal path to x.
+        """
+        paths = []
+
+        for node in [a for (a, _, b, p) in self.edges if b == x and p == ">"]:
+            paths.append(self.causal_paths(node) + [node, x])
+
+        return paths

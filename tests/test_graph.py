@@ -274,3 +274,32 @@ class TestGraph(TestCase):
         triples = g.get_triples_special()
 
         self.assertEqual([], triples)
+
+    def test_causal_paths_single_path(self):
+        g = Graph()
+
+        g.add_node("a")
+        g.add_node("b")
+        g.add_node("c")
+
+        g.add_edge("a", "b")
+
+        g.orient_half("a", "b")
+
+        paths = g.causal_paths("b")
+
+        self.assertEqual(1, len(paths))
+        self.assertIn(["a", "b"], paths)
+
+    def test_causal_paths_no_path(self):
+        g = Graph()
+
+        g.add_node("a")
+        g.add_node("b")
+        g.add_node("c")
+
+        g.add_edge("a", "b")
+
+        paths = g.causal_paths("b")
+
+        self.assertEqual(0, len(paths))

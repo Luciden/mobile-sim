@@ -285,7 +285,7 @@ class CausalLearningAgent(Agent):
 
             for t in ts:
                 # Test conditional independence
-                # Calculate P(T), P(U,T), P(V,T) and P(U,V,T)
+                # Calculate P(U,V,T)
                 p_uvt = self.__calculate_joint([u, v, t])
 
                 if CausalLearningAgent.are_conditionally_independent(u, v, [t], p_uvt):
@@ -344,9 +344,12 @@ class CausalLearningAgent(Agent):
         for var_m in self.values:
             val_m = self.values[var_m]
 
+            # Find actions A that have a path to M
+            actions = self.network.causal_paths(var_m)
+
             # find argmax_A,a P(M=m | A=a) for actions A=a
             argmax = None
-            for var_a in self.actions:
+            for var_a in actions:
                 for val_a in self.actions[var_a]:
                     p_ma = self.__calculate_joint([var_m, var_a])
 

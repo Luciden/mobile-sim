@@ -34,3 +34,28 @@ class TestData(TestCase):
         e.set_prob({"Coin1": "tails"}, 4/float(9))
 
         self.assertEqual(e, p)
+
+    def test_calculate_joint_multiple(self):
+        d = Data()
+
+        d.add_entry({"Weather": "clear", "Temperature": "warm"})
+        d.add_entry({"Weather": "clear", "Temperature": "warm"})
+        d.add_entry({"Weather": "clear", "Temperature": "warm"})
+        d.add_entry({"Weather": "clear", "Temperature": "warm"})
+        d.add_entry({"Weather": "clear", "Temperature": "cold"})
+        d.add_entry({"Weather": "clear", "Temperature": "cold"})
+        d.add_entry({"Weather": "cloudy", "Temperature": "warm"})
+        d.add_entry({"Weather": "cloudy", "Temperature": "cold"})
+        d.add_entry({"Weather": "cloudy", "Temperature": "cold"})
+        d.add_entry({"Weather": "cloudy", "Temperature": "cold"})
+
+        p = d.calculate_joint({"Weather": ["clear", "cloudy"], "Temperature": ["warm", "cold"]})
+
+        e = Distribution({"Weather": ["clear", "cloudy"], "Temperature": ["warm", "cold"]})
+
+        e.set_prob({"Weather": "clear", "Temperature": "warm"}, 0.4)
+        e.set_prob({"Weather": "clear", "Temperature": "cold"}, 0.2)
+        e.set_prob({"Weather": "cloudy", "Temperature": "warm"}, 0.1)
+        e.set_prob({"Weather": "cloudy", "Temperature": "cold"}, 0.3)
+
+        self.assertEqual(e, p)
