@@ -212,10 +212,10 @@ class Conjunction(object):
         return [p for (p, _) in self.predicates]
 
     def has_predicate_with_name_from(self, predicates, tag):
-        x = [p for (p, t) in self.predicates
-             if p.name in predicates and t == tag]
-
-        return len(x) != 0
+        for (p, t) in self.predicates:
+            if p.name in predicates and t == tag:
+                return True
+        return False
 
     def get_predicates_with_name_not_from(self, predicates):
         return [(p, t) for (p, t) in self.predicates if p.name not in predicates]
@@ -370,11 +370,17 @@ class Reinforcer(object):
         print "creating predictor"
         self.predictors += self.__create_predictor()
 
+    def add_predictor(self, predictor):
+        """
+        Parameters
+        ----------
+        predictor : Predictor
+        """
+        self.predictors.append(predictor)
+        self.predictors.append(predictor)
+
     def remove_predictor(self, predictor):
-        for i in range(len(self.predictors)):
-            if self.predictors[i] == predictor:
-                del self.predictors[i]
-                i -= 1
+        self.predictors[:] = [p for p in self.predictors if not p == predictor]
 
     def __create_predictor(self):
         # "If there are still several candidates, two are chosen at random to become
@@ -474,7 +480,21 @@ class OperantConditioningAgent(Agent):
         self._DEMERIT_THRESHOLD = 1000
 
     def init_internal(self, entity):
+        self.__init_internal_simple(entity)
+
+    def __init_internal_normal(self, entity):
         self.actions = entity.actions
+
+    def __init_internal_simple(self, entity):
+        self.actions = entity.actions
+
+        # Initialize all reinforcers to have actions as predictors
+        for reinforcer in self.reinforcers:
+            for action in self.actions:
+                for value in self.actions[action]:
+                    predictor = Conjunction()
+                    predictor.add_predicate(Predicate(action, value), WorkingMemory.PREV)
+                    reinforcer.add_predictor(predictor)
 
     def sense(self, observation):
         """
@@ -486,6 +506,9 @@ class OperantConditioningAgent(Agent):
         self.observations.append(observation)
 
     def act(self):
+        return self.__act_simple()
+
+    def __act_normal(self):
         self.memory.age()
         # Turn observations into predicates
         self.__store_observations()
@@ -502,6 +525,20 @@ class OperantConditioningAgent(Agent):
         #  predicted the reward it just got."
         self.__create_predictors()
         self.__delete_predictors()
+
+        actions = self.__select_actions()
+        # Add actions as predicates
+        for action in actions:
+            self.memory.add_action(action)
+
+        return actions
+
+    def __act_simple(self):
+        self.memory.age()
+
+        self.__store_observations()
+
+        self.__update_reinforcer_counts()
 
         actions = self.__select_actions()
         # Add actions as predicates
@@ -569,17 +606,13 @@ class OperantConditioningAgent(Agent):
         # temporal predicates.
         predicates = []
 
-        future = self.memory.get_of_age(0)
-        for p in future:
-            predicates.append((p, WorkingMemory.FUT))
+        now = self.memory.get_of_age(0)
+        for p in now:
+            predicates.append((p, WorkingMemory.NOW))
 
         if self.memory.get_oldest() > 0:
-            now = self.memory.get_of_age(1)
-            for p in now:
-                predicates.append((p, WorkingMemory.NOW))
-        if self.memory.get_oldest() > 1:
-            previous = self.memory.get_of_age(2)
-            for p in previous:
+            prev = self.memory.get_of_age(1)
+            for p in prev:
                 predicates.append((p, WorkingMemory.PREV))
 
         return predicates
@@ -788,7 +821,7 @@ class OperantConditioningAgent(Agent):
         # (Number denoting primary, secondary, etc?)
         matches = []
 
-        # TODO: Store matches (tag mappings) together with predictors, to later check actions.
+        # TODO: Make sure the match lines up with the NOW tag for the action later.
         for reinforcer in self.reinforcers:
             for predictor in reinforcer.predictors:
                 if self.memory.is_match(predictor.get_temporal()):
