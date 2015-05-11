@@ -1,6 +1,5 @@
 from unittest import TestCase
 from easl.utils import Distribution
-from easl.utils import Graph
 from easl.agent import CausalLearningAgent
 
 __author__ = 'Dennis'

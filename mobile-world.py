@@ -101,7 +101,7 @@ def create_infant(agent):
         infant.set_agent(RandomAgent())
     elif agent == "operant":
         infant.set_agent(OperantConditioningAgent())
-        infant.agent.set_primary_reinforcer("movement", {"value": True})
+        infant.agent.set_primary_reinforcer("movement", True)
     elif agent == "causal":
         cla = CausalLearningAgent()
         cla.set_values({"movement": True})
@@ -175,7 +175,7 @@ def create_experimenter(experiment_log):
 
 
 def experimental_condition():
-    infant = create_infant("causal")
+    infant = create_infant("operant")
     mobile = create_mobile()
 
     world = World()

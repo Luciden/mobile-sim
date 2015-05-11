@@ -153,14 +153,14 @@ class Entity(object):
             self.log.do_log("observation",
                             {"entity": self.name, "observation": observation, "value": self.observations[observation]})
 
-            self.agent.sense({observation: self.observations[observation]})
+            self.agent.sense((observation, self.observations[observation]))
         self.observations = {}
 
         # Also add internal representation as observations
         for observation in self.attributes:
             self.log.do_log("observation",
                             {"entity": self.name, "observation": observation, "value": self.attributes[observation]})
-            self.agent.sense({observation: self.attributes[observation]})
+            self.agent.sense((observation, self.attributes[observation]))
 
         # ask agent to give actions
         self.action_queue = self.agent.act()
@@ -168,7 +168,7 @@ class Entity(object):
         for action in self.action_queue:
             self.log.do_log("observation",
                             {"entity": self.name, "name": action[0], "value": action[1]})
-            self.agent.sense({action[0]: action[1]})
+            self.agent.sense((action[0], action[1]))
 
     def add_attribute(self, name, initial_value, values, event):
         """

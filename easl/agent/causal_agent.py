@@ -164,7 +164,9 @@ class CausalLearningAgent(Agent):
         observation : (name, value)
         """
         # Simply store the information to use later.
-        self.observations.update(observation)
+        name, value = observation
+
+        self.observations[name] = value
 
     def act(self):
         # Convert observations into an entry in the Database.
