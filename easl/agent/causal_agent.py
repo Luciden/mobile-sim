@@ -33,8 +33,11 @@ class Data(object):
         else:
             self.entries[time] = deepcopy(vals)
 
+    def get_entries_at_time(self, time):
+        return self.entries[time]
+
     def calculate_joint(self, actions, sensories):
-        if len(self.entries) < 2:
+        if len(actions) == 0 or len(self.entries) < 2:
             variables = {}
             variables.update(actions)
             variables.update(sensories)
@@ -61,8 +64,8 @@ class Data(object):
         """
         freq = easl.utils.Table(variables)
 
-        for t in range(len(self.entries)):
-            freq.inc_value(self.entries[t])
+        for entry in self.entries:
+            freq.inc_value(self.entries[entry])
 
         n = len(self.entries)
         freq.do_operation(lambda x: x / float(n))
@@ -74,35 +77,62 @@ class Data(object):
         Calculates the joint probability distribution from data for the given
         variables, but takes into account that actions come before consequences
         in time.
+
+        P(t_i|t_{i-1})
+
+        So basically,
+        get frequencies of certain actions followed by sensories
+        divide frequencies by frequencies of just the actions.
         """
-        variables = actions
+        variables = {}
+        variables.update(actions)
         variables.update(sensories)
 
         freq = easl.utils.Table(variables)
+        prev = easl.utils.Table(actions)
 
         # For the actions of every time step
-        for t_i in range(len(self.entries) - 1):
+        for t_i in self.entries:
             # and the sensories of the next
-            for t_k in range(t_i, len(self.entries)):
-                # Create the combined entry and update the frequency
-                entry_i = self.entries[t_i]
-                entry_k = self.entries[t_k]
+            t_k = t_i + 1
+            if t_k not in self.entries:
+                continue
 
-                entry = {}
+            # Create the combined entry and update the frequency
+            entry_i = self.entries[t_i]
+            entry_k = self.entries[t_k]
 
-                for action in entry_i:
-                    if action in actions:
-                        entry[action] = entry_i[action]
-                for sensory in entry_k:
-                    if sensory in sensories:
-                        entry[sensory] = entry_k[sensory]
+            entry = {}
+            prev_entry = {}
 
-                freq.inc_value(entry)
+            for action in entry_i:
+                if action in actions:
+                    entry[action] = entry_i[action]
+                    prev_entry[action] = entry_i[action]
+            for sensory in entry_k:
+                if sensory in sensories:
+                    entry[sensory] = entry_k[sensory]
 
-        n = len(self.entries)
-        freq.do_operation(lambda x: x / float(n))
+            prev.inc_value(prev_entry)
+            freq.inc_value(entry)
 
-        return easl.utils.Distribution(variables, freq)
+        prob = easl.utils.Table(variables)
+        # Make all possible combinations of variable=value
+        # calculate freq / prev
+        for vals in (dict(itertools.izip(variables, x)) for x in itertools.product(*variables.itervalues())):
+            entry_prev = {}
+            for action in vals:
+                if action in actions:
+                    entry_prev[action] = vals[action]
+
+            f = freq.get_value(vals)
+            n = prev.get_value(vals)
+            if n == 0:
+                prob.set_value(vals, 0)
+            else:
+                prob.set_value(vals, f / float(n))
+
+        return easl.utils.Distribution(variables, prob)
 
 
 class CausalBayesNetLearner(object):
@@ -153,6 +183,8 @@ class CausalBayesNetLearner(object):
             found = False
 
             for t in ts:
+                if t == u or t == v:
+                    continue
                 # Test conditional independence
                 # Calculate P(U,V,T)
                 p_uvt = CausalBayesNetLearner.calculate_joint([u, v, t], actions, sensories, data)
@@ -181,6 +213,9 @@ class CausalBayesNetLearner(object):
 
             found = False
             for (t, s) in [(t, s) for t in ts for s in ts if t != s]:
+                if t == u or t == v or s == u or s == v:
+                    continue
+
                 p_uvst = CausalBayesNetLearner.calculate_joint([u, v, s, t], actions, sensories, data)
 
                 if CausalLearningAgent.are_conditionally_independent(u, v, [s, t], p_uvst):
@@ -209,8 +244,12 @@ class CausalBayesNetLearner(object):
         # get triples T - V - R
         for (t, v, r) in graph.get_triples():
             # if T - R not in sepset, orient edges
+            if graph.is_edge(t, r):
+                continue
+
             if (t, r) not in sepset:
-                graph.orient(t, v, r)
+                graph.orient_half(t, v, "o")
+                graph.orient_half(r, v, "o")
 
     @staticmethod
     def step_6(graph):
@@ -296,6 +335,9 @@ class CausalLearningAgent(Agent):
         self.default_signals = {}
         self.observations = {}
 
+        self.action = (None, None)
+        self.aim = (None, None)
+
         self.network = None
 
         self.values = {}
@@ -362,34 +404,55 @@ class CausalLearningAgent(Agent):
 
     def act(self):
         # Convert observations into an entry in the Database.
-        self.__store_observations()
         self.time += 1
+        self.__store_observations()
 
         if self.state == CausalLearningAgent.INITIAL_STATE:
             print "initial"
-            if self.time > 10:
+            if self.time > 20:
                 self.state = CausalLearningAgent.CALCULATE_NETWORK_STATE
 
             # Select actions at random
             return [self.__select_random_action()]
-        elif self.state == CausalLearningAgent.CALCULATE_NETWORK_STATE:
-            print "calculate"
+
+        if self.state == CausalLearningAgent.CALCULATE_NETWORK_STATE:
             # Calculate the causal Bayes net
+            # then skip to ACTION_STATE
+            print "calculate"
             self.network = self.__learn_causality()
             self.state = CausalLearningAgent.ACTION_STATE
             print self.network.edges
-            return [self.__select_action()]
-        elif self.state == CausalLearningAgent.ACTION_STATE:
+
+        if self.state == CausalLearningAgent.CHECK_CAUSALITY_STATE:
+            # Do something to check if the expected observation is true now.
+            # then skip to ACTION_STATE
+            print "check"
+            self.state = CausalLearningAgent.ACTION_STATE
+
+            # Check if the aim is in the observations
+            entry = self.data.get_entries_at_time(self.time)
+
+            if entry[self.aim[0]] != self.aim[1]:
+                # Remove the edge
+                self.network.del_edge(self.action[0], self.aim[0])
+
+        if self.state == CausalLearningAgent.ACTION_STATE:
             print "action"
             self.state = CausalLearningAgent.CHECK_CAUSALITY_STATE
 
-            return [self.__select_action()]
-        elif self.state == CausalLearningAgent.CHECK_CAUSALITY_STATE:
-            print "check"
-            # Do something to check if the expected observation is true now.
-            self.state = CausalLearningAgent.ACTION_STATE
+            # Select action with highest probability of resulting in wanted
+            # state.
+            # Make sure to check if the state is true in the next step.
+            # Otherwise remove edge.
+            # Choose one value to aim for
+            self.aim = a, v = self.__select_aim()
 
-            return [self.__select_action()]
+            action = self.__select_maximizing_action(a, v)
+            if action is None:
+                action = self.__select_random_action()
+            self.action = action
+
+            return [action]
 
     def __store_observations(self):
         """
@@ -414,6 +477,12 @@ class CausalLearningAgent(Agent):
         self.data.add_entry(observations, self.time)
         self.observations = {}
 
+    def __select_aim(self):
+        a = random.choice(self.values.keys())
+        v = random.choice(self.values[a])
+
+        return a, v
+
     def __learn_causality(self):
         c = easl.utils.Graph()
         c.make_complete(self.variables.keys())
@@ -429,6 +498,13 @@ class CausalLearningAgent(Agent):
         return c
 
     def __select_action(self):
+        actions = []
+        for variable in self.values:
+            actions.append(self.__select_maximizing_action(variable, self.values[variable]))
+
+        return actions
+
+    def __select_maximizing_action(self, variable, value):
         """
         Selects one action by using the network and values that were set.
 
@@ -437,36 +513,30 @@ class CausalLearningAgent(Agent):
         (name, value)
             The variable name and its value.
         """
-        action = None
+        selected = None
         # calculate argmax_A P(M=true | A)
         # for any variable M that we are 'interested in'
-        for var_m in self.values:
-            val_m = self.values[var_m]
+        # Find actions A that have a path to M
+        actions = self.network.causal_paths(variable)
 
-            # Find actions A that have a path to M
-            actions = self.network.causal_paths(var_m)
+        # find argmax_A,a P(M=m | A=a) for actions A=a
+        argmax = None
+        for action in actions:
+            for val_a in self.actions[action]:
+                p_ma = CausalBayesNetLearner.calculate_joint([variable, action],
+                                                             self.actions, self.variables, self.data)
 
-            # find argmax_A,a P(M=m | A=a) for actions A=a
-            argmax = None
-            for var_a in actions:
-                for val_a in self.actions[var_a]:
-                    p_ma = CausalBayesNetLearner.calculate_joint([var_m, var_a], self.variables, self.data)
+                p_conditional = CausalLearningAgent.conditional_probability([variable, action], p_ma, value, val_a)
+                self.log.do_log("probability", {"probability": p_conditional, "action": action, "value": val_a})
+                if argmax is None:
+                    argmax = (action, val_a, p_conditional)
+                elif p_conditional > argmax[2]:
+                    argmax = (action, val_a, p_conditional)
 
-                    p_conditional = CausalLearningAgent.conditional_probability([var_m, var_a], p_ma, val_m, val_a)
-                    self.log.do_log("probability", {"probability": p_conditional, "action": var_a, "value": val_a})
-                    if argmax is None:
-                        argmax = (var_a, val_a, p_conditional)
-                    elif p_conditional > argmax[2]:
-                        argmax = (var_a, val_a, p_conditional)
+        if argmax is not None and argmax[2] != 0:
+            selected = (argmax[0], argmax[1])
 
-            if argmax is not None and argmax[2] != 0:
-                action = (argmax[0], argmax[1])
-
-        # if none selected, select at random (?)
-        if action is None:
-            action = self.__select_random_action()
-
-        return action
+        return selected
 
     def __select_random_action(self):
         print "RANDOM"

@@ -199,37 +199,18 @@ class TestGraph(TestCase):
         g.add_node("a")
         g.add_node("b")
         g.add_node("c")
+        g.add_node("d")
+        g.add_node("e")
 
         g.add_edge("a", "b")
         g.add_edge("b", "c")
+        g.add_edge("a", "d")
 
         triples = g.get_triples()
 
-        self.assertEqual(1, len(triples))
+        self.assertEqual(2, len(triples))
         self.assertTrue(("a", "b", "c") in triples or ("c", "b", "a") in triples)
-
-    def test_orient_normal(self):
-        g = Graph()
-
-        g.add_node("a")
-        g.add_node("b")
-        g.add_node("c")
-
-        g.add_edge("a", "b")
-        g.add_edge("b", "c")
-
-        g.orient("a", "b", "c")
-
-        self.assertTrue(("a", "o", "b", ">") in g.edges)
-        self.assertTrue(("c", "o", "b", ">") in g.edges)
-
-    def test_orient_not_unique(self):
-        g = Graph()
-
-        self.assertRaises(NodesNotUniqueError, g.orient, "a", "b", "a")
-        self.assertRaises(NodesNotUniqueError, g.orient, "a", "b", "b")
-        self.assertRaises(NodesNotUniqueError, g.orient, "a", "a", "c")
-        self.assertRaises(NodesNotUniqueError, g.orient, "a", "a", "a")
+        self.assertTrue(("b", "a", "d") in triples or ("d", "a", "b") in triples)
 
     def test_orient_half_normal(self):
         g = Graph()

@@ -213,7 +213,7 @@ def create_experimenter(experiment_log):
 
 
 def experimental_condition(n):
-    infant = create_infant("causal")
+    infant = create_infant("operant")
     mobile = create_mobile_change()
 
     world = World()

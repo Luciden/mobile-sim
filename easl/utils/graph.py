@@ -36,7 +36,7 @@ class Graph(object):
         if name not in self.nodes:
             self.nodes.append(name)
 
-    def add_edge(self, a, b):
+    def add_edge(self, a, b, ma="", mb=""):
         # Don't add edges reflexively to the same node
         if a == b:
             pass
@@ -52,8 +52,8 @@ class Graph(object):
                     return
 
             # Store edges symmetrically
-            self.edges.append((a, "", b, ""))
-            self.edges.append((b, "", a, ""))
+            self.edges.append((a, ma, b, mb))
+            self.edges.append((b, mb, a, ma))
 
     def del_edge(self, a, b):
         self.__del_edge(a, b)
@@ -140,6 +140,9 @@ class Graph(object):
 
         return pairs
 
+    def get_pairs_double(self):
+        return [(a, b) for (a, _1, b, _2) in self.edges]
+
     def get_connected(self, a):
         """
         Finds all nodes that are connected by an edge to a specified node.
@@ -159,12 +162,24 @@ class Graph(object):
         -------
         [(string, string, string)]
         """
-        pairs = self.get_pairs()
+        triples = []
 
-        return [(a, b, c)
+        for (a, b, c) in self.get_triples_double():
+            # Only add if
+            if (c, b, a) in triples:
+                pass
+            else:
+                triples.append((a, b, c))
+
+        return triples
+
+    def get_triples_double(self):
+        pairs = self.get_pairs_double()
+
+        return [(a, b, d)
                 for (a, b) in pairs
-                for (b, c) in pairs
-                if a != c and a != b and b != c]
+                for (c, d) in pairs
+                if a != d and a != d and b == c]
 
     def get_triples_special(self):
         """
@@ -191,51 +206,29 @@ class Graph(object):
 
         return neighbours
 
-    def orient(self, t, v, r):
-        """
-        For T - V - R, orients towards T -> V <- R
-
-        Parameters
-        ----------
-        t : string
-        v : string
-        r : string
-        """
-        if t == v or t == r or v == r:
-            raise NodesNotUniqueError("{0}, {1} and {2} are not unique nodes.".format(t, v, r))
-
-        for i in range(len(self.edges)):
-            (a, ma, b, mb) = self.edges[i]
-
-            if (a == t and b == v) or (a == r and b == v):
-                self.edges[i] = (a, "o", b, ">")
-            elif (b == t and a == v) or (b == r and a == v):
-                self.edges[i] = (a, ">", b, "o")
-            else:
-                raise LookupError("Edge not found.")
-
-    def orient_half(self, x, y):
+    def orient_half(self, x, y, m=None):
         """
         Orient X - Y as X -> Y
         """
         if not self.is_edge(x, y):
             raise NonExistentEdgeError("No edge between {0} and {1}".format(x, y))
 
-        for i in range(len(self.edges)):
-            (a, ma, b, mb) = self.edges[i]
-
-            if a == x and b == y:
-                self.edges[i] = (a, ma, b, ">")
-            elif b == x and a == y:
-                self.edges[i] = (a, ">", b, mb)
+        self.del_edge(x, y)
+        self.add_edge(x, y, ma="o", mb=">")
 
     def causal_paths(self, x):
         """
         Find all variables that have a causal path to x.
         """
+        if len([x for (a, m, b, p) in self.edges if b == x and p == ">"]) == 0:
+            return []
+
+        return self.__causal_paths(x)
+
+    def __causal_paths(self, x, ):
         paths = []
 
         for node in [a for (a, _, b, p) in self.edges if b == x and p == ">"]:
-            paths.append(self.causal_paths(node) + [node, x])
+            paths.append(self.__causal_paths(node) + [node, x])
 
         return paths
