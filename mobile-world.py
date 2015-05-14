@@ -68,10 +68,11 @@ def swing(self):
 
 
 def moved(self, direction):
+    self.a["previous"] = self.a["speed"]
     self.a["speed"] += 4
 
 
-def movement_emission(self):
+def movement_emission_boolean(self):
     s = []
     if self.a["speed"] > 0:
         s.append(Signal("sight", "movement", True, [True, False]))
@@ -79,10 +80,34 @@ def movement_emission(self):
     return s
 
 
-class SightSensor(Sensor):
+def movement_emission_change(self):
+    s = []
+
+    if self.a["speed"] == 0:
+        s.append(Signal("sight", "movement", "idle", ["idle", "faster", "slower", "same"]))
+    elif self.a["speed"] > self.a["previous"]:
+        s.append(Signal("sight", "movement", "faster", ["idle", "faster", "slower", "same"]))
+    elif self.a["speed"] < self.a["previous"]:
+        s.append(Signal("sight", "movement", "slower", ["idle", "faster", "slower", "same"]))
+    else:
+        s.append(Signal("sight", "movement", "same", ["idle", "faster", "slower", "same"]))
+
+    return s
+
+
+class SightSensorBoolean(Sensor):
     def init(self):
         self.signals.update({"movement": [True, False]})
         self.default_signals.update({"movement": False})
+
+    def detects_modality(self, modality):
+        return modality == "sight"
+
+
+class SightSensorChange(Sensor):
+    def init(self):
+        self.signals.update({"movement": ["idle", "faster", "slower", "same"]})
+        self.default_signals.update({"movement": "idle"})
 
     def detects_modality(self, modality):
         return modality == "sight"
@@ -101,10 +126,10 @@ def create_infant(agent):
         infant.set_agent(RandomAgent())
     elif agent == "operant":
         infant.set_agent(OperantConditioningAgent())
-        infant.agent.set_primary_reinforcer("movement", True)
+        infant.agent.set_primary_reinforcer("movement", "faster")
     elif agent == "causal":
         cla = CausalLearningAgent()
-        cla.set_values({"movement": True})
+        cla.set_values({"movement": "faster"})
         infant.set_agent(cla)
     else:
         raise RuntimeError("Undefined agent type.")
@@ -134,19 +159,32 @@ def create_infant(agent):
                       "still",
                       functools.partial(relative_direction, attribute="right-foot-position"))
 
-    infant.add_sensor(SightSensor())
+    infant.add_sensor(SightSensorChange())
 
     return infant
 
 
-def create_mobile():
+def create_mobile_boolean():
     mobile = Entity("mobile")
 
     mobile.add_attribute("speed", 0, range(0, 10), lambda old, new: None)
     mobile.set_physics(swing)
 
     mobile.add_trigger("movement", moved)
-    mobile.set_emission(movement_emission)
+    mobile.set_emission(movement_emission_boolean)
+
+    return mobile
+
+def create_mobile_change():
+    mobile = Entity("mobile")
+
+    mobile.add_attribute("speed", 0, range(0, 10), lambda old, new: None)
+    mobile.add_attribute("previous", 0, range(0, 10), lambda old, new: None)
+
+    mobile.set_physics(swing)
+
+    mobile.add_trigger("movement", moved)
+    mobile.set_emission(movement_emission_change)
 
     return mobile
 
@@ -174,23 +212,23 @@ def create_experimenter(experiment_log):
     return experimenter
 
 
-def experimental_condition():
-    infant = create_infant("operant")
-    mobile = create_mobile()
+def experimental_condition(n):
+    infant = create_infant("causal")
+    mobile = create_mobile_change()
 
     world = World()
     world.add_entity(infant)
     world.add_entity(mobile)
     world.set_area_of_effect("infant", "right-foot-position", "movement", "mobile")
 
-    world.run(30)
+    world.run(n)
 
     return world.log
 
 
-def control_condition(experiment_log):
+def control_condition(n, experiment_log):
     infant = create_infant("random")
-    mobile = create_mobile()
+    mobile = create_mobile_change()
     experimenter = create_experimenter(experiment_log)
 
     world = World()
@@ -199,17 +237,17 @@ def control_condition(experiment_log):
     world.add_entity(experimenter)
     world.set_area_of_effect("experimenter", "mechanical-hand-position", "movement", "mobile")
 
-    world.run(30)
+    world.run(n)
 
     return world.log
 
 
 if __name__ == '__main__':
-    log = experimental_condition()
+    log = experimental_condition(30)
 
     v = Visualizer()
     v.visualize(log)
 
-    #log2 = control_condition(log)
+    #log2 = control_condition(n, log)
 
     #v.visualize(log2)

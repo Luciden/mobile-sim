@@ -245,7 +245,7 @@ class Entity(object):
     def emit_signals(self):
         emitting = self.emission(self)
         for signal in emitting:
-            self.log.do_log("emission", {"entity": self.name, "signal": signal})
+            self.log.do_log("emission", {"entity": self.name, "name": signal.sig_type, "value": signal.value})
 
             self.signal_queue.append(signal)
 
