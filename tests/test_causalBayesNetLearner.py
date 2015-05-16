@@ -15,7 +15,8 @@ class TestCausalBayesNetLearner(TestCase):
         #      > window <
         self.room_actions = {"Open": ["door", "window", "none"], "Close": ["door", "window", "none"]}
         self.room_sensories = {"Door": ["open", "closed"], "Window": ["open", "closed"]}
-        self.room_variables = self.room_actions
+        self.room_variables = {}
+        self.room_variables.update(self.room_actions)
         self.room_variables.update(self.room_sensories)
 
         self.room_complete = utils.Graph()
@@ -62,9 +63,11 @@ class TestCausalBayesNetLearner(TestCase):
     def test_step_2(self):
         d = Data()
         d.add_entry({"Door": "closed", "Window": "closed", "Open": "door", "Close": "none"}, 0)
-        d.add_entry({"Door": "open", "Window": "closed", "Open": "none", "Close": "none"}, 1)
-        d.add_entry({"Door": "open", "Window": "closed", "Open": "window", "Close": "none"}, 2)
-        d.add_entry({"Door": "open", "Window": "open", "Open": "none", "Close": "none"}, 3)
+        d.add_entry({"Door": "closed", "Window": "closed", "Open": "none", "Close": "none"}, 1)
+        d.add_entry({"Door": "open", "Window": "closed", "Open": "none", "Close": "none"}, 2)
+        d.add_entry({"Door": "open", "Window": "closed", "Open": "window", "Close": "none"}, 3)
+        d.add_entry({"Door": "open", "Window": "open", "Open": "none", "Close": "none"}, 4)
+        d.add_entry({"Door": "open", "Window": "open", "Open": "none", "Close": "none"}, 5)
 
         CausalBayesNetLearner.step_2(self.room_actions, self.room_sensories, self.room_complete, d)
 

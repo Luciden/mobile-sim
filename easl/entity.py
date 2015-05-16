@@ -149,7 +149,6 @@ class Entity(object):
 
         # pass all observations to agent and have it convert to internal representation
         for observation in self.observations:
-            print "x"
             self.log.do_log("observation",
                             {"entity": self.name, "observation": observation, "value": self.observations[observation]})
 

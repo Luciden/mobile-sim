@@ -326,8 +326,10 @@ class Reinforcer(object):
         return deepcopy(self.predictors)
 
     def create_predictor(self):
-        print "creating predictor"
-        self.predictors += self.__create_predictor()
+        predictors = self.__create_predictor()
+        for p in predictors:
+            print p.predicates
+        self.predictors += predictors
 
     def add_predictor(self, predictor):
         """
@@ -457,11 +459,9 @@ class OperantConditioningAgent(Agent):
         self.memory.age()
         self.__store_observations()
 
-        # self.__acquire_reinforcers()
-        # TODO: Check
+        #self.__acquire_reinforcers()
         self.__generate_conjunctions()
 
-        # TODO: Check
         self.__update_reinforcer_counts()
 
         # "New predictors for a given reinforcer are created only when that
@@ -469,12 +469,9 @@ class OperantConditioningAgent(Agent):
         #  At that point, the program can check candidate predictors against its
         #  working memory, so that it only constructs predictors that would have
         #  predicted the reward it just got."
-        # TODO: Check
         self.__create_predictors()
-        # TODO: Check
         self.__delete_predictors()
 
-        # TODO: Check
         actions = self.__select_actions()
         # Add actions as predicates
         for action in actions:
@@ -800,7 +797,6 @@ class OperantConditioningAgent(Agent):
 
             return [(action, value)]
         else:
-            # TODO: How to select with probability properly?
             action = random.choice(actions)
 
             return [(action.name, action.value)]

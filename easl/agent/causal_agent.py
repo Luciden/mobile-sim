@@ -1,6 +1,6 @@
 __author__ = 'Dennis'
 
-from copy import copy, deepcopy
+from copy import deepcopy
 import random
 import itertools
 
@@ -74,65 +74,39 @@ class Data(object):
 
     def calculate_joint_with_time(self, actions, sensories):
         """
-        Calculates the joint probability distribution from data for the given
-        variables, but takes into account that actions come before consequences
-        in time.
-
-        P(t_i|t_{i-1})
-
-        So basically,
-        get frequencies of certain actions followed by sensories
-        divide frequencies by frequencies of just the actions.
+        Calculates the probability of taking actions from previous time step and
+        sensories from next.
         """
         variables = {}
         variables.update(actions)
         variables.update(sensories)
 
         freq = easl.utils.Table(variables)
-        prev = easl.utils.Table(actions)
 
-        # For the actions of every time step
+        entries = []
+
         for t_i in self.entries:
-            # and the sensories of the next
             t_k = t_i + 1
             if t_k not in self.entries:
                 continue
 
-            # Create the combined entry and update the frequency
-            entry_i = self.entries[t_i]
-            entry_k = self.entries[t_k]
-
             entry = {}
-            prev_entry = {}
+            for action in actions:
+                if action in self.entries[t_i]:
+                    entry[action] = self.entries[t_i][action]
+            for sensory in sensories:
+                if sensory in self.entries[t_k]:
+                    entry[sensory] = self.entries[t_k][sensory]
 
-            for action in entry_i:
-                if action in actions:
-                    entry[action] = entry_i[action]
-                    prev_entry[action] = entry_i[action]
-            for sensory in entry_k:
-                if sensory in sensories:
-                    entry[sensory] = entry_k[sensory]
+            entries.append(entry)
 
-            prev.inc_value(prev_entry)
+        for entry in entries:
             freq.inc_value(entry)
 
-        prob = easl.utils.Table(variables)
-        # Make all possible combinations of variable=value
-        # calculate freq / prev
-        for vals in (dict(itertools.izip(variables, x)) for x in itertools.product(*variables.itervalues())):
-            entry_prev = {}
-            for action in vals:
-                if action in actions:
-                    entry_prev[action] = vals[action]
+        n = len(entries)
+        freq.do_operation(lambda x: x / float(n))
 
-            f = freq.get_value(vals)
-            n = prev.get_value(vals)
-            if n == 0:
-                prob.set_value(vals, 0)
-            else:
-                prob.set_value(vals, f / float(n))
-
-        return easl.utils.Distribution(variables, prob)
+        return easl.utils.Distribution(variables, freq)
 
 
 class CausalBayesNetLearner(object):
@@ -156,6 +130,7 @@ class CausalBayesNetLearner(object):
         #    P(A|B) = P(A)
         # Check independence by checking if P(A|B) = P(A)
         names = actions.keys() + sensories.keys()
+
         for i_a in range(len(names)):
             a = names[i_a]
             for b in names[i_a + 1:]:
@@ -180,8 +155,6 @@ class CausalBayesNetLearner(object):
             # Get all nodes connected to one of either nodes
             ts = set(graph.get_connected(u) + graph.get_connected(v))
 
-            found = False
-
             for t in ts:
                 if t == u or t == v:
                     continue
@@ -190,14 +163,10 @@ class CausalBayesNetLearner(object):
                 p_uvt = CausalBayesNetLearner.calculate_joint([u, v, t], actions, sensories, data)
 
                 if CausalLearningAgent.are_conditionally_independent(u, v, [t], p_uvt):
-                    found = True
+                    graph.del_edge(u, v)
+                    sepset[u][v].append(t)
+                    sepset[v][u].append(t)
                     continue
-
-            if found:
-                graph.del_edge(u, v)
-                sepset.append((u, v))
-                sepset.append((v, u))
-                continue
 
     @staticmethod
     def step_4(actions, sensories, graph, sepset, data):
@@ -211,7 +180,6 @@ class CausalBayesNetLearner(object):
         for (u, v) in graph.get_pairs():
             ts = graph.get_connected(u) + graph.get_connected(v)
 
-            found = False
             for (t, s) in [(t, s) for t in ts for s in ts if t != s]:
                 if t == u or t == v or s == u or s == v:
                     continue
@@ -219,14 +187,9 @@ class CausalBayesNetLearner(object):
                 p_uvst = CausalBayesNetLearner.calculate_joint([u, v, s, t], actions, sensories, data)
 
                 if CausalLearningAgent.are_conditionally_independent(u, v, [s, t], p_uvst):
-                    found = True
-                    continue
-
-            if found:
-                graph.del_edge(u, v)
-                sepset.append((u, v))
-                sepset.append((v, u))
-                continue
+                    graph.del_edge(u, v)
+                    sepset[u][v].extend([s, t])
+                    sepset[v][u].extend([s, t])
 
     @staticmethod
     def step_5(graph, sepset):
@@ -247,7 +210,7 @@ class CausalBayesNetLearner(object):
             if graph.is_edge(t, r):
                 continue
 
-            if (t, r) not in sepset:
+            if v not in sepset[t][r]:
                 graph.orient_half(t, v, "o")
                 graph.orient_half(r, v, "o")
 
@@ -327,13 +290,6 @@ class CausalLearningAgent(Agent):
 
         self.data = Data()
 
-        self.actions = {}
-        self.sensories = {}
-        self.variables = {}
-
-        self.signals = {}
-        self.default_action = {}
-        self.default_signals = {}
         self.observations = {}
 
         self.action = (None, None)
@@ -379,13 +335,21 @@ class CausalLearningAgent(Agent):
         self.observations[name] = value
 
     def act(self):
+        actions = self.__act()
+        for action in actions:
+                self.log.do_log("observation", {"agent": "causal", "name": action[0], "value": action[1]})
+                self.sense(action)
+
+        return actions
+
+    def __act(self):
         # Convert observations into an entry in the Database.
         self.time += 1
         self.__store_observations()
 
         if self.state == CausalLearningAgent.INITIAL_STATE:
             print "initial"
-            if self.time > 20:
+            if self.time > 30:
                 self.state = CausalLearningAgent.CALCULATE_NETWORK_STATE
 
             # Select actions at random
@@ -446,7 +410,7 @@ class CausalLearningAgent(Agent):
                 observations[variable] = self.default_action[variable]
             # If the variable was not observed, but is a signal, take the default
             elif variable in self.signals:
-                observations[variable] = self.default_signals[variable]
+                observations[variable] = self.default_signal[variable]
             else:
                 raise RuntimeError("Variable {0} not in observation".format(variable))
 
@@ -455,19 +419,25 @@ class CausalLearningAgent(Agent):
 
     def __select_aim(self):
         a = random.choice(self.values.keys())
-        v = random.choice(self.values[a])
 
-        return a, v
+        return a, self.values[a]
 
     def __learn_causality(self):
         c = easl.utils.Graph()
         c.make_complete(self.variables.keys())
 
-        sepset = []
+        sepset = {}
+        for a in self.variables:
+            sepset[a] = {}
+            for b in self.variables:
+                if a == b:
+                    continue
 
-        CausalBayesNetLearner.step_2(self.actions, self.sensories, c, self.data)
-        CausalBayesNetLearner.step_3(self.actions, self.sensories, c, sepset, self.data)
-        CausalBayesNetLearner.step_4(self.actions, self.sensories, c, sepset, self.data)
+                sepset[a][b] = []
+
+        CausalBayesNetLearner.step_2(self.actions, self.sensory, c, self.data)
+        CausalBayesNetLearner.step_3(self.actions, self.sensory, c, sepset, self.data)
+        CausalBayesNetLearner.step_4(self.actions, self.sensory, c, sepset, self.data)
         CausalBayesNetLearner.step_5(c, sepset)
         CausalBayesNetLearner.step_6(c)
 
@@ -497,13 +467,17 @@ class CausalLearningAgent(Agent):
 
         # find argmax_A,a P(M=m | A=a) for actions A=a
         argmax = None
-        for action in actions:
+        for path in actions:
+            action = path[0]
+            # Check only variables that are actions
+            if action not in self.actions:
+                continue
+
             for val_a in self.actions[action]:
                 p_ma = CausalBayesNetLearner.calculate_joint([variable, action],
                                                              self.actions, self.variables, self.data)
 
                 p_conditional = CausalLearningAgent.conditional_probability([variable, action], p_ma, value, val_a)
-                self.log.do_log("probability", {"probability": p_conditional, "action": action, "value": val_a})
                 if argmax is None:
                     argmax = (action, val_a, p_conditional)
                 elif p_conditional > argmax[2]:
@@ -511,6 +485,7 @@ class CausalLearningAgent(Agent):
 
         if argmax is not None and argmax[2] != 0:
             selected = (argmax[0], argmax[1])
+            self.log.do_log("max_probability", {"probability": argmax[2], "action": argmax[0], "value": argmax[1]})
 
         return selected
 

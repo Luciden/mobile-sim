@@ -284,3 +284,23 @@ class TestGraph(TestCase):
         paths = g.causal_paths("b")
 
         self.assertEqual(0, len(paths))
+
+    def test_causal_paths_multiple(self):
+        g = Graph()
+
+        g.add_node("a")
+        g.add_node("b")
+        g.add_node("c")
+        g.add_node("d")
+
+        g.add_edge("a", "b", mb=">")
+        g.add_edge("b", "c", mb=">")
+        g.add_edge("d", "b", mb=">")
+
+        paths = g.causal_paths("c")
+
+        print paths
+        self.assertEqual(3, len(paths))
+        self.assertIn(["b", "c"], paths)
+        self.assertIn(["a", "b", "c"], paths)
+        self.assertIn(["d", "b", "c"], paths)

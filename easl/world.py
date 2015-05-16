@@ -121,14 +121,13 @@ class World(object):
             self.log.time_tick(i)
 
             self.__do_physics()
+            self.__trigger_events()
 
             self.__queue_signals()
             self.__send_signals()
 
             self.__queue_actions()
             self.__execute_actions()
-
-            self.__trigger_events()
 
             self.__measure_entities()
 

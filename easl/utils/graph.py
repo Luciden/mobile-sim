@@ -1,5 +1,7 @@
 __author__ = 'Dennis'
 
+from copy import deepcopy
+
 
 class NonExistentNodeError(Exception):
     pass
@@ -220,15 +222,29 @@ class Graph(object):
         """
         Find all variables that have a causal path to x.
         """
-        if len([x for (a, m, b, p) in self.edges if b == x and p == ">"]) == 0:
+        # First check if there are any edges at all
+        paths = [[a, x] for (a, m, b, p) in self.edges if b == x and p == ">"]
+
+        if len(paths) == 0:
             return []
 
-        return self.__causal_paths(x)
+        new = self.extend_paths(paths)
 
-    def __causal_paths(self, x, ):
-        paths = []
-
-        for node in [a for (a, _, b, p) in self.edges if b == x and p == ">"]:
-            paths.append(self.__causal_paths(node) + [node, x])
+        while len(new) != 0:
+            paths.extend(new)
+            new = self.extend_paths(new)
 
         return paths
+
+    def extend_paths(self, paths):
+        # Try to lengthen the paths
+        new = []
+
+        for path in paths:
+            h = path[0]
+            extend = [[a] for (a, m, b, p) in self.edges if b == h and p == ">"]
+
+            for e in extend:
+                new.append(e + path)
+
+        return new

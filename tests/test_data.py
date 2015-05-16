@@ -76,10 +76,10 @@ class TestData(TestCase):
 
         e = Distribution({"Open": ["door", "none"], "Door": ["open", "closed"]})
 
-        e.set_prob({"Open": "door", "Door": "closed"}, 0)
-        e.set_prob({"Open": "door", "Door": "open"}, 1)
-        e.set_prob({"Open": "none", "Door": "closed"}, 0.5)
-        e.set_prob({"Open": "none", "Door": "open"}, 0.5)
+        e.set_prob({"Open": "door", "Door": "closed"}, 0.0)
+        e.set_prob({"Open": "door", "Door": "open"}, 0.5)
+        e.set_prob({"Open": "none", "Door": "closed"}, 0.25)
+        e.set_prob({"Open": "none", "Door": "open"}, 0.25)
 
         print "e"
         print e.table
