@@ -312,6 +312,7 @@ class CausalLearningAgent(Agent):
             Stores previous observations.
             Used to calculate (conditional) probabilities.
         actions : {name: [value]}
+        signals : {name: [value]}
         default_action : {name: value}
         default_signals : {name: value}
         network : Graph
@@ -348,34 +349,9 @@ class CausalLearningAgent(Agent):
     def init_internal(self, entity):
         """
         """
+        super(CausalLearningAgent, self).init_internal(entity)
+
         self.time = 0
-        # Get attributes with possible values
-        attributes = copy(entity.attribute_values)
-
-        # Get actions with possible values
-        actions = {}
-        # actions = {name: (function, [value])}
-        # variables = {name: [value]}
-        for action in entity.actions:
-            actions[action] = entity.actions[action][1]
-
-        # Get possible sensed signals
-        signals = {}
-        for sensor in entity.sensors:
-            signals.update(sensor.signals)
-
-            self.signals.update(sensor.signals)
-            self.default_signals.update(sensor.default_signals)
-
-        # Add all together into variables
-        self.actions = actions
-        self.default_action = entity.default_action
-
-        self.sensories.update(attributes)
-        self.sensories.update(signals)
-
-        self.variables.update(self.sensories)
-        self.variables.update(self.actions)
 
     def set_values(self, vals):
         """

@@ -175,6 +175,7 @@ def create_mobile_boolean():
 
     return mobile
 
+
 def create_mobile_change():
     mobile = Entity("mobile")
 
@@ -248,6 +249,6 @@ if __name__ == '__main__':
     v = Visualizer()
     v.visualize(log)
 
-    #log2 = control_condition(n, log)
+    # log2 = control_condition(n, log)
 
-    #v.visualize(log2)
+    # v.visualize(log2)

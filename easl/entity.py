@@ -165,11 +165,6 @@ class Entity(object):
         # ask agent to give actions
         self.action_queue = self.agent.act()
 
-        for action in self.action_queue:
-            self.log.do_log("observation",
-                            {"entity": self.name, "name": action[0], "value": action[1]})
-            self.agent.sense((action[0], action[1]))
-
     def add_attribute(self, name, initial_value, values, event):
         """
         Parameters

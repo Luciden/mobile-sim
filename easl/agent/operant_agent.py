@@ -18,17 +18,24 @@ class WorkingMemory(object):
     memory : {number: ([predicates], [predicates])}
          Age, sensory predicates, and action predicates at the current,
          and recent, instant(s).
+    actions : [name]
+        List of names of predicates that are actions.
     """
     NOW = 0
     PREV = -1
     FUT = 1
 
-    def __init__(self):
+    def __init__(self, actions=None):
+        if actions is None:
+            actions = []
+
         self._MAX_AGE = 8
 
         self._SENSORY = 0
         self._ACTION = 1
         self.oldest = 0
+
+        self.actions = actions
 
         self.memory = {}
         self.__init_now()
@@ -59,11 +66,12 @@ class WorkingMemory(object):
                 del self.memory[m]
             else:
                 self.memory[m + 1] = self.memory[m]
+                self.oldest = m + 1
 
         self.__init_now()
 
     def get_oldest(self):
-        return len(self.memory) - 1
+        return self.oldest
 
     def get_of_age(self, age):
         """
@@ -71,6 +79,9 @@ class WorkingMemory(object):
         -------
         [Predicate]
         """
+        if age > self.oldest:
+            return None
+
         predicates = []
         predicates.extend(self.memory[age][self._ACTION])
         predicates.extend(self.memory[age][self._SENSORY])
@@ -89,57 +100,33 @@ class WorkingMemory(object):
                 return True
         return False
 
-    def is_match(self, temporal, offset=0):
+    def matches_now(self, temporal, now=0):
         """
-        Determines whether there is a mapping of predicates to temporal tags
-        such that the predictor's set of predicates is a subset of the set
-        of predicates in the mapping.
-
-        Parameters
-        ----------
-        temporal : [(Predicate, tag)]
-            Temporal predicates, i.e. a Predicate with a time tag
-
         Returns
         -------
         bool
-            True if a match is found, False otherwise
-        [(Predicate, age, tag)]
+            True if the temporal predicates match now, t=0, False otherwise
         """
-        # First check if all sensory predicates can be matched
-        possible, match = self.__is_match_rec([], temporal, offset)
+        prev = now + 1
 
-        return possible, match
+        match = {WorkingMemory.NOW: now,
+                 WorkingMemory.PREV: prev}
 
-    def __is_match_rec(self, match, predicates, offset):
-        """
-        Parameters
-        ----------
-        match : [(predicate, age, tag)]
-            match so far
-        predicates : [(Predicate, tag)]
-            still unmatched predicates
-        offset : number
-            offset in age from which to ignore (used to check previous state)
-        """
-        if len(predicates) == 0:
-            return True, match
+        memory = {WorkingMemory.NOW: self.get_of_age(now),
+                  WorkingMemory.PREV: self.get_of_age(prev)}
 
-        predicate, tag = predicates[0]
+        # Try to match the temporal predicates
+        for (p, t) in temporal:
+            # Always match actions if they can be satisfied now
+            if p.name in self.actions and now == 0 and t == WorkingMemory.NOW:
+                continue
 
-        for i in range(offset, self._MAX_AGE):
-            if self.has_predicate(i, predicate):
-                # see if we can assign the tag taking into account previously
-                # matched predicates
-                if self.__is_tag_possible(match, i, tag):
-                    new = deepcopy(match)
-                    new.append((predicate, i, tag))
+            if t not in match:
+                return False
+            if not self.has_predicate(t, p):
+                return False
 
-                    # Use the tag, but keep going if this does not match all
-                    if self.__is_match_rec(new, predicates[1:], offset):
-                        return True, match
-
-        return False, []
+        return True
 
     @staticmethod
     def __is_tag_possible(match, age, tag):
@@ -203,7 +190,15 @@ class Conjunction(object):
             return False
 
     def add_predicate(self, predicate, tag):
-        self.predicates.append((predicate, tag))
+        if not self.has_predicate(predicate, tag):
+            self.predicates.append((predicate, tag))
+
+    def has_predicate(self, predicate, tag):
+        for p, t in self.predicates:
+            if p == predicate and t == tag:
+                return True
+
+        return False
 
     def get_temporal(self):
         return self.predicates
@@ -217,8 +212,8 @@ class Conjunction(object):
                 return True
         return False
 
-    def get_predicates_with_name_not_from(self, predicates):
-        return [(p, t) for (p, t) in self.predicates if p.name not in predicates]
+    def get_predicates_with_name_from(self, predicates):
+        return [(p, t) for (p, t) in self.predicates if p.name in predicates]
 
 
 class Reinforcer(object):
@@ -257,54 +252,17 @@ class Reinforcer(object):
         ----------
         predicates : [Predicate]
         """
-        # Find all conjunctions that should be updated now
-        for (conjunction, _1, _2) in self.conjunctions:
-            matched, match = memory.is_match(conjunction.predicates, 1)
-            if matched:
-                is_followed = False
-
-                # Find if the conjunction was followed by the reinforcer
-                for (p, _, t) in match:
-                    if p == self.predicate and t == WorkingMemory.NOW:
-                        is_followed = True
-                        continue
-
-                self.__inc_count(conjunction, satisfied=True, followed=is_followed)
-
-    def __inc_count(self, conjunction, satisfied=False, followed=False):
-        """
-        Increments the number of times the conjunction was satisfied since this
-        reinforcer was acquired.
-
-        Returns
-        -------
-        bool
-            True if the conjunction was already found, False otherwise
-        """
-        s_add = 1 if satisfied else 0
-        f_add = 1 if followed else 0
-
         for i in range(len(self.conjunctions)):
-            (c, s, f) = self.conjunctions[i]
-
-            if c == conjunction:
-                self.conjunctions[i] = (c, s + s_add, f + f_add)
-                return True
-
-        self.add_conjunction(conjunction, followed=True)
-        return False
-
-    def inc_followed(self, conjunction):
-        """
-        Increments the number of times the conjunction's occurrence was followed
-        by the reinforcer.
-        """
-        self.__inc_count(conjunction, followed=True)
-
-    def inc_satisfied(self, conjunction):
-        """
-        """
-        self.__inc_count(conjunction, satisfied=True)
+            conjunction, s, f = self.conjunctions[i]
+            # If the conjunction is matched by taking the most future tag as t=0,
+            # increment satisfied.
+            if memory.matches_now(conjunction.get_temporal(), 1):
+                # If the conjunction is matched by taking the most future tag as t=-1
+                # increment followed if predicate is true at t=0
+                if memory.has_predicate(0, self.predicate):
+                    self.conjunctions[i] = (conjunction, s + 1, f + 1)
+                else:
+                    self.conjunctions[i] = (conjunction, s + 1, f)
 
     def count(self, conjunction):
         """
@@ -357,11 +315,12 @@ class Reinforcer(object):
 
         # Filter generated conjunctions on those with rates or counts of one
         # standard deviation above mean
-        return [c
+        best = [c
                 for (c, s, f)
                 in self.conjunctions
                 if s != 0 and float(f) / float(s) > m_rr + std_rr
                 or f > m_rc + std_rc]
+        return best
 
     def get_predictors(self):
         return deepcopy(self.predictors)
@@ -390,8 +349,10 @@ class Reinforcer(object):
         # "When creating new predictors, candidate conjunctions are sorted by merit
         # rather than raw reward rate to give greater weight to conjunctions that
         # have been sampled more heavily."
+        # Sort conjunctions from highest merit to lowest merit
+        # TODO: Check implementation.
         conjunctions = sorted([(c, Reinforcer.merit(r, n)) for (c, n, r) in self.conjunctions],
-                              key=lambda x:x [1],
+                              key=lambda x: x[1],
                               reverse=True)
 
         if len(conjunctions) == 0:
@@ -409,7 +370,7 @@ class Reinforcer(object):
                 top.append(c)
 
         if len(top) > 2:
-            return sorted(top, key=lambda x: len(x.predicates))[:1]
+            return sorted(top, key=lambda x: len(x.predicates))[0:1]
         else:
             return top
 
@@ -470,31 +431,18 @@ class OperantConditioningAgent(Agent):
         observations : [(name, value)]
         """
         super(OperantConditioningAgent, self).__init__()
-        self.actions = {}
         self.observations = []
 
-        self.memory = WorkingMemory()
+        self.memory = None
         self.reinforcers = []
 
         # TODO(Question): What to set this threshold as?
         self._DEMERIT_THRESHOLD = 1000
 
     def init_internal(self, entity):
-        self.__init_internal_simple(entity)
+        super(OperantConditioningAgent, self).init_internal(entity)
 
-    def __init_internal_normal(self, entity):
-        self.actions = entity.actions
-
-    def __init_internal_simple(self, entity):
-        self.actions = entity.actions
-
-        # Initialize all reinforcers to have actions as predictors
-        for reinforcer in self.reinforcers:
-            for action in self.actions:
-                for value in self.actions[action]:
-                    predictor = Conjunction()
-                    predictor.add_predicate(Predicate(action, value), WorkingMemory.PREV)
-                    reinforcer.add_predictor(predictor)
+        self.memory = WorkingMemory(self.actions.keys())
 
     def sense(self, observation):
         """
@@ -506,16 +454,14 @@ class OperantConditioningAgent(Agent):
         self.observations.append(observation)
 
     def act(self):
-        return self.__act_simple()
-
-    def __act_normal(self):
         self.memory.age()
-        # Turn observations into predicates
         self.__store_observations()
 
-        self.__acquire_reinforcers()
+        # self.__acquire_reinforcers()
+        # TODO: Check
         self.__generate_conjunctions()
 
+        # TODO: Check
         self.__update_reinforcer_counts()
 
         # "New predictors for a given reinforcer are created only when that
@@ -523,27 +469,17 @@ class OperantConditioningAgent(Agent):
         #  At that point, the program can check candidate predictors against its
         #  working memory, so that it only constructs predictors that would have
         #  predicted the reward it just got."
+        # TODO: Check
         self.__create_predictors()
+        # TODO: Check
         self.__delete_predictors()
 
+        # TODO: Check
         actions = self.__select_actions()
         # Add actions as predicates
         for action in actions:
-            self.memory.add_action(action)
-
-        return actions
-
-    def __act_simple(self):
-        self.memory.age()
-
-        self.__store_observations()
-
-        self.__update_reinforcer_counts()
-
-        actions = self.__select_actions()
-        # Add actions as predicates
-        for action in actions:
-            self.memory.add_action(action)
+            self.log.do_log("observation", {"agent": "operant", "name": action[0], "value": action[1]})
+            self.memory.add_action(Predicate(action[0], action[1]))
 
         return actions
 
@@ -580,11 +516,12 @@ class OperantConditioningAgent(Agent):
         for reinforcer in self.reinforcers:
             # Combine previously 'best' conjunctions with predicates and check
             # which conjunctions are 'best' next
-            predicates = self.__derive_temporal_predicates()
             best_conjunctions = reinforcer.find_best_conjunctions()
+            # Find best predicates, i.e. best conjunctions of 1 predicate
+            best_predicates = self.__derive_temporal_predicates()
 
             for c in best_conjunctions:
-                for (p, t) in predicates:
+                for (p, t) in best_predicates:
                     new_c = deepcopy(c)
                     new_c.add_predicate(deepcopy(p), t)
 
@@ -606,14 +543,23 @@ class OperantConditioningAgent(Agent):
         # temporal predicates.
         predicates = []
 
-        now = self.memory.get_of_age(0)
-        for p in now:
-            predicates.append((p, WorkingMemory.NOW))
-
         if self.memory.get_oldest() > 0:
-            prev = self.memory.get_of_age(1)
+            for p in self.memory.get_of_age(1):
+                predicates.append((p, WorkingMemory.NOW))
+
+        if self.memory.get_oldest() > 1:
+            prev = self.memory.get_of_age(2)
             for p in prev:
                 predicates.append((p, WorkingMemory.PREV))
+
+        return predicates
+
+    def __create_temporal_action_predicates(self):
+        predicates = []
+
+        for action in self.actions:
+            for value in self.actions[action]:
+                predicates.append((Predicate(action, value), WorkingMemory.NOW))
 
         return predicates
 
@@ -703,9 +649,7 @@ class OperantConditioningAgent(Agent):
         predictors = []
         for predictor in reinforcer.predictors:
             # Check if the predictor could have matched one time step before
-            success, match = self.memory.is_match(predictor.get_temporal(), 1)
-
-            if success:
+            if self.memory.matches_now(predictor.get_temporal(), 1):
                 predictors.append(predictor)
         return predictors
 
@@ -792,10 +736,11 @@ class OperantConditioningAgent(Agent):
         for reinforcer in self.reinforcers:
             for predictor in reinforcer.get_predictors():
                 # if there is a sensory predicate that is not already a
-                # reinforcer, add the reinforcer.
-                for (sensory, tag) in predictor.get_predicates_with_name_not_from(self.actions.keys()):
+                # reinforcer, add the reinforcer if it does not already exist.
+                for (sensory, tag) in predictor.get_predicates_with_name_from(self.sensory.keys()):
                     if not self.__has_acquired_reinforcer(sensory):
                         self.reinforcers.append(Reinforcer(sensory))
+                        self.log.do_log("reinforcer", {"agent": "operant", "predicate": sensory.name, "value": sensory.value})
 
     def __select_actions(self):
         """
@@ -805,7 +750,7 @@ class OperantConditioningAgent(Agent):
         rat's taking some action currently available to it."
 
         "At each time step, the skinnerbot seeks a predictor it can satisfy.
-         Predictors are prioritized by the nature of the reinforcement they\
+         Predictors are prioritized by the nature of the reinforcement they
          promise, so that given a choice, the skinnerbot will always act to secure
          a more basic reward (water) over a more abstract one (the ability to
          press the bar.)
@@ -815,38 +760,50 @@ class OperantConditioningAgent(Agent):
          select that action with high probability.
          There is also some randomness in the action selection mechanism, to
          facilitate exploration."
+
+         Returns
+         -------
+         [(name, value)]
+            List of action names and values
         """
         # Check predictors to see which can be satisfied.
         # Prioritized by nature of the reinforcement.
         # (Number denoting primary, secondary, etc?)
+        # [[(Predicate, tag)]]
         matches = []
 
-        # TODO: Make sure the match lines up with the NOW tag for the action later.
         for reinforcer in self.reinforcers:
             for predictor in reinforcer.predictors:
-                if self.memory.is_match(predictor.get_temporal()):
-                    matches.append(predictor)
+                temporal = predictor.get_temporal()
+                if self.memory.matches_now(temporal):
+                    matches.append(temporal)
 
         # If all sensory predicates in a predictor are true (match items in
         # working memory), and there is an action predicate that is available,
         # the action will be selected with high probability.
         #
         # So filter on matches with action predicates.
-        matches = [c for c in matches if c.has_predicate_with_name_from(self.actions.keys(), WorkingMemory.NOW)]
+        # For every conjunction, find the action predicates
+        actions = []
+        for match in matches:
+            for (p, tag) in match:
+                if p.name in self.actions.keys() and tag == WorkingMemory.NOW:
+                    actions.append(p)
 
         # Select one of the matches with probability
         # ? (There is also some randomness to facilitate exploration.)
-        if len(matches) == 0:
+        if len(actions) == 0:
             # Select a random action
             print "RANDOM"
             action = random.choice(self.actions.keys())
-            value = random.choice(self.actions[action][1])
+            value = random.choice(self.actions[action])
 
             return [(action, value)]
         else:
-            selected = random.choice(matches)
+            # TODO: How to select with probability properly?
+            action = random.choice(actions)
 
-            return selected.get_action_predicates()
+            return [(action.name, action.value)]
 
     def __has_acquired_reinforcer(self, predicate):
         """
