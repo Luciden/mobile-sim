@@ -4,7 +4,6 @@ from agent import Agent
 
 
 class LogAgent(Agent):
-    # TODO: Implement LogAgent.
     def __init__(self, original, log):
         """
         Attributes

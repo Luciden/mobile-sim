@@ -60,7 +60,6 @@ class Log(object):
             print "t {0}".format(self.time)
 
     def do_log(self, kind, data):
-        # TODO: Make log into dict
         entry = {"_time": self.time, "_type": kind}
         entry.update(data)
 
@@ -78,7 +77,6 @@ class Log(object):
         name : string
             Name of the file to write to.
         """
-        # TODO: Fix.
         f = open(name, 'wt')
         try:
             writer = csv.DictWriter(f)

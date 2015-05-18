@@ -1,3 +1,4 @@
+
 """
 Containing the experiment based on the mobile experiment.
 """
@@ -228,7 +229,7 @@ def experimental_condition(n):
 
 
 def control_condition(n, experiment_log):
-    infant = create_infant("random")
+    infant = create_infant("causal")
     mobile = create_mobile_change()
     experimenter = create_experimenter(experiment_log)
 
@@ -244,7 +245,7 @@ def control_condition(n, experiment_log):
 
 
 if __name__ == '__main__':
-    log = experimental_condition(300)
+    log = experimental_condition(100)
 
     v = Visualizer()
     v.visualize(log)

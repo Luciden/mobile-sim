@@ -301,6 +301,7 @@ class CausalLearningAgent(Agent):
         self.time = 0
 
         self.state = CausalLearningAgent.INITIAL_STATE
+        self.exploration = []
 
     def init_internal(self, entity):
         """
@@ -308,6 +309,8 @@ class CausalLearningAgent(Agent):
         super(CausalLearningAgent, self).init_internal(entity)
 
         self.time = 0
+
+        self.exploration = self.__create_exploration_shuffle(repeat=4)
 
     def set_values(self, vals):
         """
@@ -342,6 +345,61 @@ class CausalLearningAgent(Agent):
 
         return actions
 
+    def __create_exploration_random(self, n=30):
+        exploration = []
+
+        for i in range(0, n):
+            a = random.choice(self.actions)
+            v = random.choice(self.actions[a])
+
+            exploration.append((a, v))
+
+        return exploration
+
+    def __create_exploration_shuffle(self, repeat=1):
+        """
+        Perform a Knuth Shuffle on all possible actions.
+
+        Notes
+        -----
+        http://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
+        """
+        # Generate all possible actions
+        actions = self.all_actions(self.actions)
+
+        # for i from n - 1 down to 1
+        for i in range(len(actions) - 1, 0, -1):
+            # j = random integer such that 0 <= j <= i
+            j = random.randint(0, i)
+            # exchange a[i] and a[j]
+            actions[i], actions[j] = actions[j], actions[i]
+
+        exploration = []
+
+        for i in range(0, repeat):
+            exploration.extend(actions)
+
+        return exploration
+
+    @staticmethod
+    def all_actions(actions):
+        """
+        Parameters
+        ----------
+        actions : {name: [value]}
+
+        Returns
+        -------
+        [(name, value)]
+            List of all action/value pairs from a set of action descriptions.
+        """
+        combinations = []
+        for action in actions:
+            for value in actions[action]:
+                combinations.append((action, value))
+
+        return combinations
+
     def __act(self):
         # Convert observations into an entry in the Database.
         self.time += 1
@@ -349,11 +407,12 @@ class CausalLearningAgent(Agent):
 
         if self.state == CausalLearningAgent.INITIAL_STATE:
             print "initial"
-            if self.time > 30:
+            action = self.exploration.pop(0)
+
+            if len(self.exploration) == 0:
                 self.state = CausalLearningAgent.CALCULATE_NETWORK_STATE
 
-            # Select actions at random
-            return [self.__select_random_action()]
+            return [action]
 
         if self.state == CausalLearningAgent.CALCULATE_NETWORK_STATE:
             # Calculate the causal Bayes net

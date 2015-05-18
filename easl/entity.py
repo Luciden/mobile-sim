@@ -4,7 +4,6 @@ from copy import copy
 
 
 class Entity(object):
-    # TODO: Document.
     """
     The basic component in the simulation.
 

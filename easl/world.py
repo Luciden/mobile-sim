@@ -4,7 +4,6 @@ from log import Log
 
 
 class Sensor(object):
-    # TODO: Signal doesn't arrive in entity/agent.
     def __init__(self):
         """
         Attributes

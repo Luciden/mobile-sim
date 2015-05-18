@@ -438,7 +438,6 @@ class OperantConditioningAgent(Agent):
         self.memory = None
         self.reinforcers = []
 
-        # TODO(Question): What to set this threshold as?
         self._DEMERIT_THRESHOLD = 1000
 
     def init_internal(self, entity):
