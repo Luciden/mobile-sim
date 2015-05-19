@@ -5,7 +5,7 @@ import random
 import itertools
 
 import easl.utils
-from agent import Agent
+from controller import Controller
 
 
 class Data(object):
@@ -36,15 +36,11 @@ class Data(object):
     def get_entries_at_time(self, time):
         return self.entries[time]
 
-    def calculate_joint(self, actions, sensories):
-        if len(actions) == 0 or len(self.entries) < 2:
-            variables = {}
-            variables.update(actions)
-            variables.update(sensories)
-
+    def calculate_joint(self, variables):
+        if len(self.entries) < 2:
             return self.calculate_joint_flat(variables)
         else:
-            return self.calculate_joint_with_time(actions, sensories)
+            return self.calculate_joint_with_time(variables)
 
     def calculate_joint_flat(self, variables):
         """
@@ -72,15 +68,11 @@ class Data(object):
 
         return easl.utils.Distribution(variables, freq)
 
-    def calculate_joint_with_time(self, actions, sensories):
+    def calculate_joint_with_time(self, variables):
         """
         Calculates the probability of taking actions from previous time step and
         sensories from next.
         """
-        variables = {}
-        variables.update(actions)
-        variables.update(sensories)
-
         freq = easl.utils.Table(variables)
 
         entries = []
@@ -91,12 +83,13 @@ class Data(object):
                 continue
 
             entry = {}
-            for action in actions:
-                if action in self.entries[t_i]:
-                    entry[action] = self.entries[t_i][action]
-            for sensory in sensories:
-                if sensory in self.entries[t_k]:
-                    entry[sensory] = self.entries[t_k][sensory]
+            for variable in variables:
+                if variable.endswith("_prev"):
+                    # Strip the _prev part because it's not stored in the data
+                    name = variable[:-5]
+                    entry[variable] = self.entries[t_i][name]
+                else:
+                    entry[variable] = self.entries[t_k][variable]
 
             entries.append(entry)
 
@@ -115,7 +108,7 @@ class CausalBayesNetLearner(object):
     net.
     """
     @staticmethod
-    def step_2(actions, sensories, graph, data):
+    def step_2(variables, graph, data):
         """
         Parameters
         ----------
@@ -129,20 +122,20 @@ class CausalBayesNetLearner(object):
         #    P(B|A) = P(B)
         #    P(A|B) = P(A)
         # Check independence by checking if P(A|B) = P(A)
-        names = actions.keys() + sensories.keys()
+        names = variables.keys()
 
         for i_a in range(len(names)):
             a = names[i_a]
             for b in names[i_a + 1:]:
                 # Calculate P(A, B)
-                p_ab = CausalBayesNetLearner.calculate_joint([a, b], actions, sensories, data)
+                p_ab = CausalBayesNetLearner.calculate_joint([a, b], variables, data)
 
                 # Check for independence by checking P(A & B) = P(A) * P(B)
-                if CausalLearningAgent.are_independent(a, b, p_ab):
+                if CausalLearningController.are_independent(a, b, p_ab):
                     graph.del_edge(a, b)
 
     @staticmethod
-    def step_3(actions, sensories, graph, sepset, data):
+    def step_3(variables, graph, sepset, data):
         # 3. For each pair U, V of variables connected by an edge,
         #    and for each T connected to one or both U, V, test whether
         #    U _|_ V | T
@@ -160,16 +153,16 @@ class CausalBayesNetLearner(object):
                     continue
                 # Test conditional independence
                 # Calculate P(U,V,T)
-                p_uvt = CausalBayesNetLearner.calculate_joint([u, v, t], actions, sensories, data)
+                p_uvt = CausalBayesNetLearner.calculate_joint([u, v, t], variables, data)
 
-                if CausalLearningAgent.are_conditionally_independent(u, v, [t], p_uvt):
+                if CausalLearningController.are_conditionally_independent(u, v, [t], p_uvt):
                     graph.del_edge(u, v)
                     sepset[u][v].append(t)
                     sepset[v][u].append(t)
                     continue
 
     @staticmethod
-    def step_4(actions, sensories, graph, sepset, data):
+    def step_4(variables, graph, sepset, data):
         # 4. For each pair U, V connected by an edge and each pair of T, S of
         #    variables, each of which is connected by an edge to either U or V,
         #    test the hypothesis that U _|_ V | {T, S}.
@@ -184,9 +177,9 @@ class CausalBayesNetLearner(object):
                 if t == u or t == v or s == u or s == v:
                     continue
 
-                p_uvst = CausalBayesNetLearner.calculate_joint([u, v, s, t], actions, sensories, data)
+                p_uvst = CausalBayesNetLearner.calculate_joint([u, v, s, t], variables, data)
 
-                if CausalLearningAgent.are_conditionally_independent(u, v, [s, t], p_uvst):
+                if CausalLearningController.are_conditionally_independent(u, v, [s, t], p_uvst):
                     graph.del_edge(u, v)
                     sepset[u][v].extend([s, t])
                     sepset[v][u].extend([s, t])
@@ -228,16 +221,18 @@ class CausalBayesNetLearner(object):
         for name in names:
             if name in variables:
                 selection[name] = variables[name]
+            elif name.endswith("_prev"):
+                if name[:-5] in variables:
+                    selection[name] = variables[name[:-5]]
 
         return selection
 
     @staticmethod
-    def calculate_joint(names, actions, sensories, data):
-        return data.calculate_joint(CausalBayesNetLearner.variables_from_names(names, actions),
-                                    CausalBayesNetLearner.variables_from_names(names, sensories))
+    def calculate_joint(names, variables, data):
+        return data.calculate_joint(CausalBayesNetLearner.variables_from_names(names, variables))
 
 
-class CausalLearningAgent(Agent):
+class CausalLearningController(Controller):
     """
     Uses Causal Bayes Nets based learning.
 
@@ -286,7 +281,7 @@ class CausalLearningAgent(Agent):
         time : int
             Internal time representation.
         """
-        super(CausalLearningAgent, self).__init__()
+        super(CausalLearningController, self).__init__()
 
         self.data = Data()
 
@@ -300,13 +295,13 @@ class CausalLearningAgent(Agent):
         self.values = {}
         self.time = 0
 
-        self.state = CausalLearningAgent.INITIAL_STATE
+        self.state = CausalLearningController.INITIAL_STATE
         self.exploration = []
 
     def init_internal(self, entity):
         """
         """
-        super(CausalLearningAgent, self).init_internal(entity)
+        super(CausalLearningController, self).init_internal(entity)
 
         self.time = 0
 
@@ -340,7 +335,7 @@ class CausalLearningAgent(Agent):
     def act(self):
         actions = self.__act()
         for action in actions:
-                self.log.do_log("observation", {"agent": "causal", "name": action[0], "value": action[1]})
+                self.log.do_log("observation", {"controller": "causal", "name": action[0], "value": action[1]})
                 self.sense(action)
 
         return actions
@@ -405,28 +400,38 @@ class CausalLearningAgent(Agent):
         self.time += 1
         self.__store_observations()
 
-        if self.state == CausalLearningAgent.INITIAL_STATE:
+        if self.state == CausalLearningController.INITIAL_STATE:
             print "initial"
+
             action = self.exploration.pop(0)
 
             if len(self.exploration) == 0:
-                self.state = CausalLearningAgent.CALCULATE_NETWORK_STATE
+                self.state = CausalLearningController.CALCULATE_NETWORK_STATE
 
             return [action]
+            """
 
-        if self.state == CausalLearningAgent.CALCULATE_NETWORK_STATE:
-            # Calculate the causal Bayes net
-            # then skip to ACTION_STATE
+            # Select an action at random
+            action = self.__select_random_action()
+
+            # Perform the action, then calculate the network in the next step
+            self.state = CausalLearningAgent.CALCULATE_NETWORK_STATE
+
+            return [action]
+            """
+
+        if self.state == CausalLearningController.CALCULATE_NETWORK_STATE:
             print "calculate"
+            # Calculate the causal Bayes net
             self.network = self.__learn_causality()
-            self.state = CausalLearningAgent.ACTION_STATE
-            print self.network.edges
+            # then start checking the network
+            self.state = CausalLearningController.ACTION_STATE
 
-        if self.state == CausalLearningAgent.CHECK_CAUSALITY_STATE:
+        if self.state == CausalLearningController.CHECK_CAUSALITY_STATE:
             # Do something to check if the expected observation is true now.
             # then skip to ACTION_STATE
             print "check"
-            self.state = CausalLearningAgent.ACTION_STATE
+            self.state = CausalLearningController.ACTION_STATE
 
             # Check if the aim is in the observations
             entry = self.data.get_entries_at_time(self.time)
@@ -435,9 +440,9 @@ class CausalLearningAgent(Agent):
                 # Remove the edge
                 self.network.del_edge(self.action[0], self.aim[0])
 
-        if self.state == CausalLearningAgent.ACTION_STATE:
+        if self.state == CausalLearningController.ACTION_STATE:
             print "action"
-            self.state = CausalLearningAgent.CHECK_CAUSALITY_STATE
+            self.state = CausalLearningController.CHECK_CAUSALITY_STATE
 
             # Select action with highest probability of resulting in wanted
             # state.
@@ -482,32 +487,44 @@ class CausalLearningAgent(Agent):
         return a, self.values[a]
 
     def __learn_causality(self):
+        # Create complete graph of previous actions and sensories, and current sensories
         c = easl.utils.Graph()
-        c.make_complete(self.variables.keys())
+        names = self.sensory.keys() + [a + "_prev" for a in self.actions.keys()]\
+                                    + [s + "_prev" for s in self.sensory.keys()]
+        variables = self.__make_variables_from_names(names)
+
+        c.make_complete(names)
 
         sepset = {}
-        for a in self.variables:
+        for a in variables:
             sepset[a] = {}
-            for b in self.variables:
+            for b in variables:
                 if a == b:
                     continue
-
                 sepset[a][b] = []
 
-        CausalBayesNetLearner.step_2(self.actions, self.sensory, c, self.data)
-        CausalBayesNetLearner.step_3(self.actions, self.sensory, c, sepset, self.data)
-        CausalBayesNetLearner.step_4(self.actions, self.sensory, c, sepset, self.data)
+        CausalBayesNetLearner.step_2(variables, c, self.data)
+        CausalBayesNetLearner.step_3(variables, c, sepset, self.data)
+        CausalBayesNetLearner.step_4(variables, c, sepset, self.data)
         CausalBayesNetLearner.step_5(c, sepset)
         CausalBayesNetLearner.step_6(c)
 
+        print c.edges
         return c
 
-    def __select_action(self):
-        actions = []
-        for variable in self.values:
-            actions.append(self.__select_maximizing_action(variable, self.values[variable]))
+    def __make_variables_from_names(self, names):
+        selection = {}
 
-        return actions
+        for name in names:
+            if name in self.variables:
+                selection[name] = self.variables[name]
+            elif name.endswith("_prev"):
+                if name[:-5] in self.variables:
+                    selection[name] = self.variables[name[:-5]]
+            else:
+                raise Exception("Name {0} not in variables.".format(name))
+
+        return selection
 
     def __select_maximizing_action(self, variable, value):
         """
@@ -528,15 +545,16 @@ class CausalLearningAgent(Agent):
         argmax = None
         for path in actions:
             action = path[0]
+            # Strip the "_prev"
+            action = action[:-5]
             # Check only variables that are actions
             if action not in self.actions:
                 continue
 
             for val_a in self.actions[action]:
-                p_ma = CausalBayesNetLearner.calculate_joint([variable, action],
-                                                             self.actions, self.variables, self.data)
+                p_ma = CausalBayesNetLearner.calculate_joint([variable, action], self.network.variables, self.data)
 
-                p_conditional = CausalLearningAgent.conditional_probability([variable, action], p_ma, value, val_a)
+                p_conditional = CausalLearningController.conditional_probability([variable, action], p_ma, value, val_a)
                 if argmax is None:
                     argmax = (action, val_a, p_conditional)
                 elif p_conditional > argmax[2]:

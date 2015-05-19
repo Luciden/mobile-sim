@@ -52,8 +52,8 @@ class Entity(object):
         parameters name/value pairs.
     triggers : {name: function(self, ...)}
         callback functions that change the attributes when called
-    agent : Agent
-    action_queue : [(name, value)]
+    controller : Agent
+    motor_signal_queue : [(name, value)]
         All action/parameter pairs that are queued to be executed.
         Both name and its parameter name/value pairs are provided.
     """
@@ -76,7 +76,7 @@ class Entity(object):
         self.triggers = {}
 
         self.agent = agent
-        self.action_queue = []
+        self.motor_signal_queue = []
         self.signal_queue = []
         self.event_queue = []
 
@@ -134,19 +134,19 @@ class Entity(object):
     def add_observation(self, observation):
         self.observations.update(observation)
 
-    def queue_actions(self):
+    def queue_motor_signals(self):
         """
         Queues actions to be executed by consulting associated Agent, if available.
 
         See Also
         --------
-        easl.agent.Agent.act : Functionality delegated to Agent.
+        easl.controller.Agent.act : Functionality delegated to Agent.
         """
         if self.agent is None:
-            self.action_queue = []
+            self.motor_signal_queue = []
             return
 
-        # pass all observations to agent and have it convert to internal representation
+        # pass all observations to controller and have it convert to internal representation
         for observation in self.observations:
             self.log.do_log("observation",
                             {"entity": self.name, "observation": observation, "value": self.observations[observation]})
@@ -160,8 +160,8 @@ class Entity(object):
                             {"entity": self.name, "observation": observation, "value": self.attributes[observation]})
             self.agent.sense((observation, self.attributes[observation]))
 
-        # ask agent to give actions
-        self.action_queue = self.agent.act()
+        # ask controller to give actions
+        self.motor_signal_queue = self.agent.act()
 
     def add_attribute(self, name, initial_value, values, event):
         """
@@ -227,8 +227,8 @@ class Entity(object):
         """
         Calls all queued actions and clears the queue.
         """
-        while len(self.action_queue) > 0:
-            name, value = self.action_queue.pop(0)
+        while len(self.motor_signal_queue) > 0:
+            name, value = self.motor_signal_queue.pop(0)
 
             self.log.do_log("action", {"entity": self.name, "name": name, "value": value})
 
@@ -260,7 +260,7 @@ class Entity(object):
 
     def is_active(self):
         """
-        If the entity performs any actions, i.e. has an associated agent.
+        If the entity performs any actions, i.e. has an associated controller.
         """
         return self.agent is not None
 

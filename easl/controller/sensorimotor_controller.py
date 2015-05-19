@@ -1,9 +1,9 @@
 __author__ = 'Dennis'
 
-from agent import Agent
+from controller import Controller
 
 
-class SensorimotorLearningAgent(Agent):
+class SensorimotorLearningController(Controller):
     """
     Uses sensorimotor learning based on the comparator mechanism.
 

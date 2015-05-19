@@ -5,7 +5,7 @@ Containing the experiment based on the mobile experiment.
 import functools
 
 from easl import *
-from easl.agent import *
+from easl.controller import *
 from easl.visualize import Visualizer
 
 
@@ -118,22 +118,22 @@ def create_infant(agent):
     """
     Parameters
     ----------
-    agent : string
-        Name of the type of agent to use.
+    controller : string
+        Name of the type of controller to use.
     """
     infant = Entity("infant")
 
     if agent == "random":
-        infant.set_agent(RandomAgent())
+        infant.set_agent(RandomController())
     elif agent == "operant":
-        infant.set_agent(OperantConditioningAgent())
+        infant.set_agent(OperantConditioningController())
         infant.agent.set_primary_reinforcer("movement", "faster")
     elif agent == "causal":
-        cla = CausalLearningAgent()
+        cla = CausalLearningController()
         cla.set_values({"movement": "faster"})
         infant.set_agent(cla)
     else:
-        raise RuntimeError("Undefined agent type.")
+        raise RuntimeError("Undefined controller type.")
 
     infant.add_attribute("left-hand-position", "down", ["down", "middle", "up"], move)
     infant.add_attribute("right-hand-position", "down", ["down", "middle", "up"], move)
@@ -200,7 +200,7 @@ def create_experimenter(experiment_log):
     """
     experimenter = Entity("experimenter")
     # second argument is dictionary of which actions of the original log match which actions.
-    agent = LogAgent("infant", experiment_log)
+    agent = LogController("infant", experiment_log)
     agent.set_watched("right-foot-position", "mechanical-hand", calc_direction)
     experimenter.set_agent(agent)
 

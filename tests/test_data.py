@@ -1,5 +1,5 @@
 from unittest import TestCase
-from easl.agent.causal_agent import Data
+from easl.controller.causal_controller import Data
 from easl.utils import Distribution
 
 __author__ = 'Dennis'
@@ -27,15 +27,13 @@ class TestData(TestCase):
         d.add_entry({"Coin1": "tails"})
         d.add_entry({"Coin1": "tails"})
 
-        p = d.calculate_joint({}, {"Coin1": ["heads", "tails"]})
+        p = d.calculate_joint_flat({"Coin1": ["heads", "tails"]})
 
         e = Distribution({"Coin1": ["heads", "tails"]})
 
         e.set_prob({"Coin1": "heads"}, 5/float(9))
         e.set_prob({"Coin1": "tails"}, 4/float(9))
 
-        print e.table
-        print p.table
         self.assertEqual(e, p)
 
     def test_calculate_joint_multiple(self):
@@ -52,7 +50,7 @@ class TestData(TestCase):
         d.add_entry({"Weather": "cloudy", "Temperature": "cold"})
         d.add_entry({"Weather": "cloudy", "Temperature": "cold"})
 
-        p = d.calculate_joint({}, {"Weather": ["clear", "cloudy"], "Temperature": ["warm", "cold"]})
+        p = d.calculate_joint_flat({"Weather": ["clear", "cloudy"], "Temperature": ["warm", "cold"]})
 
         e = Distribution({"Weather": ["clear", "cloudy"], "Temperature": ["warm", "cold"]})
 
@@ -74,15 +72,16 @@ class TestData(TestCase):
 
         p = d.calculate_joint({"Open": ["door", "none"]}, {"Door": ["open", "closed"]})
 
-        e = Distribution({"Open": ["door", "none"], "Door": ["open", "closed"]})
+        e = Distribution({"Open_prev": ["door", "none"],
+                          "Door_prev": ["open", "closed"],
+                          "Door": ["open", "closed"]})
 
-        e.set_prob({"Open": "door", "Door": "closed"}, 0.0)
-        e.set_prob({"Open": "door", "Door": "open"}, 0.5)
-        e.set_prob({"Open": "none", "Door": "closed"}, 0.25)
-        e.set_prob({"Open": "none", "Door": "open"}, 0.25)
+        e.set_prob({"Open_prev": "none", "Door_prev": "closed", "Door": "closed"}, 1/float(4))
+        e.set_prob({"Open_prev": "door", "Door_prev": "closed", "Door": "open"}, 1/float(4))
+        e.set_prob({"Open_prev": "none", "Door_prev": "open", "Door": "open"}, 1/float(4))
+        e.set_prob({"Open_prev": "door", "Door_prev": "open", "Door": "open"}, 1/float(4))
 
-        print "e"
         print e.table
-        print "p"
         print p.table
+
         self.assertTrue(e == p)

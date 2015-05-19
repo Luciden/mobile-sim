@@ -3,7 +3,7 @@ __author__ = 'Dennis'
 import random
 from copy import deepcopy
 
-from agent import Agent
+from controller import Controller
 from easl.utils import stat
 
 
@@ -399,7 +399,7 @@ class Reinforcer(object):
             return min(1, (r / n) + (n - r) / (0.7 * n ** 2))
 
 
-class OperantConditioningAgent(Agent):
+class OperantConditioningController(Controller):
     # TODO(Dennis): Debug. Something seems to go wrong with making predictors.
     """
     Uses operant conditioning based learning.
@@ -432,7 +432,7 @@ class OperantConditioningAgent(Agent):
             All current predictors.
         observations : [(name, value)]
         """
-        super(OperantConditioningAgent, self).__init__()
+        super(OperantConditioningController, self).__init__()
         self.observations = []
 
         self.memory = None
@@ -441,7 +441,7 @@ class OperantConditioningAgent(Agent):
         self._DEMERIT_THRESHOLD = 1000
 
     def init_internal(self, entity):
-        super(OperantConditioningAgent, self).init_internal(entity)
+        super(OperantConditioningController, self).init_internal(entity)
 
         self.memory = WorkingMemory(self.actions.keys())
 
@@ -474,7 +474,7 @@ class OperantConditioningAgent(Agent):
         actions = self.__select_actions()
         # Add actions as predicates
         for action in actions:
-            self.log.do_log("observation", {"agent": "operant", "name": action[0], "value": action[1]})
+            self.log.do_log("observation", {"controller": "operant", "name": action[0], "value": action[1]})
             self.memory.add_action(Predicate(action[0], action[1]))
 
         return actions
@@ -736,7 +736,7 @@ class OperantConditioningAgent(Agent):
                 for (sensory, tag) in predictor.get_predicates_with_name_from(self.sensory.keys()):
                     if not self.__has_acquired_reinforcer(sensory):
                         self.reinforcers.append(Reinforcer(sensory))
-                        self.log.do_log("reinforcer", {"agent": "operant", "predicate": sensory.name, "value": sensory.value})
+                        self.log.do_log("reinforcer", {"controller": "operant", "predicate": sensory.name, "value": sensory.value})
 
     def __select_actions(self):
         """

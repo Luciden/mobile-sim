@@ -1,9 +1,9 @@
 __author__ = 'Dennis'
 
-from agent import Agent
+from controller import Controller
 
 
-class LogAgent(Agent):
+class LogController(Controller):
     def __init__(self, original, log):
         """
         Attributes
@@ -24,7 +24,7 @@ class LogAgent(Agent):
         previous : {name: value}
             For every attribute in links, have the value that it was at last time.
         """
-        super(LogAgent, self).__init__()
+        super(LogController, self).__init__()
 
         self.actions = {}
         self.log = log

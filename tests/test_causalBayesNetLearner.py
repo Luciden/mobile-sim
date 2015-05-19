@@ -1,7 +1,7 @@
 from unittest import TestCase
 from easl import utils
-from easl.agent import CausalBayesNetLearner
-from easl.agent import Data
+from easl.controller import CausalBayesNetLearner
+from easl.controller import Data
 
 __author__ = 'Dennis'
 

@@ -2,17 +2,17 @@ __author__ = 'Dennis'
 
 import random
 
-from agent import Agent
+from controller import Controller
 
 
-class RandomAgent(Agent):
+class RandomController(Controller):
     """
     Agent that performs random actions.
 
     FOR DEVELOPMENT PURPOSES ONLY.
     """
     def __init__(self):
-        super(RandomAgent, self).__init__()
+        super(RandomController, self).__init__()
 
         self.actions = {}
 

@@ -82,25 +82,22 @@ class World(object):
     ----------
     entities : {name: Entity}
         all entities in the world identified by name
-    signals : [(Sensor, Signal)]
-        All queued signals with their destinations.
-    actions
-    triggers : [(Entity, Entity, string)]
-        the connections between entities that link actions and triggers
-    time
-    log
+    triggers : [(string, string, string, string)]
+        The connections between entities that link actions and triggers.
+        Causing entity name, attribute name, event name, affected entity name.
+    log : Log
+    time : int
+    signals : [(string, Signal)]
+        All queued signals with the names of the entities that will receive them.
     """
     def __init__(self):
         self.entities = {}
-
-        self.signals = []
-        self.actions = []
-
         self.triggers = []
 
-        self.time = 0
-
         self.log = None
+
+        self.time = 0
+        self.queued_signals = []
 
     def run(self, iterations=10):
         """
@@ -125,7 +122,7 @@ class World(object):
             self.__queue_signals()
             self.__send_signals()
 
-            self.__queue_actions()
+            self.__queue_motor_signals()
             self.__execute_actions()
 
             self.__measure_entities()
@@ -169,26 +166,27 @@ class World(object):
                 for receiver in self.entities:
                     for sensor in self.entities[receiver].sensors:
                         if sensor.detects_modality(signal.modality):
-                            self.signals.append((receiver, signal))
+                            self.queued_signals.append((receiver, signal))
 
     def __send_signals(self):
-        while len(self.signals) > 0:
-            receiver, signal = self.signals.pop(0)
+        """
+        Add the queued signals as observations to the appropriate entities.
+        """
+        while len(self.queued_signals) > 0:
+            receiver, signal = self.queued_signals.pop(0)
 
             self.entities[receiver].add_observation({signal.sig_type: signal.value})
 
-    def __queue_actions(self):
+    def __queue_motor_signals(self):
         """
-        Makes all Entities prepare their actions.
+        Makes all Entities prepare their motor signals.
 
         The querying and execution phase of the actions should be separated,
         because actions have effects on the Entities' attributes and all
         actions should be selected at the same point in time.
         """
-        # Collect the actions by all entities and put them in one list
-
         for entity in self.entities:
-            self.entities[entity].queue_actions()
+            self.entities[entity].queue_motor_signals()
 
     def __execute_actions(self):
         """

@@ -1,7 +1,7 @@
 __author__ = 'Dennis'
 
 
-class Agent(object):
+class Controller(object):
     """
     Blah.
 
@@ -42,7 +42,7 @@ class Agent(object):
         """
         Called at the beginning of simulation to initialize internal representation.
 
-        Should include a list of all possible actions the agent can do.
+        Should include a list of all possible actions the controller can do.
 
         Parameters
         ----------

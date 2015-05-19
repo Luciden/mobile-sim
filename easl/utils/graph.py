@@ -1,7 +1,5 @@
 __author__ = 'Dennis'
 
-from copy import deepcopy
-
 
 class NonExistentNodeError(Exception):
     pass
