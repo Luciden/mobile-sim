@@ -110,7 +110,9 @@ class Entity(object):
             self.a[attribute] = value
 
             # Call the event for this change
-            event = self.events[attribute](old, value)
+            event = None
+            if self.events[attribute] is not None:
+                event = self.events[attribute](old, value)
             self.log.do_log("event", {"name": self.name, "attribute": attribute, "old": old, "new": value})
 
             if event is not None:
