@@ -291,6 +291,7 @@ class CausalLearningController(Controller):
         self.aim = (None, None)
 
         self.network = None
+        self.variables_time = {}
 
         self.values = {}
         self.time = 0
@@ -489,27 +490,30 @@ class CausalLearningController(Controller):
     def __learn_causality(self):
         # Create complete graph of previous actions and sensories, and current sensories
         c = easl.utils.Graph()
-        names = self.sensory.keys() + [a + "_prev" for a in self.actions.keys()]\
-                                    + [s + "_prev" for s in self.sensory.keys()]
-        variables = self.__make_variables_from_names(names)
+        self.variables_time = {}
+        self.variables_time.update(self.sensory)
+        for variable in self.actions:
+            self.variables_time[variable + "_prev"] = self.actions[variable]
+        for variable in self.sensory:
+            self.variables_time[variable + "_prev"] = self.sensory[variable]
 
-        c.make_complete(names)
+        c.make_complete(self.variables_time.keys())
+        c.visualize()
 
         sepset = {}
-        for a in variables:
+        for a in self.variables_time:
             sepset[a] = {}
-            for b in variables:
+            for b in self.variables_time:
                 if a == b:
                     continue
                 sepset[a][b] = []
 
-        CausalBayesNetLearner.step_2(variables, c, self.data)
-        CausalBayesNetLearner.step_3(variables, c, sepset, self.data)
-        CausalBayesNetLearner.step_4(variables, c, sepset, self.data)
+        CausalBayesNetLearner.step_2(self.variables_time, c, self.data)
+        CausalBayesNetLearner.step_3(self.variables_time, c, sepset, self.data)
+        CausalBayesNetLearner.step_4(self.variables_time, c, sepset, self.data)
         CausalBayesNetLearner.step_5(c, sepset)
         CausalBayesNetLearner.step_6(c)
 
-        print c.edges
         return c
 
     def __make_variables_from_names(self, names):
@@ -552,7 +556,9 @@ class CausalLearningController(Controller):
                 continue
 
             for val_a in self.actions[action]:
-                p_ma = CausalBayesNetLearner.calculate_joint([variable, action], self.network.variables, self.data)
+                p_ma = CausalBayesNetLearner.calculate_joint([variable, action],
+                                                             self.variables_time,
+                                                             self.data)
 
                 p_conditional = CausalLearningController.conditional_probability([variable, action], p_ma, value, val_a)
                 if argmax is None:

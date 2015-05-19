@@ -1,5 +1,8 @@
 __author__ = 'Dennis'
 
+import networkx as nx
+import matplotlib.pyplot as plt
+
 
 class NonExistentNodeError(Exception):
     pass
@@ -246,3 +249,19 @@ class Graph(object):
                 new.append(e + path)
 
         return new
+
+    def visualize(self):
+        g = nx.DiGraph()
+
+        for (a, l, b, r) in self.edges:
+            if r == ">":
+                g.add_edge(a, b)
+
+        pos = nx.spring_layout(g)
+
+        nx.draw_networkx_nodes(g, pos)
+        nx.draw_networkx_edges(g, pos)
+        nx.draw_networkx_labels(g, pos)
+        plt.savefig("graph.png")
+        plt.show()
+

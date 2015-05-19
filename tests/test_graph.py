@@ -222,8 +222,8 @@ class TestGraph(TestCase):
 
         g.orient_half("a", "b")
 
-        self.assertTrue(("a", "", "b", ">") in g.edges)
-        self.assertTrue(("b", ">", "a", "") in g.edges)
+        self.assertTrue(("a", "o", "b", ">") in g.edges)
+        self.assertTrue(("b", ">", "a", "o") in g.edges)
 
     def test_orient_half_not_existent(self):
         g = Graph()
