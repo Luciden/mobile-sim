@@ -132,6 +132,8 @@ def create_infant(agent):
         cla = CausalLearningController()
         cla.set_values({"movement": "faster"})
         infant.set_agent(cla)
+    elif agent == "simple":
+        infant.set_agent(SimpleController([("movement", "faster")]))
     else:
         raise RuntimeError("Undefined controller type.")
 
@@ -215,7 +217,7 @@ def create_experimenter(experiment_log):
 
 
 def experimental_condition(n):
-    infant = create_infant("causal")
+    infant = create_infant("simple")
     mobile = create_mobile_change()
 
     world = World()
