@@ -216,8 +216,8 @@ def create_experimenter(experiment_log):
     return experimenter
 
 
-def experimental_condition(n):
-    infant = create_infant("simple")
+def experimental_condition(n, agent):
+    infant = create_infant(agent)
     mobile = create_mobile_change()
 
     world = World()
@@ -247,7 +247,7 @@ def control_condition(n, experiment_log):
 
 
 if __name__ == '__main__':
-    log = experimental_condition(100)
+    log = experimental_condition(100, "causal")
 
     v = Visualizer()
     v.visualize(log)

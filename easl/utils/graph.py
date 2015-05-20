@@ -220,6 +220,7 @@ class Graph(object):
         self.add_edge(x, y, ma="o", mb=">")
 
     def causal_paths(self, x):
+        # TODO: Use networkx's neighbours
         """
         Find all variables that have a causal path to x.
         """
@@ -246,7 +247,11 @@ class Graph(object):
             extend = [[a] for (a, m, b, p) in self.edges if b == h and p == ">"]
 
             for e in extend:
-                new.append(e + path)
+                # We don't want loops
+                if e[0] in path:
+                    continue
+                else:
+                    new.append(e + path)
 
         return new
 

@@ -425,6 +425,7 @@ class CausalLearningController(Controller):
             print "calculate"
             # Calculate the causal Bayes net
             self.network = self.__learn_causality()
+            self.network.visualize()
             # then start checking the network
             self.state = CausalLearningController.ACTION_STATE
 
@@ -498,7 +499,6 @@ class CausalLearningController(Controller):
             self.variables_time[variable + "_prev"] = self.sensory[variable]
 
         c.make_complete(self.variables_time.keys())
-        c.visualize()
 
         sepset = {}
         for a in self.variables_time:
@@ -549,10 +549,8 @@ class CausalLearningController(Controller):
         argmax = None
         for path in actions:
             action = path[0]
-            # Strip the "_prev"
-            action = action[:-5]
             # Check only variables that are actions
-            if action not in self.actions:
+            if action[:-5] not in self.actions:
                 continue
 
             for val_a in self.actions[action]:
