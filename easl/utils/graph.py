@@ -29,10 +29,13 @@ class Graph(object):
     ----------
     nodes : [name]
     edges : [(name, tag, name, tag)]
+    g : networkx.DiGraph
     """
     def __init__(self):
         self.nodes = []
         self.edges = []
+
+        self.g = None
 
     def add_node(self, name):
         # Only have unique names, so check for existence
@@ -219,54 +222,23 @@ class Graph(object):
         self.del_edge(x, y)
         self.add_edge(x, y, ma="o", mb=">")
 
-    def causal_paths(self, x):
-        # TODO: Use networkx's neighbours
-        """
-        Find all variables that have a causal path to x.
-        """
-        # First check if there are any edges at all
-        paths = [[a, x] for (a, m, b, p) in self.edges if b == x and p == ">"]
-
-        if len(paths) == 0:
-            return []
-
-        new = self.extend_paths(paths)
-
-        while len(new) != 0:
-            paths.extend(new)
-            new = self.extend_paths(new)
-
-        return paths
-
-    def extend_paths(self, paths):
-        # Try to lengthen the paths
-        new = []
-
-        for path in paths:
-            h = path[0]
-            extend = [[a] for (a, m, b, p) in self.edges if b == h and p == ">"]
-
-            for e in extend:
-                # We don't want loops
-                if e[0] in path:
-                    continue
-                else:
-                    new.append(e + path)
-
-        return new
-
     def visualize(self):
-        g = nx.DiGraph()
 
-        for (a, l, b, r) in self.edges:
-            if r == ">":
-                g.add_edge(a, b)
+        pos = nx.spring_layout(self.g)
 
-        pos = nx.spring_layout(g)
+        nx.draw_networkx_nodes(self.g, pos)
+        nx.draw_networkx_edges(self.g, pos)
+        nx.draw_networkx_labels(self.g, pos)
 
-        nx.draw_networkx_nodes(g, pos)
-        nx.draw_networkx_edges(g, pos)
-        nx.draw_networkx_labels(g, pos)
         plt.savefig("graph.png")
         plt.show()
 
+    def create_digraph(self):
+        self.g = nx.DiGraph()
+
+        for (a, l, b, r) in self.edges:
+            if not self.g.has_edge(a, b) and r == ">":
+                self.g.add_edge(a, b)
+
+    def ancestors(self, x):
+        return nx.ancestors(self.g, x)

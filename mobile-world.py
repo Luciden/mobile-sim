@@ -247,7 +247,7 @@ def control_condition(n, experiment_log):
 
 
 if __name__ == '__main__':
-    log = experimental_condition(100, "causal")
+    log = experimental_condition(300, "causal")
 
     v = Visualizer()
     v.visualize(log)

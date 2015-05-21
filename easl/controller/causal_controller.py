@@ -306,7 +306,7 @@ class CausalLearningController(Controller):
 
         self.time = 0
 
-        self.exploration = self.__create_exploration_shuffle(repeat=4)
+        self.exploration = self.__create_exploration_shuffle(repeat=9)
 
     def set_values(self, vals):
         """
@@ -514,6 +514,10 @@ class CausalLearningController(Controller):
         CausalBayesNetLearner.step_5(c, sepset)
         CausalBayesNetLearner.step_6(c)
 
+        # Temporary, uses networkx to convert data structure to a DiGraph, later
+        # used to select actions
+        c.create_digraph()
+
         return c
 
     def __make_variables_from_names(self, names):
@@ -548,21 +552,22 @@ class CausalLearningController(Controller):
         selected = None
         argmax = None
         # Get all causal paths to the variable under consideration
-        for path in self.network.causal_paths(variable):
-            name = path[0]
-            # Check only variables that are actions,
-            #
-            if not name.endswith("_prev") or name[:-5] not in self.actions:
+        for name in self.network.ancestors(variable):
+            # Check only variables that are actions
+            if not name.endswith("_prev"):
                 continue
             # Remove the "_prev" part
             action = name[:-5]
+            # The variable should be an action
+            if action not in self.actions:
+                continue
 
             for val_a in self.actions[action]:
-                p_ma = CausalBayesNetLearner.calculate_joint([variable, action],
+                p_ma = CausalBayesNetLearner.calculate_joint([variable, name],
                                                              self.variables_time,
                                                              self.data)
 
-                p_conditional = CausalLearningController.conditional_probability([variable, action], p_ma, value, val_a)
+                p_conditional = CausalLearningController.conditional_probability([variable, name], p_ma, value, val_a)
                 if argmax is None:
                     argmax = (action, val_a, p_conditional)
                 elif p_conditional > argmax[2]:
