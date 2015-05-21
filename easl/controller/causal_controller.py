@@ -534,24 +534,28 @@ class CausalLearningController(Controller):
         """
         Selects one action by using the network and values that were set.
 
+        Parameters
+        ----------
+        variable : string
+        value : value
+
         Returns
         -------
         (name, value)
             The variable name and its value.
         """
-        selected = None
-        # calculate argmax_A P(M=true | A)
-        # for any variable M that we are 'interested in'
-        # Find actions A that have a path to M
-        actions = self.network.causal_paths(variable)
-
         # find argmax_A,a P(M=m | A=a) for actions A=a
+        selected = None
         argmax = None
-        for path in actions:
-            action = path[0]
-            # Check only variables that are actions
-            if action[:-5] not in self.actions:
+        # Get all causal paths to the variable under consideration
+        for path in self.network.causal_paths(variable):
+            name = path[0]
+            # Check only variables that are actions,
+            #
+            if not name.endswith("_prev") or name[:-5] not in self.actions:
                 continue
+            # Remove the "_prev" part
+            action = name[:-5]
 
             for val_a in self.actions[action]:
                 p_ma = CausalBayesNetLearner.calculate_joint([variable, action],
