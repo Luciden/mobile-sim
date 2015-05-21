@@ -5,3 +5,4 @@ _templates/
 make.bat
 *.pyc
 log.csv
+*.png
