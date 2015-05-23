@@ -59,14 +59,16 @@ class WorkingMemory(object):
         """
         Updates all memory units' age by one time step.
         """
-        # Create a new representation with all ages incremented.
-        for m in range(len(self.memory) - 1, -1, -1):
-            if m == self._MAX_AGE:
+        # Create a new representation with all ages incremented
+        # by going from the oldest (maximum i) to newest and
+        # shifting up one (m[i+1] = m[i])
+        for i in range(len(self.memory) - 1, -1, -1):
+            if i == self._MAX_AGE:
                 # Delete the entry from memory
-                del self.memory[m]
+                del self.memory[i]
             else:
-                self.memory[m + 1] = self.memory[m]
-                self.oldest = m + 1
+                self.memory[i + 1] = self.memory[i]
+                self.oldest = i + 1
 
         self.__init_now()
 
@@ -75,12 +77,14 @@ class WorkingMemory(object):
 
     def get_of_age(self, age):
         """
+        Get all predicates of the specified age.
+
         Returns
         -------
         [Predicate]
         """
         if age > self.oldest:
-            return None
+            return []
 
         predicates = []
         predicates.extend(self.memory[age][self._ACTION])
@@ -109,11 +113,8 @@ class WorkingMemory(object):
         """
         prev = now + 1
 
-        match = {WorkingMemory.NOW: now,
-                 WorkingMemory.PREV: prev}
-
-        memory = {WorkingMemory.NOW: self.get_of_age(now),
-                  WorkingMemory.PREV: self.get_of_age(prev)}
+        time = {WorkingMemory.NOW: now,
+                WorkingMemory.PREV: prev}
 
         # Try to match the temporal predicates
         for (p, t) in temporal:
@@ -121,9 +122,9 @@ class WorkingMemory(object):
             if p.name in self.actions and now == 0 and t == WorkingMemory.NOW:
                 continue
 
-            if t not in match:
+            if t not in time:
                 return False
-            if not self.has_predicate(t, p):
+            if not self.has_predicate(time[t], p):
                 return False
 
         return True
@@ -178,7 +179,7 @@ class Conjunction(object):
         self.predicates = []
 
     def __eq__(self, other):
-        if isinstance(other, Conjunction):
+        if isinstance(other, Conjunction) and len(self.predicates) == len(other.predicates):
             # Check if all predicates are in the other conjunction too
             # i.e. if the intersection of predicates is the same as the current set
             for (p, t) in self.predicates:
@@ -242,6 +243,12 @@ class Reinforcer(object):
     def add_conjunction(self, conjunction, satisfied=False, followed=False):
         s = 1 if satisfied else 0
         f = 1 if followed else 0
+
+        # Only add if the conjunction is not already in the table
+        for (c, sc, fc) in self.conjunctions:
+            if c == conjunction:
+                return
+
         self.conjunctions.append((conjunction, s, f))
 
     def increment_conjunctions(self, memory):
@@ -280,14 +287,6 @@ class Reinforcer(object):
         for (c, s, f) in self.conjunctions:
             if c == conjunction:
                 return s, f
-
-    def reward_rate(self, conjunction):
-        s, f = self.count(conjunction)
-
-        if s == 0:
-            raise ZeroDivisionError()
-
-        return f / s
 
     def find_best_conjunctions(self):
         # If less than two conjunctions, include all
@@ -337,22 +336,22 @@ class Reinforcer(object):
         ----------
         predictor : Predictor
         """
-        self.predictors.append(predictor)
+        for p in self.predictors:
+            if p == predictor:
+                return
         self.predictors.append(predictor)
 
     def remove_predictor(self, predictor):
         self.predictors[:] = [p for p in self.predictors if not p == predictor]
 
     def __create_predictor(self):
-        # "If there are still several candidates, two are chosen at random to become
-        # new predictors." (Enforces exploration.)
         # "New predictors are created from the best-scoring conjunctions currently
         # maintained for that reinforcer.
         # "When creating new predictors, candidate conjunctions are sorted by merit
         # rather than raw reward rate to give greater weight to conjunctions that
         # have been sampled more heavily."
-        # Sort conjunctions from highest merit to lowest merit
-        # TODO: Check implementation.
+        # "If there are still several candidates, two are chosen at random to become
+        # new predictors." (Enforces exploration.)
         conjunctions = sorted([(c, Reinforcer.merit(r, n)) for (c, n, r) in self.conjunctions],
                               key=lambda x: x[1],
                               reverse=True)
@@ -372,7 +371,7 @@ class Reinforcer(object):
                 top.append(c)
 
         if len(top) > 2:
-            return sorted(top, key=lambda x: len(x.predicates))[0:1]
+            return sorted(top, key=lambda x: len(x.predicates))[:1]
         else:
             return top
 
@@ -400,12 +399,25 @@ class Reinforcer(object):
 
 
 class OperantConditioningController(Controller):
-    # TODO(Dennis): Debug. Something seems to go wrong with making predictors.
-    """
-    Uses operant conditioning based learning.
+    """Uses operant conditioning based learning.
 
-    Primary reinforcers can reinforce behavior without the animal having had
-    any prior experience with them (e.g., food, water).
+    Attributes
+    ----------
+    actions : {name: [value]}
+    reinforcers : [ {predicate: [conjunction: (sat, fol)]} ]
+        "Conditioned reinforcers are stimuli that become associated with food or
+         water (or some other innate reward (even exercise), and serve as a signal
+         that the reward is coming, thereby eliminating the gap between the desired
+         action and the reinforcement signal."
+        "In order to extract this information from its experience of the
+         world, the program maintains two tables for each reinforcer.
+         One counts the number of times each conjunction has been satisfied
+         since that reinforcer was acquired; the other table counts the
+         number of times a conjunction's occurrence has been followed on
+         the next time step by the reinforcer.
+    predictors : [(reinforcer, conjunction, probability)]
+        All current predictors.
+    observations : [(name, value)]
 
     References
     ----------
@@ -413,37 +425,19 @@ class OperantConditioningController(Controller):
            David S. Touretzky & Lisa M. Saksida.
     """
     def __init__(self):
-        """
-        Attributes
-        ----------
-        actions : {name: [value]}
-        reinforcers : [ {predicate: [conjunction: (sat, fol)]} ]
-            "Conditioned reinforcers are stimuli that become associated with food or
-             water (or some other innate reward (even exercise), and serve as a signal
-             that the reward is coming, thereby eliminating the gap between the desired
-             action and the reinforcement signal."
-            "In order to extract this information from its experience of the
-             world, the program maintains two tables for each reinforcer.
-             One counts the number of times each conjunction has been satisfied
-             since that reinforcer was acquired; the other table counts the
-             number of times a conjunction's occurrence has been followed on
-             the next time step by the reinforcer.
-        predictors : [(reinforcer, conjunction, probability)]
-            All current predictors.
-        observations : [(name, value)]
-        """
         super(OperantConditioningController, self).__init__()
         self.observations = []
 
         self.memory = None
         self.reinforcers = []
 
-        self._DEMERIT_THRESHOLD = 1000
+        # TODO: Find a good threshold.
+        self._DEMERIT_THRESHOLD = 1
 
     def init_internal(self, entity):
         super(OperantConditioningController, self).init_internal(entity)
 
-        self.memory = WorkingMemory(self.actions.keys())
+        self.memory = WorkingMemory(actions=self.actions.keys())
 
     def sense(self, observation):
         """
@@ -472,6 +466,9 @@ class OperantConditioningController(Controller):
         self.__delete_predictors()
 
         actions = self.__select_actions()
+        if len(actions) == 0:
+            actions = [self.__select_random_action()]
+
         # Add actions as predicates
         for action in actions:
             self.log.do_log("observation", {"controller": "operant", "name": action[0], "value": action[1]})
@@ -483,8 +480,7 @@ class OperantConditioningController(Controller):
         self.reinforcers.append(Reinforcer(Predicate(name, value)))
 
     def __store_observations(self):
-        """
-        Stores all observations as sensory predicates.
+        """Stores all observations as sensory predicates.
         """
         for (name, value) in self.observations:
             self.memory.add_sensory(Predicate(name, value))
@@ -539,14 +535,12 @@ class OperantConditioningController(Controller):
         # temporal predicates.
         predicates = []
 
-        if self.memory.get_oldest() > 0:
-            for p in self.memory.get_of_age(1):
-                predicates.append((p, WorkingMemory.NOW))
+        for p in self.memory.get_of_age(1):
+            predicates.append((p, WorkingMemory.NOW))
 
-        if self.memory.get_oldest() > 1:
-            prev = self.memory.get_of_age(2)
-            for p in prev:
-                predicates.append((p, WorkingMemory.PREV))
+        prev = self.memory.get_of_age(2)
+        for p in prev:
+            predicates.append((p, WorkingMemory.PREV))
 
         return predicates
 
@@ -739,8 +733,7 @@ class OperantConditioningController(Controller):
                         self.log.do_log("reinforcer", {"controller": "operant", "predicate": sensory.name, "value": sensory.value})
 
     def __select_actions(self):
-        """
-        Action Generation
+        """Selects actions by matching predictors with the working memory.
 
         "To generate behavior, we look for predictors that can be satisfied by the
         rat's taking some action currently available to it."
@@ -762,12 +755,9 @@ class OperantConditioningController(Controller):
          [(name, value)]
             List of action names and values
         """
-        # Check predictors to see which can be satisfied.
-        # Prioritized by nature of the reinforcement.
-        # (Number denoting primary, secondary, etc?)
-        # [[(Predicate, tag)]]
         matches = []
 
+        # Find predictors that can be satisfied
         for reinforcer in self.reinforcers:
             for predictor in reinforcer.predictors:
                 temporal = predictor.get_temporal()
@@ -778,27 +768,26 @@ class OperantConditioningController(Controller):
         # working memory), and there is an action predicate that is available,
         # the action will be selected with high probability.
         #
-        # So filter on matches with action predicates.
-        # For every conjunction, find the action predicates
+        # Find the action predicates in the match that can be satisfied now
         actions = []
         for match in matches:
             for (p, tag) in match:
                 if p.name in self.actions.keys() and tag == WorkingMemory.NOW:
                     actions.append(p)
 
-        # Select one of the matches with probability
-        # ? (There is also some randomness to facilitate exploration.)
+        # Select one of the matched actions randomly
         if len(actions) == 0:
-            # Select a random action
-            print "RANDOM"
-            action = random.choice(self.actions.keys())
-            value = random.choice(self.actions[action])
-
-            return [(action, value)]
+            return []
         else:
             action = random.choice(actions)
-
             return [(action.name, action.value)]
+
+    def __select_random_action(self):
+        print "RANDOM"
+        action = random.choice(self.actions.keys())
+        value = random.choice(self.actions[action])
+
+        return action, value
 
     def __has_acquired_reinforcer(self, predicate):
         """
