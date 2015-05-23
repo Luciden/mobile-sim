@@ -130,7 +130,13 @@ class World(object):
             self.__measure_entities()
 
             if self.visualizer is not None:
-                self.visualizer.update()
+                for entity in self.entities:
+                    # Get visualizations from current state of entities
+                    self.visualizer.update_visualization(self.entities[entity].visualize())
+                    # Get visualizations from current state of agents
+                    self.visualizer.update_visualization(self.entities[entity].visualize_agent())
+                # Update the actual screen with all visualizations
+                self.visualizer.update_screen()
 
     def add_entity(self, entity):
         self.entities[entity.name] = entity
