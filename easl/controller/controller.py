@@ -10,7 +10,7 @@ class Controller(object):
 
     Need some kind of time representation.
     """
-    def __init__(self):
+    def __init__(self, visual=None):
         """
         Attributes
         ----------
@@ -25,6 +25,7 @@ class Controller(object):
         default_signal : {name: value}
         """
         self.log = None
+        self.visual = visual
 
         self.variables = {}
         self.actions = {}
@@ -98,7 +99,10 @@ class Controller(object):
 
     def visualize(self):
         """
-        Used by a Visualizer.
+        Creates a Visualization from the attributes.
+        :return:
         """
-        raise NotImplementedError("Hmm.")
-
+        if self.visual is not None:
+            return self.visual.visualize(self)
+        else:
+            return None

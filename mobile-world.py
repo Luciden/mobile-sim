@@ -6,7 +6,7 @@ import functools
 
 from easl import *
 from easl.controller import *
-from easl.visualize import Visualizer
+from easl.visualize import PyGameVisualizer
 
 
 #
@@ -216,11 +216,11 @@ def create_experimenter(experiment_log):
     return experimenter
 
 
-def experimental_condition(n, agent):
+def experimental_condition(n, agent, v=None):
     infant = create_infant(agent)
     mobile = create_mobile_change()
 
-    world = World()
+    world = World(v)
     world.add_entity(infant)
     world.add_entity(mobile)
     world.set_area_of_effect("infant", "right-foot-position", "movement", "mobile")
@@ -247,9 +247,9 @@ def control_condition(n, experiment_log):
 
 
 if __name__ == '__main__':
-    log = experimental_condition(100, "simple")
+    v = PyGameVisualizer()
+    log = experimental_condition(100, "simple", v)
 
-    v = Visualizer()
     v.visualize_log(log)
 
     # log2 = control_condition(n, log)

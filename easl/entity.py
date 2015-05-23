@@ -57,7 +57,7 @@ class Entity(object):
         All action/parameter pairs that are queued to be executed.
         Both name and its parameter name/value pairs are provided.
     """
-    def __init__(self, name, agent=None):
+    def __init__(self, name, agent=None, visual=None):
         self.name = name
         self.log = None
 
@@ -76,6 +76,7 @@ class Entity(object):
         self.triggers = {}
 
         self.agent = agent
+        self.visual = visual
         self.motor_signal_queue = []
         self.signal_queue = []
         self.event_queue = []
@@ -285,5 +286,11 @@ class Entity(object):
         Creates a Visualization from the attributes.
         :return:
         """
-        # TODO: Implement.
-        pass
+        if self.visual is not None:
+            return self.visual.visualize(self)
+        else:
+            return None
+
+    def visualize_agent(self):
+        if self.agent is not None:
+            return self.agent.visualize()
