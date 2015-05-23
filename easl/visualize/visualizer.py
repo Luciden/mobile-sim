@@ -1,8 +1,37 @@
 __author__ = 'Dennis'
 
 
+class Visual(object):
+    @staticmethod
+    def visualize(self):
+        """
+        Parameters
+        ----------
+        self : object
+            Any object that will be visualized.
+
+        Returns
+        -------
+        visualization : Visualization
+        """
+        raise NotImplementedError("Base Class")
+
+
 class Visualization(object):
     pass
+
+
+class Group(Visualization):
+    def __init__(self, name):
+        self.name = name
+
+        self.elements = []
+
+    def add_element(self, element):
+        self.elements.append(element)
+
+    def get_elements(self):
+        return self.elements
 
 
 class Slider(Visualization):
@@ -47,6 +76,17 @@ class Table(Visualization):
         pass
 
 
+class Tree(Visualization):
+    def __init__(self, name, tree):
+        """
+        Attributes
+        ----------
+        tree : {name: {name: ...{name: value}}}
+        """
+        self.name = name
+        self.tree = tree
+
+
 class Number(Visualization):
     def __init__(self, name, number):
         self.name = name
@@ -70,13 +110,16 @@ class Grid(Visualization):
 
 class Visualizer(object):
     def __init__(self):
-        self.visualizations = {}
+        self.visualizations = None
 
-    def update_visualization(self, name, v):
-        if v is None or name not in self.visualizations:
+    def reset_visualization(self):
+        self.visualizations = Group("main")
+
+    def update_visualization(self, v):
+        if v is None:
             return
         else:
-            self.visualizations[name] = v
+            self.visualizations.add_element(v)
 
     def update(self):
         """Draws all the current visualizations to the screen.

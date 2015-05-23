@@ -6,7 +6,7 @@ import functools
 
 from easl import *
 from easl.controller import *
-from easl.visualize import PyGameVisualizer
+from easl.visualize import *
 
 
 #
@@ -114,6 +114,21 @@ class SightSensorChange(Sensor):
         return modality == "sight"
 
 
+class InfantVisual(Visual):
+    @staticmethod
+    def visualize(self):
+        p = {"up": 0, "middle": 1, "down": 2}
+
+        grid = Grid("infant", 2, 2)
+
+        grid.add_element(Slider("left-hand-position", 3, p[self.a["left-hand-position"]]), 0, 0)
+        grid.add_element(Slider("right-hand-position", 3, p[self.a["right-hand-position"]]), 0, 1)
+        grid.add_element(Slider("left-foot-position", 3, p[self.a["left-foot-position"]]), 1, 0)
+        grid.add_element(Slider("right-foot-position", 3, p[self.a["right-foot-position"]]), 1, 1)
+
+        return grid
+
+
 def create_infant(agent):
     """
     Parameters
@@ -121,7 +136,7 @@ def create_infant(agent):
     controller : string
         Name of the type of controller to use.
     """
-    infant = Entity("infant")
+    infant = Entity("infant", visual=InfantVisual())
 
     if agent == "random":
         infant.set_agent(RandomController())
@@ -250,7 +265,7 @@ if __name__ == '__main__':
     v = PyGameVisualizer()
     log = experimental_condition(100, "simple", v)
 
-    v.visualize_log(log)
+    #v.visualize_log(log)
 
     # log2 = control_condition(n, log)
 

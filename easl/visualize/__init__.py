@@ -1,4 +1,4 @@
 __author__ = 'Dennis'
 
-from visualizer import Visualizer
+from visualizer import *
 from pygame_visualizer import PyGameVisualizer

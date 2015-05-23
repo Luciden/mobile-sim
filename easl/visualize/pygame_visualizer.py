@@ -6,8 +6,6 @@ import pygame
 
 
 class PyGameVisualizer(Visualizer):
-    # TODO: Implement visualizer interface in Entity and Controller
-    # TODO: Make automatic layout-manager
     FG_COLOR = (255, 255, 255)
     BG_COLOR = (0, 0, 0)
 
@@ -23,14 +21,17 @@ class PyGameVisualizer(Visualizer):
     def update(self):
         """Draws all the current visualizations to the screen.
         """
-        for name in self.visualizations:
-            v = self.visualizations[name]
-            if isinstance(v, Slider):
-                self.__draw_slider(v)
-            elif isinstance(v, Number):
-                self.__draw_number(v)
-            else:
-                raise RuntimeError("Unknown type")
+        # Close the window if it is closed
+        for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    # TODO: Make the visualization stop somehow
+                    running = False
+
+        self.screen.fill(PyGameVisualizer.BG_COLOR)
+        self.screen.blit(self.__draw_visualization(self.visualizations), (0, 0))
+
+        pygame.display.flip()
+        pygame.time.delay(100)
 
     def visualize_log(self, log):
         """
@@ -71,11 +72,17 @@ class PyGameVisualizer(Visualizer):
             pygame.display.flip()
             pygame.time.delay(100)
 
-    def __draw_visualization(self, visualization):
-        if isinstance(visualization, Slider):
-            return self.__draw_slider(visualization)
-        elif isinstance(visualization, Number):
-            return self.__draw_number(visualization)
+    def __draw_visualization(self, v):
+        if isinstance(v, Slider):
+            return self.__draw_slider(v)
+        elif isinstance(v, Number):
+            return self.__draw_number(v)
+        elif isinstance(v, Grid):
+            return self.__draw_grid(v)
+        elif isinstance(v, Tree):
+            return self.__draw_tree(v)
+        elif isinstance(v, Group):
+            return self.__draw_group(v)
         else:
             raise RuntimeError("Unknown type")
 
@@ -132,5 +139,69 @@ class PyGameVisualizer(Visualizer):
         for x in range(grid.w):
             for y in range(grid.h):
                 surface.blit(surface_grid[x][y], (x * max_width, y * max_height))
+
+        return surface
+
+    def __draw_tree(self, tree, indent=0):
+        if isinstance(tree, Tree):
+            return self.__draw_tree(tree.tree)
+        # Main case: for all branches, make the indented rest
+        elif isinstance(tree, dict):
+            # Make all branches
+            branches = []
+            for name in tree:
+                branches.append(self.font.render(indent * "  " + name, 1, PyGameVisualizer.FG_COLOR))
+                branches.append(self.__draw_tree(tree[name], indent + 1))
+
+            # Find largest one and prepare surface
+            max_width = 0
+            total_height = 0
+            for branch in branches:
+                width, height = branch.get_size()
+                max_width = max(max_width, width)
+                total_height += height
+
+            # Draw all branches to the surface and return
+            surface = pygame.Surface((max_width, total_height))
+            surface.fill(PyGameVisualizer.BG_COLOR)
+
+            y = 0
+            for branch in branches:
+                _, height = branch.get_size()
+
+                surface.blit(branch, (0, y))
+
+                y += height
+
+            return surface
+        # Base case: just print the value
+        else:
+            return self.font.render(indent * "  " + str(tree), 1, PyGameVisualizer.FG_COLOR)
+
+    def __draw_group(self, group):
+        # Draw every element, take its size and draw the next after it
+        elements = []
+        x = 0
+        max_y = 0
+
+        # Find the dimensions of the surface
+        for element in group.get_elements():
+            e = self.__draw_visualization(element)
+            elements.append(e)
+            w, h = e.get_size()
+
+            x += w
+            max_y = max(max_y, h)
+
+        # Blit to surface
+        surface = pygame.Surface((x, max_y))
+        surface.fill(PyGameVisualizer.BG_COLOR)
+
+        x = 0
+        for e in elements:
+            w, h = e.get_size()
+            surface.blit(e, (x, 0))
+
+            x += w
 
         return surface

@@ -1,6 +1,7 @@
 __author__ = 'Dennis'
 
 from controller import Controller
+from easl.visualize import *
 import random
 
 
@@ -82,10 +83,18 @@ class BetterLearningRule(LearningRule):
         a, v = action
         if has_reward:
             # Increase the probability of choosing the specific action again
-            counts[a][v] += 1
-            # Also increase the probability of all actions of this name
+            counts[a][v] += 3
+            # Also increase the probability of all other actions of this type
             for value in counts[a]:
-                counts[a][value] += 1
+                if value == v:
+                    continue
+                counts[a][value] += 2
+            # Decrease probability of other actions
+            for action in counts:
+                if action == a:
+                    continue
+                for value in counts[action]:
+                    counts[action][value] = max(0, counts[action][value] - 1)
         else:
             # Decrease probability of choosing this action
             counts[a][v] = max(0, counts[a][v] - 1)
@@ -96,6 +105,17 @@ class BetterLearningRule(LearningRule):
     @staticmethod
     def select_action(counts):
         return SimpleLearningRule.select_action(counts)
+
+
+class SimpleVisual(Visual):
+    @staticmethod
+    def visualize(self):
+        tree = Tree("counts", self.counts)
+
+        group = Group("simple")
+        group.add_element(tree)
+
+        return group
 
 
 class SimpleController(Controller):
@@ -125,6 +145,7 @@ class SimpleController(Controller):
             List of sensory stimuli that are considered as rewarding.
         """
         super(SimpleController, self).__init__()
+        self.visual = SimpleVisual()
 
         self.rule = BetterLearningRule()
 
@@ -156,7 +177,8 @@ class SimpleController(Controller):
         self.rule.update_counts(self.counts, self.action, self.__got_reward())
 
         # Select a new action (max probability)
-        return [self.rule.select_action(self.counts)]
+        self.action = self.rule.select_action(self.counts)
+        return [self.action]
 
     def __got_reward(self):
         for (name, value) in self.rewards:

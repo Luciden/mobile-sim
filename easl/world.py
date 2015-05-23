@@ -130,11 +130,13 @@ class World(object):
             self.__measure_entities()
 
             if self.visualizer is not None:
+                self.visualizer.reset_visualization()
+
                 for entity in self.entities:
                     # Get visualizations from current state of entities
-                    self.visualizer.update_visualization(entity, self.entities[entity].visualize())
+                    self.visualizer.update_visualization(self.entities[entity].visualize())
                     # Get visualizations from current state of agents
-                    self.visualizer.update_visualization("controller", self.entities[entity].visualize_agent())
+                    self.visualizer.update_visualization(self.entities[entity].visualize_agent())
                 # Update the actual screen with all visualizations
                 self.visualizer.update()
 
