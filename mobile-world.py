@@ -250,7 +250,7 @@ if __name__ == '__main__':
     log = experimental_condition(100, "simple")
 
     v = Visualizer()
-    v.visualize(log)
+    v.visualize_log(log)
 
     # log2 = control_condition(n, log)
 

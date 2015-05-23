@@ -90,7 +90,7 @@ class World(object):
     signals : [(string, Signal)]
         All queued signals with the names of the entities that will receive them.
     """
-    def __init__(self):
+    def __init__(self, visualizer=None):
         self.entities = {}
         self.triggers = []
 
@@ -98,6 +98,8 @@ class World(object):
 
         self.time = 0
         self.queued_signals = []
+
+        self.visualizer = visualizer
 
     def run(self, iterations=10):
         """
@@ -126,6 +128,9 @@ class World(object):
             self.__execute_actions()
 
             self.__measure_entities()
+
+            if self.visualizer is not None:
+                self.visualizer.update()
 
     def add_entity(self, entity):
         self.entities[entity.name] = entity

@@ -279,3 +279,11 @@ class Entity(object):
         measurement["entity"] = self.name
 
         self.log.do_log("measurement", measurement)
+
+    def visualize(self):
+        """
+        Creates a Visualization from the attributes.
+        :return:
+        """
+        # TODO: Implement.
+        pass

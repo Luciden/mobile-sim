@@ -3,9 +3,21 @@ __author__ = 'Dennis'
 import pygame
 
 
-class Slider(object):
+class Visualization(object):
+    pass
+
+
+class Slider(Visualization):
     """
-    A slider with a number of positions.
+    A slider with a fixed number of positions.
+
+    A horizontal
+    --|-----
+    or vertical
+    |
+    +
+    |
+    slider.
 
     Attributes
     ----------
@@ -21,7 +33,7 @@ class Slider(object):
             raise RuntimeError("position not in slide")
 
 
-class Table(object):
+class Table(Visualization):
     """
     A table.
 
@@ -37,19 +49,31 @@ class Table(object):
         pass
 
 
+class Number(Visualization):
+    def __init__(self, name, number):
+        self.name = name
+        self.number = number
+
+
 class Visualizer(object):
+    # TODO: Add into actual simulation (real-time visualizing)
+    # TODO: Implement visualizer interface in Entity and Controller
+    # TODO: Make automatic layout-manager
     FG_COLOR = (255, 255, 255)
 
     def __init__(self):
         pygame.init()
 
         self.size = 640, 640
-        self.screen = None
+        self.screen = pygame.display.set_mode(self.size)
+        self.font = pygame.font.SysFont("monospace", 11)
 
-    def visualize(self, log):
-        # TODO: Make automatic layout-manager
-        # TODO: Add into actual simulation (real-time visualizing)
-        # TODO: Implement visualizer interface in Entity and Controller
+    def update(self):
+        """Draws all the current visualizations to the screen.
+        """
+        pass
+
+    def visualize_log(self, log):
         """
         Parameters
         ----------
@@ -57,7 +81,6 @@ class Visualizer(object):
             The data to visualize.
         """
         # Get the information from entities
-        self.screen = pygame.display.set_mode(self.size)
         length = log.get_length()
 
         running = True
@@ -109,8 +132,7 @@ class Visualizer(object):
         length = slider.number * block_w
 
         # Draw the name on top
-        font = pygame.font.SysFont("monospace", 11)
-        name = font.render(slider.name, 1, (255, 255, 255))
+        name = self.font.render(slider.name, 1, Visualizer.FG_COLOR)
         self.screen.blit(name, position)
 
         # Draw the slider base
@@ -118,3 +140,7 @@ class Visualizer(object):
 
         # Draw the slider block
         pygame.draw.rect(self.screen, Visualizer.FG_COLOR, [x, y + 16 + block_y, block_w, block_w])
+
+    def __draw_number(self, number, position):
+        name = self.font.render(number.name, 1, Visualizer.FG_COLOR)
+        self.screen.blit(name, position)
