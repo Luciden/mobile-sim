@@ -96,3 +96,9 @@ class Controller(object):
         """
         raise NotImplementedError("Hmm.")
 
+    def visualize(self):
+        """
+        Used by a Visualizer.
+        """
+        raise NotImplementedError("Hmm.")
+
