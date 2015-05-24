@@ -1,6 +1,7 @@
 __author__ = 'Dennis'
 
 from log import Log
+from visualize import Number
 
 
 class Sensor(object):
@@ -131,6 +132,7 @@ class World(object):
 
             if self.visualizer is not None:
                 self.visualizer.reset_visualization()
+                self.visualizer.update_visualization(Number("time", self.time))
 
                 for entity in self.entities:
                     # Get visualizations from current state of entities
