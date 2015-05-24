@@ -194,11 +194,38 @@ def create_mobile_boolean():
     return mobile
 
 
+class MobileVisual(Visual):
+    @staticmethod
+    def visualize(self):
+        group = Group("mobile")
+        group.add_element(Number("speed", self.a["speed"]))
+        group.add_element(Circle("speed", 0, 10, self.a["speed"]))
+
+        return group
+
+
 def create_mobile_change():
-    mobile = Entity("mobile")
+    mobile = Entity("mobile", visual=MobileVisual())
 
     mobile.add_attribute("speed", 0, range(0, 10), lambda old, new: None)
     mobile.add_attribute("previous", 0, range(0, 10), lambda old, new: None)
+
+    mobile.set_physics(swing)
+
+    mobile.add_trigger("movement", moved)
+    mobile.set_emission(movement_emission_change)
+
+    return mobile
+
+
+def create_mobile_pendulum():
+    # TODO: Implement.
+    mobile = Entity("mobile", visual=MobileVisual())
+
+    mobile.add_attribute("velocity", 0, range(0, 5), lambda old, new: None)
+    mobile.add_attribute("speed", 0, range(0, 5), lambda old, new: None)
+    mobile.add_attribute("previous", 0, range(0, 10), lambda old, new: None)
+    mobile.add_attribute("position", 0, range(-5, -5), lambda old, new: None)
 
     mobile.set_physics(swing)
 
@@ -245,12 +272,12 @@ def experimental_condition(n, agent, v=None):
     return world.log
 
 
-def control_condition(n, experiment_log):
-    infant = create_infant("causal")
+def control_condition(n, experiment_log, agent, v=None):
+    infant = create_infant(agent)
     mobile = create_mobile_change()
     experimenter = create_experimenter(experiment_log)
 
-    world = World()
+    world = World(v)
     world.add_entity(infant)
     world.add_entity(mobile)
     world.add_entity(experimenter)
@@ -263,7 +290,9 @@ def control_condition(n, experiment_log):
 
 if __name__ == '__main__':
     v = PyGameVisualizer()
-    log = experimental_condition(300, "simple", v)
+    log = experimental_condition(100, "causal", v)
+
+    #log = control_condition(100, log, "simple", v)
 
     #v.visualize_log(log)
 

@@ -1,5 +1,7 @@
 __author__ = 'Dennis'
 
+import math
+
 import networkx as nx
 import matplotlib.pyplot as plt
 
@@ -36,6 +38,12 @@ class Graph(object):
         self.edges = []
 
         self.g = None
+
+    def get_nodes(self):
+        return self.nodes
+
+    def get_edges(self):
+        return self.edges
 
     def add_node(self, name):
         # Only have unique names, so check for existence
@@ -146,6 +154,31 @@ class Graph(object):
 
         return pairs
 
+    def get_directed_pairs(self):
+        """
+        All pairs A, B that are connected by an edge.
+
+        Only contains edges in one direction, so if (A, B) is in pairs, (B, A)
+        is not.
+
+        Returns
+        -------
+        [(string, string)]
+            pairs of variable names that are connected by an edge
+        """
+        pairs = []
+
+        # Consider all pairs, but contains reversed pairs as well (a, b) and
+        # (b, a)
+        for (a, b) in [(a, b) for (a, _1, b, p) in self.edges if p == ">"]:
+            # Only add if
+            if (b, a) in pairs:
+                pass
+            else:
+                pairs.append((a, b))
+
+        return pairs
+
     def get_pairs_double(self):
         return [(a, b) for (a, _1, b, _2) in self.edges]
 
@@ -242,3 +275,102 @@ class Graph(object):
 
     def ancestors(self, x):
         return nx.ancestors(self.g, x)
+
+    @staticmethod
+    def arc_layout(n):
+        """
+        Creates a discrete, arced layout that does not have any edge intersect
+        any nodes for a complete graph with the given number of nodes.
+
+        Parameters
+        ----------
+        n : int
+            Number of notes in the complete graph.
+
+        Returns
+        -------
+        layout : [(int, int)]
+            The (x, y) coordinates in the grid at which a node could be placed.
+        """
+        if n == 0:
+            return []
+        if n == 1:
+            return [(0, 0)]
+        if n == 2:
+            return [(0, 1), (1, 0)]
+        if n == 3:
+            return [(0, 0), (2, 0), (0, 2)]
+        else:
+            half = Graph.half_layout(n - 1)
+            half = Graph.shift_layout_down(half, 1)
+
+            inverse = Graph.inverted_layout(half)
+
+            return Graph.combine_layouts(half, inverse)
+
+    @staticmethod
+    def shift_layout_down(layout, n):
+        if n == 0:
+            return layout
+        else:
+            return Graph.shift_layout_down([(x, y + 1) for (x, y) in layout], n - 1)
+
+    @staticmethod
+    def half_layout(n):
+        if n == 0:
+            return []
+        if n == 1:
+            return [(0, 0)]
+        if n == 2:
+            return [(0, 1)]
+        else:
+            # Take a n/2 x n grid from the layout in n
+            return [(x, y) for (x, y) in Graph.arc_layout(n)
+                    if x <= (n / 2) - 1]
+
+    @staticmethod
+    def combine_layouts(a, b):
+        # Check for double
+        return list(set(a + b))
+
+    @staticmethod
+    def inverted_layout(layout):
+        return [(y, x) for (x, y) in layout]
+
+    @staticmethod
+    def flipped_layout_horizontal(layout, n):
+        return [(n - x - 1, y) for (x, y) in layout]
+
+    @staticmethod
+    def flipped_layout_vertical(layout, n):
+        return [(x, n - y - 1) for (x, y) in layout]
+
+    @staticmethod
+    def flipped_layout_both(layout, n):
+        return Graph.flipped_layout_horizontal(Graph.flipped_layout_vertical(layout, n), n)
+
+    @staticmethod
+    def layout_grid(layout):
+        grid = [['.']]
+        w = 1
+        h = 1
+
+        for (x, y) in layout:
+            while x + 1 > w:
+                grid[:] = [column + ['.'] for column in grid]
+                w += 1
+            while y + 1 > h:
+                grid.append(['.' for _ in range(w)])
+                h += 1
+
+            grid[y][x] = 'O'
+
+        return grid
+
+    @staticmethod
+    def print_layout(layout):
+        ascii = ""
+        for row in Graph.layout_grid(layout):
+            ascii += ''.join(row) + '\n'
+
+        return ascii

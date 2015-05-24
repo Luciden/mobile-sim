@@ -304,3 +304,18 @@ class TestGraph(TestCase):
         self.assertIn(["b", "c"], paths)
         self.assertIn(["a", "b", "c"], paths)
         self.assertIn(["d", "b", "c"], paths)
+
+    def test_arc_layout(self):
+        self.assertEqual(set([]), set(Graph.arc_layout(0)))
+        self.assertEqual(set([(0, 0)]), set(Graph.arc_layout(1)))
+        self.assertEqual(set([(0, 1), (1, 0)]), set(Graph.arc_layout(2)))
+        self.assertEqual(set([(0, 0), (0, 2), (2, 0)]), set(Graph.arc_layout(3)))
+        self.assertEqual(set([(1, 0), (3, 0), (0, 1), (0, 3)]), set(Graph.arc_layout(4)))
+        self.assertEqual(set([(1, 1), (2, 0), (4, 0), (0, 2), (0, 4)]), set(Graph.arc_layout(5)))
+        self.assertEqual(set([(1, 2), (2, 1), (3, 0), (5, 0), (0, 3), (0, 5)]), set(Graph.arc_layout(6)))
+
+    def test_print_layout(self):
+        self.assertEqual(".O\nO.\n", Graph.print_layout(Graph.arc_layout(2)))
+        self.assertEqual("O.O\n...\n0..", Graph.print_layout(Graph.arc_layout(3)))
+
+

@@ -1,13 +1,17 @@
 __author__ = 'Dennis'
 
 from visualizer import *
+import easl
 
+import sys
 import pygame
+import math
 
 
 class PyGameVisualizer(Visualizer):
-    FG_COLOR = (255, 255, 255)
     BG_COLOR = (0, 0, 0)
+    FG_COLOR = (255, 255, 255)
+    OBJ_COLOR = (255, 255, 0)
 
     def __init__(self):
         super(PyGameVisualizer, self).__init__()
@@ -18,20 +22,51 @@ class PyGameVisualizer(Visualizer):
         self.screen = pygame.display.set_mode(self.size)
         self.font = pygame.font.SysFont("monospace", 11)
 
+        self.step = False
+
+    def reset_visualization(self):
+        super(PyGameVisualizer, self).reset_visualization()
+
+        # Add a keymap
+        keys = ["space: pause/unpause the simulation",
+                "s: step once and pause"]
+        self.visualizations.add_element(List("Key Bindings", keys))
+
     def update(self):
         """Draws all the current visualizations to the screen.
         """
-        # Close the window if it is closed
-        for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    # TODO: Make the visualization stop somehow
-                    running = False
-
         self.screen.fill(PyGameVisualizer.BG_COLOR)
         self.screen.blit(self.__draw_visualization(self.visualizations), (0, 0))
 
         pygame.display.flip()
         pygame.time.delay(100)
+
+        if self.step:
+            self.__pause()
+
+        # Check for any new commands
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                # Pause, so wait for an unpause
+                if event.key == pygame.K_SPACE:
+                    self.__pause()
+            elif event.type == pygame.QUIT:
+                # TODO: Make the visualization stop somehow
+                running = False
+
+    def __pause(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        self.step = False
+                        return
+                    if event.key == pygame.K_s:
+                        self.step = True
+                        return
 
     def visualize_log(self, log):
         """
@@ -85,6 +120,10 @@ class PyGameVisualizer(Visualizer):
             return self.__draw_group(v)
         elif isinstance(v, List):
             return self.__draw_list(v)
+        elif isinstance(v, Circle):
+            return self.__draw_circle(v)
+        elif isinstance(v, Graph):
+            return self.__draw_graph(v)
         else:
             raise RuntimeError("Unknown type")
 
@@ -186,8 +225,13 @@ class PyGameVisualizer(Visualizer):
         x = 0
         max_y = 0
 
+        margin = pygame.Surface((8, 1))
+
         # Find the dimensions of the surface
         for element in group.get_elements():
+            elements.append(margin)
+            x += margin.get_width()
+
             e = self.__draw_visualization(element)
             elements.append(e)
             w, h = e.get_size()
@@ -230,5 +274,112 @@ class PyGameVisualizer(Visualizer):
             surface.blit(e, (0, y))
 
             y += e.get_height()
+
+        return surface
+
+    def __draw_circle(self, circle):
+        delta_v = 8
+        d_max = 2 * circle.v_max * delta_v
+        center_x = center_y = d_max / 2
+
+        radius = delta_v * circle.v
+
+        surface = pygame.Surface((d_max, d_max))
+        surface.fill(self.BG_COLOR)
+
+        pygame.draw.circle(surface, self.FG_COLOR, (center_x, center_y), radius)
+
+        return surface
+
+    def __draw_graph(self, graph):
+        node_radius = 16
+        spacing = 2 * node_radius  # Distance between adjacent nodes' centers
+        coordinates = {}
+
+        # If no groups were given, do a column layout
+        if graph.groups is None:
+            max_columns = 3
+            width = 2 * node_radius * max_columns + (max_columns - 1) * spacing
+
+            # Distribute node positions and store coordinates
+            x = node_radius
+            y = node_radius
+            for node in graph.nodes:
+                coordinates[node] = (x, y)
+                x += spacing
+
+                if x > width - node_radius:
+                    x = node_radius
+                    y += spacing
+
+            height = y + node_radius
+        # If groups were given, do arc layouts
+        else:
+            left_width = 0
+            top_height = 0
+            right_width = 0
+            bottom_height = 0
+
+            layout = None
+            n_group = 0
+            for group in graph.groups:
+                n = len(group)
+                if n_group == 0:
+                    layout = easl.utils.Graph.arc_layout(n)
+                    left_width = top_height = n * 2 * node_radius + (n - 1) * spacing
+                elif n_group == 1:
+                    layout = easl.utils.Graph.flipped_layout_both(layout, len(group))
+                    right_width = bottom_height = n * 2 * node_radius + (n - 1) * spacing
+                elif n_group == 2:
+                    layout = easl.utils.Graph.flipped_layout_vertical(layout, len(group))
+                    right_width = max(right_width, n * 2 * node_radius + (n - 1) * spacing)
+                    top_height = max(top_height, n * 2 * node_radius + (n - 1) * spacing)
+                elif n_group == 3:
+                    layout = easl.utils.Graph.flipped_layout_both(layout, len(group))
+                    left_width = max(left_width, n * 2 * node_radius + (n - 1) * spacing)
+                    bottom_height = max(bottom_height, n * 2 * node_radius + (n - 1) * spacing)
+
+                for node in group:
+                    grid_x, grid_y = layout.pop()
+
+                    coordinates[node] = (node_radius + grid_x * spacing, node_radius + grid_y * spacing)
+
+            width = left_width + right_width
+            height = top_height + bottom_height
+
+        surface = pygame.Surface((width, height))
+
+        # Draw edges from stored coordinates
+        for a, b in graph.edges:
+            ax, ay = coordinates[a]
+            bx, by = coordinates[b]
+            pygame.draw.line(surface, self.FG_COLOR, coordinates[a], coordinates[b])
+
+            # Draw arrow heads
+            if ax == bx:
+                cx = bx
+                cy = by - node_radius if by > ay else by + node_radius
+            elif ay == by:
+                cx = bx - node_radius if bx > ax else bx + node_radius
+                cy = by
+            else:
+                dx = ax - bx
+                dy = ay - by
+                angle = math.atan2(-dy, dx)
+
+                delta_x = node_radius * math.cos(angle)
+                delta_y = node_radius * math.sin(angle)
+
+                cx = int(bx + delta_x)
+                cy = int(by - delta_y)
+
+            pygame.draw.circle(surface, self.FG_COLOR, (cx, cy), 4)
+
+        for node in coordinates:
+            x, y = coordinates[node]
+
+            pygame.draw.circle(surface, self.OBJ_COLOR, (x, y), node_radius)
+            name = self.font.render(node, 1, self.FG_COLOR)
+            surface.blit(name, (x, y))
 
         return surface

@@ -18,11 +18,14 @@ class Visual(object):
 
 
 class Visualization(object):
-    pass
+    def __init__(self, name, show_name=False):
+        self.name = name
+        self.show_name = show_name
 
 
 class Group(Visualization):
     def __init__(self, name):
+        super(Group, self).__init__(name)
         self.name = name
 
         self.elements = []
@@ -51,6 +54,8 @@ class Slider(Visualization):
     name : string
     """
     def __init__(self, name, number, position):
+        super(Slider, self).__init__(name)
+
         self.name = name
         self.number = number
 
@@ -72,8 +77,8 @@ class Table(Visualization):
     ----------
     name : string
     """
-    def __init__(self):
-        pass
+    def __init__(self, name):
+        super(Table, self).__init__(name)
 
 
 class Tree(Visualization):
@@ -83,19 +88,22 @@ class Tree(Visualization):
         ----------
         tree : {name: {name: ...{name: value}}}
         """
-        self.name = name
+        super(Tree, self).__init__(name)
+
         self.tree = tree
 
 
 class Number(Visualization):
     def __init__(self, name, number):
-        self.name = name
+        super(Number, self).__init__(name)
+
         self.number = number
 
 
 class Grid(Visualization):
     def __init__(self, name, w, h):
-        self.name = name
+        super(Grid, self).__init__(name)
+
         self.grid = [[None for _ in range(w)] for _ in range(h)]
         self.w = w
         self.h = h
@@ -110,8 +118,28 @@ class Grid(Visualization):
 
 class List(Visualization):
     def __init__(self, name, elements):
-        self.name = name
+        super(List, self).__init__(name)
+
         self.elements = elements
+
+
+class Circle(Visualization):
+    def __init__(self, name, v_min, v_max, v):
+        super(Circle, self).__init__(name)
+
+        self.v_min = v_min
+        self.v_max = v_max
+        self.v = v
+
+
+class Graph(Visualization):
+    def __init__(self, name, nodes, edges, groups=None):
+        super(Graph, self).__init__(name)
+
+        self.nodes = nodes
+        self.edges = edges
+
+        self.groups = groups
 
 
 class Visualizer(object):
