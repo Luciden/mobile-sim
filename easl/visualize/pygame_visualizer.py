@@ -14,7 +14,7 @@ class PyGameVisualizer(Visualizer):
 
         pygame.init()
 
-        self.size = 640, 640
+        self.size = 1600, 900
         self.screen = pygame.display.set_mode(self.size)
         self.font = pygame.font.SysFont("monospace", 11)
 
@@ -83,6 +83,8 @@ class PyGameVisualizer(Visualizer):
             return self.__draw_tree(v)
         elif isinstance(v, Group):
             return self.__draw_group(v)
+        elif isinstance(v, List):
+            return self.__draw_list(v)
         else:
             raise RuntimeError("Unknown type")
 
@@ -203,5 +205,30 @@ class PyGameVisualizer(Visualizer):
             surface.blit(e, (x, 0))
 
             x += w
+
+        return surface
+
+    def __draw_list(self, lst):
+        max_width = 0
+        total_height = 0
+
+        elements = []
+
+        for element in lst.elements:
+            e = self.font.render(str(element), 1, self.FG_COLOR)
+
+            max_width = max(max_width, e.get_width())
+            total_height += e.get_height()
+
+            elements.append(e)
+
+        surface = pygame.Surface((max_width, total_height))
+        surface.fill(PyGameVisualizer.BG_COLOR)
+
+        y = 0
+        for e in elements:
+            surface.blit(e, (0, y))
+
+            y += e.get_height()
 
         return surface

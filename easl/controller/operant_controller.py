@@ -1,10 +1,11 @@
 __author__ = 'Dennis'
 
 import random
-from copy import deepcopy
+from copy import copy, deepcopy
 
 from controller import Controller
 from easl.utils import stat
+from easl.visualize import *
 
 
 class WorkingMemory(object):
@@ -164,19 +165,25 @@ class Predicate(object):
         if isinstance(other, Predicate):
             return self.name == other.name and self.value == other.value
 
+    def __str__(self):
+        return "%s(%s)" % (self.name, str(self.value))
+
 
 class Conjunction(object):
     """
     Temporally tagged conjunctions of predicates.
     """
-    def __init__(self):
+    def __init__(self, temporal=None):
         """
         Attributes
         ----------
         predicates : [(Predicate, tag)]
             Temporal predicates that form the conjunction.
         """
-        self.predicates = []
+        if temporal is None:
+            self.predicates = []
+        else:
+            self.predicates = [temporal]
 
     def __eq__(self, other):
         if isinstance(other, Conjunction) and len(self.predicates) == len(other.predicates):
@@ -189,6 +196,9 @@ class Conjunction(object):
             return True
         else:
             return False
+
+    def __str__(self):
+        return ', '.join(['%s'] * len(self.predicates)) % tuple([(str(p), t) for (p, t) in self.predicates])
 
     def add_predicate(self, predicate, tag):
         if not self.has_predicate(predicate, tag):
@@ -215,6 +225,17 @@ class Conjunction(object):
 
     def get_predicates_with_name_from(self, predicates):
         return [(p, t) for (p, t) in self.predicates if p.name in predicates]
+
+    @staticmethod
+    def combine(a, b):
+        new = Conjunction()
+
+        for (p, t) in a.predicates:
+            new.add_predicate(p, t)
+        for (p, t) in b.predicates:
+            new.add_predicate(p, t)
+
+        return new
 
 
 class Reinforcer(object):
@@ -289,6 +310,11 @@ class Reinforcer(object):
                 return s, f
 
     def find_best_conjunctions(self):
+        """
+        Returns
+        -------
+        best_conjunctions : [Conjunction]
+        """
         # If less than two conjunctions, include all
         if len(self.conjunctions) < 2:
             return [c for (c, s, f) in self.conjunctions]
@@ -325,17 +351,11 @@ class Reinforcer(object):
         return deepcopy(self.predictors)
 
     def create_predictor(self):
-        predictors = self.__create_predictor()
-        for p in predictors:
-            print p.predicates
-        self.predictors += predictors
+        # Add new predictors
+        for predictor in self.__create_predictor():
+            self.__add_predictor(predictor)
 
-    def add_predictor(self, predictor):
-        """
-        Parameters
-        ----------
-        predictor : Predictor
-        """
+    def __add_predictor(self, predictor):
         for p in self.predictors:
             if p == predictor:
                 return
@@ -352,22 +372,23 @@ class Reinforcer(object):
         # have been sampled more heavily."
         # "If there are still several candidates, two are chosen at random to become
         # new predictors." (Enforces exploration.)
-        conjunctions = sorted([(c, Reinforcer.merit(r, n)) for (c, n, r) in self.conjunctions],
-                              key=lambda x: x[1],
+        conjunctions = sorted([(c, n, r) for (c, n, r) in self.conjunctions],
+                              key=lambda x: Reinforcer.merit(x[2], x[1]),
                               reverse=True)
 
         if len(conjunctions) == 0:
             return []
         if len(conjunctions) <= 2:
-            return [c for (c, m) in conjunctions]
+            return [c for (c, n, r) in conjunctions]
 
         # "If several conjunctions are tied for top score, the ones with the fewest
         # number of terms are selected."
         top = []
-        top_conjunction, top_score = conjunctions[0]
+        top_conjunction, top_n, top_r = conjunctions[0]
+        top_score = Reinforcer.merit(top_r, top_n)
 
-        for c, m in conjunctions:
-            if abs(m - top_score) <= 1e-6:
+        for c, n, r in conjunctions:
+            if abs(Reinforcer.merit(r, n) - top_score) <= 1e-6:
                 top.append(c)
 
         if len(top) > 2:
@@ -384,7 +405,7 @@ class Reinforcer(object):
         if n == 0:
             return 1
         else:
-            return (r / n) * max(0.2, 1 - (1.175 / float(n)))
+            return (r / float(n)) * max(0.2, 1 - (1.175 / float(n)))
 
     @staticmethod
     def demerit(r, n):
@@ -395,7 +416,18 @@ class Reinforcer(object):
         if n == 0:
             return 0
         else:
-            return min(1, (r / n) + (n - r) / (0.7 * n ** 2))
+            return min(1, (r / float(n)) + (n - r) / float(0.7 * n ** 2))
+
+
+class OperantConditioningVisual(Visual):
+    @staticmethod
+    def visualize(self):
+        group = Group("operant")
+        group.add_element(List("predictors", [str(c) for c in self.reinforcers[0].predictors]))
+        group.add_element(List("conjunctions", [(str(c), s, f) for (c, s, f) in self.reinforcers[0].conjunctions]))
+        group.add_element(List("actions", [str(a) for a in self.selected_actions]))
+
+        return group
 
 
 class OperantConditioningController(Controller):
@@ -418,6 +450,8 @@ class OperantConditioningController(Controller):
     predictors : [(reinforcer, conjunction, probability)]
         All current predictors.
     observations : [(name, value)]
+    selected_actions : [(name, value)]
+        For debugging purposes.
 
     References
     ----------
@@ -425,19 +459,26 @@ class OperantConditioningController(Controller):
            David S. Touretzky & Lisa M. Saksida.
     """
     def __init__(self):
-        super(OperantConditioningController, self).__init__()
+        super(OperantConditioningController, self).__init__(visual=OperantConditioningVisual())
         self.observations = []
 
         self.memory = None
         self.reinforcers = []
 
-        # TODO: Find a good threshold.
-        self._DEMERIT_THRESHOLD = 1
+        self.selected_actions = []
+
+        # TODO: Explain how I got the threshold.
+        self._DEMERIT_THRESHOLD = 0.5
 
     def init_internal(self, entity):
         super(OperantConditioningController, self).init_internal(entity)
 
         self.memory = WorkingMemory(actions=self.actions.keys())
+
+        # Add all actions as predictors
+        for action in self.actions:
+            for value in self.actions[action]:
+                self.reinforcers[0].add_conjunction(Conjunction((Predicate(action, value), WorkingMemory.NOW)))
 
     def sense(self, observation):
         """
@@ -469,6 +510,8 @@ class OperantConditioningController(Controller):
         if len(actions) == 0:
             actions = [self.__select_random_action()]
 
+        self.selected_actions = copy(actions)
+
         # Add actions as predicates
         for action in actions:
             self.log.do_log("observation", {"controller": "operant", "name": action[0], "value": action[1]})
@@ -477,7 +520,8 @@ class OperantConditioningController(Controller):
         return actions
 
     def set_primary_reinforcer(self, name, value):
-        self.reinforcers.append(Reinforcer(Predicate(name, value)))
+        primary = Reinforcer(Predicate(name, value))
+        self.reinforcers.append(primary)
 
     def __store_observations(self):
         """Stores all observations as sensory predicates.
@@ -510,14 +554,16 @@ class OperantConditioningController(Controller):
             # which conjunctions are 'best' next
             best_conjunctions = reinforcer.find_best_conjunctions()
             # Find best predicates, i.e. best conjunctions of 1 predicate
-            best_predicates = self.__derive_temporal_predicates()
+
+            best_predicates = [c for c in best_conjunctions
+                               if len(c.predicates) == 1]
+
+            if len(best_predicates) == 0:
+                best_predicates = self.__derive_temporal_predicates()
 
             for c in best_conjunctions:
-                for (p, t) in best_predicates:
-                    new_c = deepcopy(c)
-                    new_c.add_predicate(deepcopy(p), t)
-
-                    reinforcer.add_conjunction(new_c)
+                for p in best_predicates:
+                    reinforcer.add_conjunction(Conjunction.combine(c, p))
 
     def __derive_temporal_predicates(self):
         """
@@ -536,11 +582,11 @@ class OperantConditioningController(Controller):
         predicates = []
 
         for p in self.memory.get_of_age(1):
-            predicates.append((p, WorkingMemory.NOW))
+            predicates.append(Conjunction((p, WorkingMemory.NOW)))
 
         prev = self.memory.get_of_age(2)
         for p in prev:
-            predicates.append((p, WorkingMemory.PREV))
+            predicates.append(Conjunction((p, WorkingMemory.PREV)))
 
         return predicates
 
@@ -693,7 +739,7 @@ class OperantConditioningController(Controller):
                             if predictor == conjunction:
                                 continue
 
-                            n, r = reinforcer.count(predictor.get_conjunction())
+                            n, r = reinforcer.count(predictor)
                             merit = Reinforcer.merit(r, n)
                             if merit > highest_merit:
                                 highest_predictor = predictor
@@ -753,7 +799,7 @@ class OperantConditioningController(Controller):
          Returns
          -------
          [(name, value)]
-            List of action names and values
+            List of action names and valuesRANDOM
         """
         matches = []
 

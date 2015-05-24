@@ -100,12 +100,18 @@ class Grid(Visualization):
         self.w = w
         self.h = h
 
-    def add_element(self, element, x, y):
+    def add_element(self, element, y, x):
         if 0 <= x < self.w and 0 <= y < self.h:
             self.grid[x][y] = element
 
     def element_at(self, x, y):
         return self.grid[x][y]
+
+
+class List(Visualization):
+    def __init__(self, name, elements):
+        self.name = name
+        self.elements = elements
 
 
 class Visualizer(object):

@@ -263,7 +263,7 @@ def control_condition(n, experiment_log):
 
 if __name__ == '__main__':
     v = PyGameVisualizer()
-    log = experimental_condition(100, "simple", v)
+    log = experimental_condition(300, "simple", v)
 
     #v.visualize_log(log)
 
