@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - Simplified action selection for SimpleController.
+- Removed decrementing other actions in BetterLearningRule.
 
 ## 0.0.1 - 2015-05-25
 ### Added
@@ -26,7 +27,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 0.0.0e - 2015-05-06
 ### Changed
-- Several systems including the `graph` and `probability` utlities.
+- Several systems including the `graph` and `probability` utilities.
 
 ## 0.0.0d - 2015-05-05
 ### Added

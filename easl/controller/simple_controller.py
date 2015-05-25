@@ -84,6 +84,15 @@ class SimpleLearningRule(LearningRule):
 
 
 class BetterLearningRule(LearningRule):
+    """Uses information that some actions might be related.
+
+    Whenever an action is followed by a reward, it is incremented by a fixed
+    amount A, and actions sharing the same action symbol are incremented by
+    a fixed amount B.
+    Whenever an action is not followed by a reward, its count is decremented
+    by a fixed amount C, and actions sharing the same action symbol are
+    decremented by a fixed amount D.
+    """
     @staticmethod
     def update_counts(counts, action, has_reward):
         a, v = action
@@ -95,17 +104,13 @@ class BetterLearningRule(LearningRule):
                 if value == v:
                     continue
                 counts[a][value] += 2
-            # Decrease probability of other actions
-            for action in counts:
-                if action == a:
-                    continue
-                for value in counts[action]:
-                    counts[action][value] = max(0, counts[action][value] - 1)
         else:
             # Decrease probability of choosing this action
-            counts[a][v] = max(0, counts[a][v] - 1)
+            counts[a][v] = max(0, counts[a][v] - 2)
             # Also decrease probability of choosing other actions of same type
             for value in counts[a]:
+                if value == v:
+                    continue
                 counts[a][value] = max(0, counts[a][value] - 1)
 
 
