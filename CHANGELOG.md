@@ -9,11 +9,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - More SimpleController-related documentation.
 - Rows Visualization so that it is easier to see what's going on.
+- More controls for the PyGame simulator.
+  + Increase/decrease simulation speed.
 
 ### Changed
 - Simplified action selection for SimpleController.
 - Removed decrementing other actions in BetterLearningRule.
-- Implement the last step of the OperantConditioningController's predictor deletion and update some documentation. 
+- Implement the last step of the OperantConditioningController's predictor deletion and update some documentation.
+- Simplify PyGame simulation loop.
 
 ## 0.0.1 - 2015-05-25
 ### Added

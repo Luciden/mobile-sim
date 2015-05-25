@@ -133,6 +133,12 @@ class List(Visualization):
         self.elements = elements
 
 
+class Dict(Visualization):
+    def __init__(self, name, elements):
+        super(Dict, self).__init__(name)
+        self.elements = elements
+
+
 class Circle(Visualization):
     def __init__(self, name, v_min, v_max, v):
         super(Circle, self).__init__(name)

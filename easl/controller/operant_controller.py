@@ -514,7 +514,7 @@ class OperantConditioningController(Controller):
         self.memory.age()
         self.__store_observations()
 
-        #self.__acquire_reinforcers()
+        self.__acquire_reinforcers()
         self.__generate_conjunctions()
 
         self.__update_reinforcer_counts()

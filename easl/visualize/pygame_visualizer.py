@@ -23,14 +23,20 @@ class PyGameVisualizer(Visualizer):
         self.font = pygame.font.SysFont("monospace", 11)
 
         self.step = False
+        self.paused = False
+
+        self.parameters = {"dt": 100}
+
+        self.keys = ["space: pause/unpause the simulation",
+                     "s: step once and pause"]
 
     def reset_visualization(self):
         super(PyGameVisualizer, self).reset_visualization()
 
         # Add a keymap
-        keys = ["space: pause/unpause the simulation",
-                "s: step once and pause"]
-        self.visualizations.add_element(List("Key Bindings", keys))
+        self.visualizations.add_element(List("Key Bindings", self.keys))
+        # Add the currently set parameters
+        self.visualizations.add_element(Dict("Parameters", self.parameters))
 
     def update(self):
         """Draws all the current visualizations to the screen.
@@ -42,31 +48,33 @@ class PyGameVisualizer(Visualizer):
         pygame.time.delay(100)
 
         if self.step:
+            self.step = False
             self.__pause()
+        else:
+            self.__handle_keys()
+            if self.paused:
+                self.__pause()
 
-        # Check for any new commands
+    def __handle_keys(self):
         for event in pygame.event.get():
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                pygame.quit()
+                sys.exit()
             if event.type == pygame.KEYDOWN:
-                # Pause, so wait for an unpause
                 if event.key == pygame.K_SPACE:
-                    self.__pause()
-            elif event.type == pygame.QUIT:
-                # TODO: Make the visualization stop somehow
-                running = False
+                    if self.paused:
+                        self.paused = False
+                        self.step = False
+                    else:
+                        self.paused = True
+                        self.step = False
+                if event.key == pygame.K_s:
+                    self.step = True
+                    self.paused = True
 
     def __pause(self):
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
-                        self.step = False
-                        return
-                    if event.key == pygame.K_s:
-                        self.step = True
-                        return
+        while self.paused and not self.step:
+            self.__handle_keys()
 
     def visualize_log(self, log):
         """
@@ -122,6 +130,8 @@ class PyGameVisualizer(Visualizer):
             return self.__draw_group(v)
         elif isinstance(v, List):
             return self.__draw_list(v)
+        elif isinstance(v, Dict):
+            return self.__draw_dict(v)
         elif isinstance(v, Circle):
             return self.__draw_circle(v)
         elif isinstance(v, Graph):
@@ -262,6 +272,31 @@ class PyGameVisualizer(Visualizer):
 
         for element in lst.elements:
             e = self.font.render(str(element), 1, self.FG_COLOR)
+
+            max_width = max(max_width, e.get_width())
+            total_height += e.get_height()
+
+            elements.append(e)
+
+        surface = pygame.Surface((max_width, total_height))
+        surface.fill(PyGameVisualizer.BG_COLOR)
+
+        y = 0
+        for e in elements:
+            surface.blit(e, (0, y))
+
+            y += e.get_height()
+
+        return surface
+
+    def __draw_dict(self, dct):
+        max_width = 0
+        total_height = 0
+
+        elements = []
+
+        for element in dct.elements:
+            e = self.font.render("%s: %s" % (str(element), str(dct.elements[element])), 1, self.FG_COLOR)
 
             max_width = max(max_width, e.get_width())
             total_height += e.get_height()
