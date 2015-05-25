@@ -181,6 +181,12 @@ class SimpleController(Controller):
         return [self.action]
 
     def __got_reward(self):
+        """
+        Returns
+        -------
+        got_reward : boolean
+            True if a rewarding stimulus is present, False otherwise.
+        """
         for (name, value) in self.rewards:
             if name in self.observations and self.observations[name] == value:
                 return True
