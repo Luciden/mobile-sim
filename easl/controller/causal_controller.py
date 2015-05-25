@@ -237,11 +237,6 @@ class CausalLearningVisual(Visual):
     @staticmethod
     def visualize(self):
         group = Group("causal")
-        if self.network is not None:
-            group.add_element(easl.visualize.Graph("causal Bayes net",
-                                                   self.network.get_nodes(), self.network.get_directed_pairs(),
-                                                   [[a + "_prev" for a in self.actions.keys()] + [s + "_prev" for s in self.sensory.keys()],
-                                                    self.sensory.keys()]))
 
         return group
 

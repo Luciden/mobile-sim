@@ -328,14 +328,14 @@ class PyGameVisualizer(Visualizer):
                     layout = easl.utils.Graph.arc_layout(n)
                     left_width = top_height = n * 2 * node_radius + (n - 1) * spacing
                 elif n_group == 1:
-                    layout = easl.utils.Graph.flipped_layout_both(layout, len(group))
+                    layout = easl.utils.Graph.flipped_layout_both(layout, n)
                     right_width = bottom_height = n * 2 * node_radius + (n - 1) * spacing
                 elif n_group == 2:
-                    layout = easl.utils.Graph.flipped_layout_vertical(layout, len(group))
+                    layout = easl.utils.Graph.flipped_layout_vertical(layout, n)
                     right_width = max(right_width, n * 2 * node_radius + (n - 1) * spacing)
                     top_height = max(top_height, n * 2 * node_radius + (n - 1) * spacing)
                 elif n_group == 3:
-                    layout = easl.utils.Graph.flipped_layout_both(layout, len(group))
+                    layout = easl.utils.Graph.flipped_layout_both(layout, n)
                     left_width = max(left_width, n * 2 * node_radius + (n - 1) * spacing)
                     bottom_height = max(bottom_height, n * 2 * node_radius + (n - 1) * spacing)
 

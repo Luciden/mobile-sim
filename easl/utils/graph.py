@@ -300,9 +300,16 @@ class Graph(object):
             return [(0, 1), (1, 0)]
         if n == 3:
             return [(0, 0), (2, 0), (0, 2)]
-        else:
+        if n % 2 == 0:
             half = Graph.half_layout(n - 1)
             half = Graph.shift_layout_down(half, 1)
+
+            inverse = Graph.inverted_layout(half)
+
+            return Graph.combine_layouts(half, inverse)
+        else:
+            half = Graph.half_layout(n - 1)
+            half = Graph.shift_layout_down(half, n / 2)
 
             inverse = Graph.inverted_layout(half)
 
