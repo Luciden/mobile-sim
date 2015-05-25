@@ -11,6 +11,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - Separate count updating and action selection from LearningRule into ActionSelection.
+- Make visualization of operant conditioning more general (multiple reinforcers).
+
+### Fixed
+- Fix mix-up of demerit(r, 0) and merit(r, 0) definitions.
 
 ## 0.1.0 - 2015-05-25
 ### Added
