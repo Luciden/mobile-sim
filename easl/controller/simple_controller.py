@@ -26,7 +26,11 @@ class LearningRule(object):
 
     @staticmethod
     def select_action(counts):
-        """
+        """Select an action with the highest count.
+
+        When multiple actions have the same highest count, select one of those
+        at random.
+
         Parameters
         ----------
         counts : {name: {value: int}}
@@ -35,23 +39,6 @@ class LearningRule(object):
         -------
         action : (name, value)
         """
-        raise NotImplementedError("The interface method should be overridden.")
-
-
-class SimpleLearningRule(LearningRule):
-    @staticmethod
-    def update_counts(counts, action, has_reward):
-        a, v = action
-        # If the reward is present, increase the probability of selecting the
-        # action.
-        if has_reward:
-            counts[a][v] += 1
-        # If not, decrease the probability of selecting the action again.
-        else:
-            counts[a][v] = max(0, counts[a][v] - 1)
-
-    @staticmethod
-    def select_action(counts):
         choices = []
 
         # Find actions with maximum count
@@ -77,7 +64,35 @@ class SimpleLearningRule(LearningRule):
         return random.choice(choices)
 
 
+class SimpleLearningRule(LearningRule):
+    """
+    Increments count of an action by a fixed amount if and only if the
+    action was followed by a reward.
+    Decrements count of an action if and only if it was not followed by
+    a reward.
+    """
+    @staticmethod
+    def update_counts(counts, action, has_reward):
+        a, v = action
+        # If the reward is present, increase the probability of selecting the
+        # action.
+        if has_reward:
+            counts[a][v] += 1
+        # If not, decrease the probability of selecting the action again.
+        else:
+            counts[a][v] = max(0, counts[a][v] - 1)
+
+
 class BetterLearningRule(LearningRule):
+    """Uses information that some actions might be related.
+
+    Whenever an action is followed by a reward, it is incremented by a fixed
+    amount A, and actions sharing the same action symbol are incremented by
+    a fixed amount B.
+    Whenever an action is not followed by a reward, its count is decremented
+    by a fixed amount C, and actions sharing the same action symbol are
+    decremented by a fixed amount D.
+    """
     @staticmethod
     def update_counts(counts, action, has_reward):
         a, v = action
@@ -89,22 +104,14 @@ class BetterLearningRule(LearningRule):
                 if value == v:
                     continue
                 counts[a][value] += 2
-            # Decrease probability of other actions
-            for action in counts:
-                if action == a:
-                    continue
-                for value in counts[action]:
-                    counts[action][value] = max(0, counts[action][value] - 1)
         else:
             # Decrease probability of choosing this action
-            counts[a][v] = max(0, counts[a][v] - 1)
+            counts[a][v] = max(0, counts[a][v] - 2)
             # Also decrease probability of choosing other actions of same type
             for value in counts[a]:
+                if value == v:
+                    continue
                 counts[a][value] = max(0, counts[a][value] - 1)
-
-    @staticmethod
-    def select_action(counts):
-        return SimpleLearningRule.select_action(counts)
 
 
 class SimpleVisual(Visual):

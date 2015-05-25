@@ -23,14 +23,20 @@ class PyGameVisualizer(Visualizer):
         self.font = pygame.font.SysFont("monospace", 11)
 
         self.step = False
+        self.paused = False
+
+        self.parameters = {"dt": 100}
+
+        self.keys = ["space: pause/unpause the simulation",
+                     "s: step once and pause"]
 
     def reset_visualization(self):
         super(PyGameVisualizer, self).reset_visualization()
 
         # Add a keymap
-        keys = ["space: pause/unpause the simulation",
-                "s: step once and pause"]
-        self.visualizations.add_element(List("Key Bindings", keys))
+        self.visualizations.add_element(List("Key Bindings", self.keys))
+        # Add the currently set parameters
+        self.visualizations.add_element(Dict("Parameters", self.parameters))
 
     def update(self):
         """Draws all the current visualizations to the screen.
@@ -39,34 +45,41 @@ class PyGameVisualizer(Visualizer):
         self.screen.blit(self.__draw_visualization(self.visualizations), (0, 0))
 
         pygame.display.flip()
-        pygame.time.delay(100)
+        pygame.time.delay(self.parameters["dt"])
 
         if self.step:
+            self.step = False
             self.__pause()
+        else:
+            self.__handle_keys()
+            if self.paused:
+                self.__pause()
 
-        # Check for any new commands
+    def __handle_keys(self):
         for event in pygame.event.get():
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                pygame.quit()
+                sys.exit()
             if event.type == pygame.KEYDOWN:
-                # Pause, so wait for an unpause
                 if event.key == pygame.K_SPACE:
-                    self.__pause()
-            elif event.type == pygame.QUIT:
-                # TODO: Make the visualization stop somehow
-                running = False
+                    if self.paused:
+                        self.paused = False
+                        self.step = False
+                    else:
+                        self.paused = True
+                        self.step = False
+                if event.key == pygame.K_s:
+                    self.step = True
+                    self.paused = True
+                if event.key == pygame.K_UP:
+                    self.parameters["dt"] += 100
+                if event.key == pygame.K_DOWN:
+                    self.parameters["dt"] -= 100
 
     def __pause(self):
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
-                        self.step = False
-                        return
-                    if event.key == pygame.K_s:
-                        self.step = True
-                        return
+        # TODO: Redraw screen while paused.
+        while self.paused and not self.step:
+            self.__handle_keys()
 
     def visualize_log(self, log):
         """
@@ -105,7 +118,7 @@ class PyGameVisualizer(Visualizer):
 
             time += 1
             pygame.display.flip()
-            pygame.time.delay(100)
+            pygame.time.delay(self.parameters["dt"])
 
     def __draw_visualization(self, v):
         if isinstance(v, Slider):
@@ -116,10 +129,14 @@ class PyGameVisualizer(Visualizer):
             return self.__draw_grid(v)
         elif isinstance(v, Tree):
             return self.__draw_tree(v)
+        elif isinstance(v, Rows):
+            return self.__draw_rows(v)
         elif isinstance(v, Group):
             return self.__draw_group(v)
         elif isinstance(v, List):
             return self.__draw_list(v)
+        elif isinstance(v, Dict):
+            return self.__draw_dict(v)
         elif isinstance(v, Circle):
             return self.__draw_circle(v)
         elif isinstance(v, Graph):
@@ -277,6 +294,31 @@ class PyGameVisualizer(Visualizer):
 
         return surface
 
+    def __draw_dict(self, dct):
+        max_width = 0
+        total_height = 0
+
+        elements = []
+
+        for element in dct.elements:
+            e = self.font.render("%s: %s" % (str(element), str(dct.elements[element])), 1, self.FG_COLOR)
+
+            max_width = max(max_width, e.get_width())
+            total_height += e.get_height()
+
+            elements.append(e)
+
+        surface = pygame.Surface((max_width, total_height))
+        surface.fill(PyGameVisualizer.BG_COLOR)
+
+        y = 0
+        for e in elements:
+            surface.blit(e, (0, y))
+
+            y += e.get_height()
+
+        return surface
+
     def __draw_circle(self, circle):
         delta_v = 8
         d_max = 2 * circle.v_max * delta_v
@@ -381,5 +423,36 @@ class PyGameVisualizer(Visualizer):
             pygame.draw.circle(surface, self.OBJ_COLOR, (x, y), node_radius)
             name = self.font.render(node, 1, self.FG_COLOR)
             surface.blit(name, (x, y))
+
+        return surface
+
+    def __draw_rows(self, rows):
+        # Draw every element, take its size and draw the next after it
+        elements = []
+        h = 0
+        max_w = 0
+
+        margin = pygame.Surface((8, 1))
+
+        # Find the dimensions of the surface
+        for element in rows.get_elements():
+            elements.append(margin)
+            h += margin.get_height()
+
+            e = self.__draw_visualization(element)
+            elements.append(e)
+
+            max_w = max(max_w, e.get_width())
+            h += e.get_height()
+
+        # Blit to surface
+        surface = pygame.Surface((max_w, h))
+        surface.fill(PyGameVisualizer.BG_COLOR)
+
+        y = 0
+        for e in elements:
+            surface.blit(e, (0, y))
+
+            y += e.get_height()
 
         return surface

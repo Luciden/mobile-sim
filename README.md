@@ -1,4 +1,4 @@
-# EASL 0.0.1
+# EASL 0.1.0
 Simulator for an experiment involving artificial infants, and a mobile.
 
 ## Creating a simulation
