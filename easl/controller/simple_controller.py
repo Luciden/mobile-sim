@@ -26,7 +26,11 @@ class LearningRule(object):
 
     @staticmethod
     def select_action(counts):
-        """
+        """Select an action with the highest count.
+
+        When multiple actions have the same highest count, select one of those
+        at random.
+
         Parameters
         ----------
         counts : {name: {value: int}}
@@ -35,23 +39,6 @@ class LearningRule(object):
         -------
         action : (name, value)
         """
-        raise NotImplementedError("The interface method should be overridden.")
-
-
-class SimpleLearningRule(LearningRule):
-    @staticmethod
-    def update_counts(counts, action, has_reward):
-        a, v = action
-        # If the reward is present, increase the probability of selecting the
-        # action.
-        if has_reward:
-            counts[a][v] += 1
-        # If not, decrease the probability of selecting the action again.
-        else:
-            counts[a][v] = max(0, counts[a][v] - 1)
-
-    @staticmethod
-    def select_action(counts):
         choices = []
 
         # Find actions with maximum count
@@ -75,6 +62,25 @@ class SimpleLearningRule(LearningRule):
         # If there are multiple choices, select one at random
         print len(choices)
         return random.choice(choices)
+
+
+class SimpleLearningRule(LearningRule):
+    """
+    Increments count of an action by a fixed amount if and only if the
+    action was followed by a reward.
+    Decrements count of an action if and only if it was not followed by
+    a reward.
+    """
+    @staticmethod
+    def update_counts(counts, action, has_reward):
+        a, v = action
+        # If the reward is present, increase the probability of selecting the
+        # action.
+        if has_reward:
+            counts[a][v] += 1
+        # If not, decrease the probability of selecting the action again.
+        else:
+            counts[a][v] = max(0, counts[a][v] - 1)
 
 
 class BetterLearningRule(LearningRule):
@@ -101,10 +107,6 @@ class BetterLearningRule(LearningRule):
             # Also decrease probability of choosing other actions of same type
             for value in counts[a]:
                 counts[a][value] = max(0, counts[a][value] - 1)
-
-    @staticmethod
-    def select_action(counts):
-        return SimpleLearningRule.select_action(counts)
 
 
 class SimpleVisual(Visual):

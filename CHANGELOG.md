@@ -5,6 +5,13 @@ starting with '0.0.0' are just a reference.
 
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Added
+- More SimpleController-related documentation.
+
+### Changed
+- Simplified action selection for SimpleController.
+
 ## 0.0.1 - 2015-05-25
 ### Added
 - Controls for the PyGame-based similator to step through the simulation.
