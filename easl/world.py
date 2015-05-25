@@ -1,7 +1,7 @@
 __author__ = 'Dennis'
 
 from log import Log
-from visualize import Number
+from visualize import *
 
 
 class Sensor(object):
@@ -134,12 +134,17 @@ class World(object):
                 self.visualizer.reset_visualization()
                 self.visualizer.update_visualization(Number("time", self.time))
 
+                entity_group = Group("entities")
+                agent_group = Group("agents")
+
                 for entity in self.entities:
                     # Get visualizations from current state of entities
-                    self.visualizer.update_visualization(self.entities[entity].visualize())
+                    entity_group.add_element(self.entities[entity].visualize())
                     # Get visualizations from current state of agents
-                    self.visualizer.update_visualization(self.entities[entity].visualize_agent())
+                    agent_group.add_element(self.entities[entity].visualize_agent())
                 # Update the actual screen with all visualizations
+                self.visualizer.update_visualization(entity_group)
+                self.visualizer.update_visualization(agent_group)
                 self.visualizer.update()
 
     def add_entity(self, entity):

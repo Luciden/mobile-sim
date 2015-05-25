@@ -26,15 +26,25 @@ class Visualization(object):
 class Group(Visualization):
     def __init__(self, name):
         super(Group, self).__init__(name)
-        self.name = name
 
         self.elements = []
 
     def add_element(self, element):
-        self.elements.append(element)
+        if element is not None:
+            self.elements.append(element)
 
     def get_elements(self):
         return self.elements
+
+
+class Rows(Group):
+    def __init__(self, name):
+        super(Rows, self).__init__(name)
+
+
+class Columns(Group):
+    def __init__(self, name):
+        super(Columns, self).__init__(name)
 
 
 class Slider(Visualization):
@@ -147,7 +157,7 @@ class Visualizer(object):
         self.visualizations = None
 
     def reset_visualization(self):
-        self.visualizations = Group("main")
+        self.visualizations = Rows("main")
 
     def update_visualization(self, v):
         if v is None:

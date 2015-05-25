@@ -116,6 +116,8 @@ class PyGameVisualizer(Visualizer):
             return self.__draw_grid(v)
         elif isinstance(v, Tree):
             return self.__draw_tree(v)
+        elif isinstance(v, Rows):
+            return self.__draw_rows(v)
         elif isinstance(v, Group):
             return self.__draw_group(v)
         elif isinstance(v, List):
@@ -381,5 +383,36 @@ class PyGameVisualizer(Visualizer):
             pygame.draw.circle(surface, self.OBJ_COLOR, (x, y), node_radius)
             name = self.font.render(node, 1, self.FG_COLOR)
             surface.blit(name, (x, y))
+
+        return surface
+
+    def __draw_rows(self, rows):
+        # Draw every element, take its size and draw the next after it
+        elements = []
+        h = 0
+        max_w = 0
+
+        margin = pygame.Surface((8, 1))
+
+        # Find the dimensions of the surface
+        for element in rows.get_elements():
+            elements.append(margin)
+            h += margin.get_height()
+
+            e = self.__draw_visualization(element)
+            elements.append(e)
+
+            max_w = max(max_w, e.get_width())
+            h += e.get_height()
+
+        # Blit to surface
+        surface = pygame.Surface((max_w, h))
+        surface.fill(PyGameVisualizer.BG_COLOR)
+
+        y = 0
+        for e in elements:
+            surface.blit(e, (0, y))
+
+            y += e.get_height()
 
         return surface

@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 ### Added
 - More SimpleController-related documentation.
+- Rows Visualization so that it is easier to see what's going on. 
 
 ### Changed
 - Simplified action selection for SimpleController.
@@ -15,7 +16,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 0.0.1 - 2015-05-25
 ### Added
-- Controls for the PyGame-based similator to step through the simulation.
+- Controls for the PyGame-based simulator to step through the simulation.
 - Visualizations for Entities and Controllers.
  + Sliders for the infant's limbs.
  + An expanding circle for the mobile's velocity.
@@ -27,7 +28,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 0.0.0e - 2015-05-06
 ### Changed
-- Several systems including the `graph` and `probability` utilities.
+- Rewrite and debug several implementations including the `graph` and `probability` utilities.
 
 ## 0.0.0d - 2015-05-05
 ### Added
