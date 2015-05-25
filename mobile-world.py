@@ -290,7 +290,7 @@ def control_condition(n, experiment_log, agent, v=None):
 
 if __name__ == '__main__':
     v = PyGameVisualizer()
-    log = experimental_condition(100, "causal", v)
+    log = experimental_condition(100, "simple", v)
 
     #log = control_condition(100, log, "simple", v)
 
