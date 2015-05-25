@@ -6,6 +6,8 @@ starting with '0.0.0' are just a reference.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
+
+## 0.1.0 - 2015-05-25
 ### Added
 - More SimpleController-related documentation.
 - Rows Visualization so that it is easier to see what's going on.
