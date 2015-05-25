@@ -45,7 +45,7 @@ class PyGameVisualizer(Visualizer):
         self.screen.blit(self.__draw_visualization(self.visualizations), (0, 0))
 
         pygame.display.flip()
-        pygame.time.delay(100)
+        pygame.time.delay(self.parameters["dt"])
 
         if self.step:
             self.step = False
@@ -71,8 +71,13 @@ class PyGameVisualizer(Visualizer):
                 if event.key == pygame.K_s:
                     self.step = True
                     self.paused = True
+                if event.key == pygame.K_UP:
+                    self.parameters["dt"] += 100
+                if event.key == pygame.K_DOWN:
+                    self.parameters["dt"] -= 100
 
     def __pause(self):
+        # TODO: Redraw screen while paused.
         while self.paused and not self.step:
             self.__handle_keys()
 
@@ -113,7 +118,7 @@ class PyGameVisualizer(Visualizer):
 
             time += 1
             pygame.display.flip()
-            pygame.time.delay(100)
+            pygame.time.delay(self.parameters["dt"])
 
     def __draw_visualization(self, v):
         if isinstance(v, Slider):
