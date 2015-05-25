@@ -8,11 +8,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 ### Added
 - More SimpleController-related documentation.
-- Rows Visualization so that it is easier to see what's going on. 
+- Rows Visualization so that it is easier to see what's going on.
 
 ### Changed
 - Simplified action selection for SimpleController.
 - Removed decrementing other actions in BetterLearningRule.
+- Implement the last step of the OperantConditioningController's predictor deletion and update some documentation. 
 
 ## 0.0.1 - 2015-05-25
 ### Added

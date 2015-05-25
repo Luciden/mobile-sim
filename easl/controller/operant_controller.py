@@ -226,6 +226,19 @@ class Conjunction(object):
     def get_predicates_with_name_from(self, predicates):
         return [(p, t) for (p, t) in self.predicates if p.name in predicates]
 
+    def is_strict_subset_of(self, other):
+        if not isinstance(other, Conjunction):
+            raise RuntimeError("Can only compare two Conjunctions.")
+
+        if not len(self.predicates) < len(other.predicates):
+            return False
+
+        for (p, t) in self.predicates:
+            if not other.has_predicate(p, t):
+                return False
+
+        return True
+
     @staticmethod
     def combine(a, b):
         new = Conjunction()
@@ -248,7 +261,7 @@ class Reinforcer(object):
     conjunctions : [(Conjunction, int, int)]]
         Keeps for every conjunction how many times it was satisfied and how
         many times it was followed by this reinforcer respectively.
-    predictors : [(Conjunction, float)]
+    predictors : [Conjunction]
         Temporal predicate that predicts the reinforcer with its associated
         probability.
     """
@@ -365,6 +378,12 @@ class Reinforcer(object):
         self.predictors[:] = [p for p in self.predictors if not p == predictor]
 
     def __create_predictor(self):
+        """
+
+        Returns
+        -------
+        predictors : [Conjunction]
+        """
         # "New predictors are created from the best-scoring conjunctions currently
         # maintained for that reinforcer.
         # "When creating new predictors, candidate conjunctions are sorted by merit
@@ -469,6 +488,8 @@ class OperantConditioningController(Controller):
 
         # TODO: Explain how I got the threshold.
         self._DEMERIT_THRESHOLD = 0.5
+        self._SUFFICIENT_TRIALS = 10
+        self._SIMILAR_MERIT_THRESHOLD = 0.2
 
     def init_internal(self, entity):
         super(OperantConditioningController, self).init_internal(entity)
@@ -755,7 +776,31 @@ class OperantConditioningController(Controller):
         #  - number of trials sufficiently high to have reasonable confidence of
         #    equivalence
         # delete
-        pass
+        for reinforcer in self.reinforcers:
+            for predictor in reinforcer.predictors:
+                n, r = reinforcer.count(predictor)
+                merit_predictor = Reinforcer.merit(r, n)
+
+                # Number of trials sufficiently high to have confidence of equivalence?
+                if n < self._SUFFICIENT_TRIALS:
+                    continue
+
+                # Try to find another predictor that satisfies the requirements
+                for other in reinforcer.predictors:
+                    if other == predictor:
+                        continue
+                    n, r = reinforcer.count(other)
+                    merit_other = Reinforcer.merit(r, n)
+
+                    # Number of trials sufficiently high to have confidence of equivalence?
+                    if n < self._SUFFICIENT_TRIALS:
+                        continue
+
+                    # Antecedent strict subset of this predictor?
+                    # Merit nearly as good?
+                    if other.is_strict_subset_of(predictor) and \
+                       abs(merit_predictor - merit_other) < self._SIMILAR_MERIT_THRESHOLD:
+                        reinforcer.remove_predictor(predictor)
 
     def __acquire_reinforcers(self):
         """
