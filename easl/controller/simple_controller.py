@@ -24,6 +24,8 @@ class LearningRule(object):
         """
         raise NotImplementedError("The interface method should be overridden.")
 
+
+class ActionSelection(object):
     @staticmethod
     def select_action(counts):
         """Select an action with the highest count.
@@ -39,6 +41,31 @@ class LearningRule(object):
         -------
         action : (name, value)
         """
+        raise NotImplementedError("The interface method should be overridden.")
+
+
+class SimpleLearningRule(LearningRule):
+    """
+    Increments count of an action by a fixed amount if and only if the
+    action was followed by a reward.
+    Decrements count of an action if and only if it was not followed by
+    a reward.
+    """
+    @staticmethod
+    def update_counts(counts, action, has_reward):
+        a, v = action
+        # If the reward is present, increase the probability of selecting the
+        # action.
+        if has_reward:
+            counts[a][v] += 1
+        # If not, decrease the probability of selecting the action again.
+        else:
+            counts[a][v] = max(0, counts[a][v] - 1)
+
+
+class SimpleSelection(ActionSelection):
+    @staticmethod
+    def select_action(counts):
         choices = []
 
         # Find actions with maximum count
@@ -62,25 +89,6 @@ class LearningRule(object):
         # If there are multiple choices, select one at random
         print len(choices)
         return random.choice(choices)
-
-
-class SimpleLearningRule(LearningRule):
-    """
-    Increments count of an action by a fixed amount if and only if the
-    action was followed by a reward.
-    Decrements count of an action if and only if it was not followed by
-    a reward.
-    """
-    @staticmethod
-    def update_counts(counts, action, has_reward):
-        a, v = action
-        # If the reward is present, increase the probability of selecting the
-        # action.
-        if has_reward:
-            counts[a][v] += 1
-        # If not, decrease the probability of selecting the action again.
-        else:
-            counts[a][v] = max(0, counts[a][v] - 1)
 
 
 class BetterLearningRule(LearningRule):
@@ -112,6 +120,38 @@ class BetterLearningRule(LearningRule):
                 if value == v:
                     continue
                 counts[a][value] = max(0, counts[a][value] - 1)
+
+
+class RouletteWheelSelection(ActionSelection):
+    @staticmethod
+    def select_action(counts):
+        # Get total size of wheel
+        total = 0
+        for a in counts:
+            for v in counts[a]:
+                total += counts[a][v]
+
+        # Create structure that has for every upper threshold
+        # the selection
+        cumulative = 0
+        wheel = {}
+        for a in counts:
+            for v in counts[a]:
+                c = counts[a][v]
+                if c == 0:
+                    continue
+                cumulative += c
+                wheel[cumulative/float(total)] = (a, v)
+
+        # Generate random number between 0 and 1
+        r = random.random()
+
+        # Find item that has number fall between previous upper threshold and own threshold
+        previous = 0.0
+        for p in sorted(wheel):
+            # When the wheel doesn't stop at this section
+            if previous <= r < p:
+                return wheel[p]
 
 
 class SimpleVisual(Visual):
@@ -155,6 +195,7 @@ class SimpleController(Controller):
         self.visual = SimpleVisual()
 
         self.rule = BetterLearningRule()
+        self.selection = RouletteWheelSelection()
 
         self.observations = {}
         self.rewards = rewards
@@ -168,10 +209,10 @@ class SimpleController(Controller):
         for action in self.actions:
             self.counts[action] = {}
             for value in self.actions[action]:
-                self.counts[action][value] = 0
+                self.counts[action][value] = 5
 
         # Select a random action to do (random because all counts are 0)
-        self.action = self.rule.select_action(self.counts)
+        self.action = self.selection.select_action(self.counts)
 
     def sense(self, observation):
         name, value = observation
@@ -184,7 +225,7 @@ class SimpleController(Controller):
         self.rule.update_counts(self.counts, self.action, self.__got_reward())
 
         # Select a new action (max probability)
-        self.action = self.rule.select_action(self.counts)
+        self.action = self.selection.select_action(self.counts)
         return [self.action]
 
     def __got_reward(self):

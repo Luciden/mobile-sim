@@ -6,6 +6,11 @@ starting with '0.0.0' are just a reference.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
+### Added
+- RouletteWheelSelection algorithm for SimpleController action selection.
+
+### Changed
+- Separate count updating and action selection from LearningRule into ActionSelection.
 
 ## 0.1.0 - 2015-05-25
 ### Added
