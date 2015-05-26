@@ -136,6 +136,48 @@ class CausalBayesNetLearner(object):
                     graph.del_edge(a, b)
 
     @staticmethod
+    def new_step_3(variables, graph, sepset, data):
+        n = 1
+        while True:
+            # Until for each ordered pair, cardinality is less than n
+            finished = True
+            for u in graph.nodes:
+                adjacent = graph.get_connected(u)
+                # If cardinality >= n, not yet finished
+                if len(adjacent) - 1 >= n:
+                    finished = False
+
+                for v in adjacent:
+                    separated, s = CausalBayesNetLearner.check_seperated(graph, variables, data, n, u, v)
+                    if separated:
+                        sepset[u][v].append(s)
+
+            if finished:
+                return
+            n += 1
+
+    @staticmethod
+    def check_seperated(graph, variables, data, n, u, v):
+        # Such that |adjacencies(X)\{Y}| > n
+        adjacencies = set(graph.get_connected(u))
+        adjacencies.remove(v)
+
+        # Cardinality should be greater than or equal to n
+        if len(adjacencies) < n:
+            return False, None
+
+        # Check all subsets of cardinality n
+        for subset in list(itertools.combinations(adjacencies, n)):
+            subset = list(subset)
+            # if X and Y are d-separated, remove X-Y and record S in Sepset(X,Y)
+            p = CausalBayesNetLearner.calculate_joint([u, v] + subset, variables, data)
+            if CausalLearningController.are_conditionally_independent(u, v, subset, p):
+                return True, adjacencies
+
+        return False, None
+
+
+    @staticmethod
     def step_3(variables, graph, sepset, data):
         # 3. For each pair U, V of variables connected by an edge,
         #    and for each T connected to one or both U, V, test whether
@@ -518,6 +560,7 @@ class CausalLearningController(Controller):
                 sepset[a][b] = []
 
         CausalBayesNetLearner.step_2(self.variables_time, c, self.data)
+        #CausalBayesNetLearner.new_step_3(self.variables, c, sepset, self.data)
         CausalBayesNetLearner.step_3(self.variables_time, c, sepset, self.data)
         CausalBayesNetLearner.step_4(self.variables_time, c, sepset, self.data)
         CausalBayesNetLearner.step_5(c, sepset)
