@@ -62,15 +62,48 @@ def move(old, new):
 
 def swing(self):
     speed = self.a["speed"]
-    if 0 < speed <= 10:
-        self.try_change("speed", speed - 1)
-    if speed > 10:
-        self.try_change("speed", 10)
+
+    self.try_change("speed", max(0, min(speed - 1, 10)))
+
+
+def swing_direction(self):
+    v = self.a["velocity"]
+    p = self.a["position"]
+    d = self.a["direction"]
+
+    if d == "+":
+        p_new = p + v
+        if p_new <= 10:
+            self.try_change("position", p_new)
+        else:
+            self.try_change("position", 10 - (p_new - 10))
+            self.try_change("direction", "-")
+    elif d == "-":
+        p_new = p - v
+        if p_new >= 0:
+            self.try_change("position", p_new)
+        else:
+            self.try_change("position", abs(p_new))
+            self.try_change("direction", "+")
+    else:
+        raise RuntimeError("HUH?")
+
+    # Decay
+    self.try_change("velocity", max(0, min(v - 1, 10)))
 
 
 def moved(self, direction):
     self.a["previous"] = self.a["speed"]
     self.a["speed"] += 4
+
+
+def moved_direction(self, direction):
+    self.a["previous"] = self.a["velocity"]
+    if self.a["direction"] == "+":
+        self.a["velocity"] = abs(self.a["velocity"] - 3)
+    elif self.a["direction"] == "-":
+        self.a["velocity"] = min(self.a["velocity"] + 3, 10)
+    self.a["direction"] = "-"
 
 
 def movement_emission_boolean(self):
@@ -84,11 +117,11 @@ def movement_emission_boolean(self):
 def movement_emission_change(self):
     s = []
 
-    if self.a["speed"] == 0:
+    if self.a["velocity"] == 0:
         s.append(Signal("sight", "movement", "idle", ["idle", "faster", "slower", "same"]))
-    elif self.a["speed"] > self.a["previous"]:
+    elif self.a["velocity"] > self.a["previous"]:
         s.append(Signal("sight", "movement", "faster", ["idle", "faster", "slower", "same"]))
-    elif self.a["speed"] < self.a["previous"]:
+    elif self.a["velocity"] < self.a["previous"]:
         s.append(Signal("sight", "movement", "slower", ["idle", "faster", "slower", "same"]))
     else:
         s.append(Signal("sight", "movement", "same", ["idle", "faster", "slower", "same"]))
@@ -185,7 +218,7 @@ def create_infant(agent):
 def create_mobile_boolean():
     mobile = Entity("mobile")
 
-    mobile.add_attribute("speed", 0, range(0, 10), lambda old, new: None)
+    mobile.add_attribute("velocity", 0, range(0, 10), lambda old, new: None)
     mobile.set_physics(swing)
 
     mobile.add_trigger("movement", moved)
@@ -198,16 +231,27 @@ class MobileVisual(Visual):
     @staticmethod
     def visualize(self):
         group = Group("mobile")
-        group.add_element(Number("speed", self.a["speed"]))
-        group.add_element(Circle("speed", 0, 10, self.a["speed"]))
+        group.add_element(Number("velocity", self.a["velocity"]))
+        group.add_element(Circle("velocity", 0, 10, self.a["velocity"]))
 
         return group
 
 
+class MobileDirectionVisual(Visual):
+    @staticmethod
+    def visualize(self):
+        group = Group("mobile")
+        group.add_element(Number("velocity", self.a["velocity"]))
+        # Invert the slider (direction down is up)
+        group.add_element(Slider("position", 11, 10 - self.a["position"]))
+        group.add_element(Circle("velocity", 0, 10, self.a["velocity"]))
+
+        return group
+
 def create_mobile_change():
     mobile = Entity("mobile", visual=MobileVisual())
 
-    mobile.add_attribute("speed", 0, range(0, 10), lambda old, new: None)
+    mobile.add_attribute("velocity", 0, range(0, 10), lambda old, new: None)
     mobile.add_attribute("previous", 0, range(0, 10), lambda old, new: None)
 
     mobile.set_physics(swing)
@@ -218,18 +262,17 @@ def create_mobile_change():
     return mobile
 
 
-def create_mobile_pendulum():
-    # TODO: Implement.
-    mobile = Entity("mobile", visual=MobileVisual())
+def create_mobile_direction():
+    mobile = Entity("mobile", visual=MobileDirectionVisual())
 
-    mobile.add_attribute("velocity", 0, range(0, 5), lambda old, new: None)
-    mobile.add_attribute("speed", 0, range(0, 5), lambda old, new: None)
+    mobile.add_attribute("position", 5, range(0, 10), lambda old, new: None)
+    mobile.add_attribute("velocity", 0, range(0, 10), lambda old, new: None)
     mobile.add_attribute("previous", 0, range(0, 10), lambda old, new: None)
-    mobile.add_attribute("position", 0, range(-5, -5), lambda old, new: None)
+    mobile.add_attribute("direction", "+", ["+", "-"], lambda old, new: None)
 
-    mobile.set_physics(swing)
+    mobile.set_physics(swing_direction)
 
-    mobile.add_trigger("movement", moved)
+    mobile.add_trigger("movement", moved_direction)
     mobile.set_emission(movement_emission_change)
 
     return mobile
@@ -260,7 +303,7 @@ def create_experimenter(experiment_log):
 
 def experimental_condition(n, agent, v=None):
     infant = create_infant(agent)
-    mobile = create_mobile_change()
+    mobile = create_mobile_direction()
 
     world = World(v)
     world.add_entity(infant)
@@ -290,7 +333,7 @@ def control_condition(n, experiment_log, agent, v=None):
 
 if __name__ == '__main__':
     v = PyGameVisualizer()
-    log = experimental_condition(100, "causal", v)
+    log = experimental_condition(100, "simple", v)
 
     #log = control_condition(100, log, "simple", v)
 
