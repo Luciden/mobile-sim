@@ -87,12 +87,12 @@ class TestGraph(TestCase):
 
         g.add_node("a")
 
-        self.assertTrue(g.is_node("a"))
+        self.assertTrue(g.has_node("a"))
 
     def test_is_node_none(self):
         g = Graph()
 
-        self.assertFalse(g.is_node("a"))
+        self.assertFalse(g.has_node("a"))
 
     def test_is_edge_normal(self):
         g = Graph()
@@ -102,8 +102,8 @@ class TestGraph(TestCase):
 
         g.add_edge("a", "b")
 
-        self.assertTrue(g.is_edge("a", "b"))
-        self.assertTrue(g.is_edge("b", "a"))
+        self.assertTrue(g.has_edge("a", "b"))
+        self.assertTrue(g.has_edge("b", "a"))
 
     def test_make_complete_empty(self):
         g = Graph()
@@ -118,7 +118,7 @@ class TestGraph(TestCase):
 
         g.make_complete(["a"])
 
-        self.assertTrue(g.is_node("a"))
+        self.assertTrue(g.has_node("a"))
         self.assertEqual(0, len(g.edges))
 
     def test_make_complete_multiple(self):
@@ -126,13 +126,13 @@ class TestGraph(TestCase):
 
         g.make_complete(["a", "b", "c"])
 
-        self.assertTrue(g.is_node("a"))
-        self.assertTrue(g.is_node("b"))
-        self.assertTrue(g.is_node("c"))
+        self.assertTrue(g.has_node("a"))
+        self.assertTrue(g.has_node("b"))
+        self.assertTrue(g.has_node("c"))
 
-        self.assertTrue(g.is_edge("a", "b"))
-        self.assertTrue(g.is_edge("a", "c"))
-        self.assertTrue(g.is_edge("b", "c"))
+        self.assertTrue(g.has_edge("a", "b"))
+        self.assertTrue(g.has_edge("a", "c"))
+        self.assertTrue(g.has_edge("b", "c"))
 
     def test_are_adjacent_adjacent(self):
         g = Graph()
