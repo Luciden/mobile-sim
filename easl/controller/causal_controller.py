@@ -6,7 +6,7 @@ import itertools
 
 import easl.utils
 from controller import Controller
-from easl.visualize import Visual, Group
+from easl import visualize
 
 
 class Data(object):
@@ -123,17 +123,56 @@ class CausalBayesNetLearner(object):
         #    P(B|A) = P(B)
         #    P(A|B) = P(A)
         # Check independence by checking if P(A|B) = P(A)
-        names = variables.keys()
-
-        for i_a in range(len(names)):
-            a = names[i_a]
-            for b in names[i_a + 1:]:
+        for a in graph.get_nodes():
+            for b in graph.get_connected(a):
                 # Calculate P(A, B)
                 p_ab = CausalBayesNetLearner.calculate_joint([a, b], variables, data)
 
                 # Check for independence by checking P(A & B) = P(A) * P(B)
                 if CausalLearningController.are_independent(a, b, p_ab):
                     graph.del_edge(a, b)
+
+    @staticmethod
+    def new_step_3(variables, graph, sepset, data):
+        n = 1
+        while True:
+            # Until for each ordered pair, cardinality is less than n
+            finished = True
+            for u in graph.nodes:
+                adjacent = graph.get_connected(u)
+                # If cardinality >= n, not yet finished
+                if len(adjacent) - 1 >= n:
+                    finished = False
+
+                for v in adjacent:
+                    separated, s = CausalBayesNetLearner.check_separated(graph, variables, data, n, u, v)
+                    if separated:
+                        sepset[u][v].append(s)
+
+            if finished:
+                return
+            n += 1
+
+    @staticmethod
+    def check_separated(graph, variables, data, n, u, v):
+        # Such that |adjacencies(X)\{Y}| > n
+        adjacencies = set(graph.get_connected(u))
+        adjacencies.remove(v)
+
+        # Cardinality should be greater than or equal to n
+        if len(adjacencies) < n:
+            return False, None
+
+        # Check all subsets of cardinality n
+        for subset in list(itertools.combinations(adjacencies, n)):
+            subset = list(subset)
+            # if X and Y are d-separated, remove X-Y and record S in Sepset(X,Y)
+            p = CausalBayesNetLearner.calculate_joint([u, v] + subset, variables, data)
+            if CausalLearningController.are_conditionally_independent(u, v, subset, p):
+                return True, adjacencies
+
+        return False, None
+
 
     @staticmethod
     def step_3(variables, graph, sepset, data):
@@ -145,22 +184,27 @@ class CausalBayesNetLearner(object):
         #    P(A,B|C) = P(A|C) * P(B|C)
         #    P(A,B,C)/P(C) = P(A,C)/P(C) * P(B,C)/P(C)
         # Get all pairs of nodes connected by an edge
-        for (u, v) in graph.get_pairs():
-            # Get all nodes connected to one of either nodes
-            ts = set(graph.get_connected(u) + graph.get_connected(v))
+        for u in graph.get_nodes():
+            for v in graph.get_connected(u):
+                found_independence = False
+                for t in graph.get_nodes():
+                    if found_independence:
+                        continue
+                    if t == u or t == v:
+                        continue
+                    if not graph.are_adjacent(t, u) and not graph.are_adjacent(t, v):
+                        continue
 
-            for t in ts:
-                if t == u or t == v:
-                    continue
-                # Test conditional independence
-                # Calculate P(U,V,T)
-                p_uvt = CausalBayesNetLearner.calculate_joint([u, v, t], variables, data)
+                    # Test conditional independence
+                    # Calculate P(U,V,T)
+                    p_uvt = CausalBayesNetLearner.calculate_joint([u, v, t], variables, data)
 
-                if CausalLearningController.are_conditionally_independent(u, v, [t], p_uvt):
-                    graph.del_edge(u, v)
-                    sepset[u][v].append(t)
-                    sepset[v][u].append(t)
-                    continue
+                    if CausalLearningController.are_conditionally_independent(u, v, [t], p_uvt):
+                        graph.del_edge(u, v)
+                        sepset[u][v].append(t)
+                        sepset[v][u].append(t)
+                        found_independence = True
+                        continue
 
     @staticmethod
     def step_4(variables, graph, sepset, data):
@@ -171,19 +215,28 @@ class CausalBayesNetLearner(object):
         #
         #    P(A,B|C,D) = P(A|C,D) * P(B|C,D)
         #    P(A,B,C,D)/P(C,D) = P(A,C,D)/P(C,D) * P(B,C,D)/P(C,D)
-        for (u, v) in graph.get_pairs():
-            ts = graph.get_connected(u) + graph.get_connected(v)
+        for u in graph.get_nodes():
+            for v in graph.get_connected(u):
+                found_independence = False
+                ts = []
+                ts.extend(graph.get_connected(u))
+                ts.extend(graph.get_connected(v))
+                ts = set(ts)
 
-            for (t, s) in [(t, s) for t in ts for s in ts if t != s]:
-                if t == u or t == v or s == u or s == v:
-                    continue
+                for (t, s) in [(t, s) for t in ts for s in ts if t != s]:
+                    if found_independence:
+                        continue
+                    if t == u or t == v or s == u or s == v:
+                        continue
 
-                p_uvst = CausalBayesNetLearner.calculate_joint([u, v, s, t], variables, data)
+                    p_uvst = CausalBayesNetLearner.calculate_joint([u, v, s, t], variables, data)
 
-                if CausalLearningController.are_conditionally_independent(u, v, [s, t], p_uvst):
-                    graph.del_edge(u, v)
-                    sepset[u][v].extend([s, t])
-                    sepset[v][u].extend([s, t])
+                    if CausalLearningController.are_conditionally_independent(u, v, [s, t], p_uvst):
+                        graph.del_edge(u, v)
+                        sepset[u][v].extend([s, t])
+                        sepset[v][u].extend([s, t])
+                        found_independence = True
+                        continue
 
     @staticmethod
     def step_5(graph, sepset):
@@ -199,22 +252,44 @@ class CausalBayesNetLearner(object):
         #    mark on the T and R nodes and putting arrow marks on the V
         #    end.
         # get triples T - V - R
-        for (t, v, r) in graph.get_triples():
-            # if T - R not in sepset, orient edges
-            if graph.is_edge(t, r):
-                continue
+        # Store the V - T or V - R pairs that were already oriented
+        oriented = dict.fromkeys(graph.get_nodes(), [])
 
-            if v not in sepset[t][r]:
-                graph.orient_half(t, v, "o")
-                graph.orient_half(r, v, "o")
+        for t in graph.get_nodes():
+            did_orient = False
+            for v in graph.get_connected(t):
+                if did_orient:
+                    continue
+                for r in graph.get_connected(v):
+                    if did_orient:
+                        continue
+                    if t == r or graph.are_adjacent(t, r):
+                        continue
+                    # if T - R not in sepset, orient edges
+                    if v not in sepset[t][r]:
+                        if t not in oriented[v]:
+                            graph.orient_half(t, v)
+                            oriented[v].append(t)
+                            oriented[t].append(v)
+                        if r not in oriented[v]:
+                            graph.orient_half(r, v)
+                            oriented[v].append(r)
+                            oriented[r].append(v)
+                        did_orient = True
+                        continue
 
     @staticmethod
     def step_6(graph):
         # 6. For each triple of variables T, V, R such that T has an edge
         #    with an arrowhead directed into V and V - R, and T has no edge
         #    connecting it to R, orient V - R as V -> R.
-        for (t, v, r) in graph.get_triples_special():
-            graph.orient_half(v, r)
+        for t in graph.get_nodes():
+            for v in graph.arrow_from(t):
+                for r in graph.get_connected(v):
+                    if t == r or graph.are_adjacent(t, r):
+                        continue
+
+                    graph.orient_half(v, r)
 
     @staticmethod
     def variables_from_names(names, variables):
@@ -233,10 +308,12 @@ class CausalBayesNetLearner(object):
         return data.calculate_joint(CausalBayesNetLearner.variables_from_names(names, variables))
 
 
-class CausalLearningVisual(Visual):
+class CausalLearningVisual(visualize.Visual):
     @staticmethod
     def visualize(self):
-        group = Group("causal")
+        group = visualize.Group("causal")
+        if self.network is not None:
+            group.add_element(visualize.Graph("graph", self.network.get_nodes(), self.network.get_edges()))
 
         return group
 
@@ -315,7 +392,7 @@ class CausalLearningController(Controller):
 
         self.time = 0
 
-        self.exploration = self.__create_exploration_shuffle(repeat=1)
+        self.exploration = self.__create_exploration_shuffle(repeat=3)
 
     def set_values(self, vals):
         """
@@ -447,7 +524,7 @@ class CausalLearningController(Controller):
             # Check if the aim is in the observations
             entry = self.data.get_entries_at_time(self.time)
 
-            if entry[self.aim[0]] != self.aim[1]:
+            if entry[self.aim[0]] != self.aim[1] and self.network.has_edge(self.action[0], self.aim[0]):
                 # Remove the edge
                 self.network.del_edge(self.action[0], self.aim[0])
 
@@ -518,14 +595,11 @@ class CausalLearningController(Controller):
                 sepset[a][b] = []
 
         CausalBayesNetLearner.step_2(self.variables_time, c, self.data)
+        #CausalBayesNetLearner.new_step_3(self.variables, c, sepset, self.data)
         CausalBayesNetLearner.step_3(self.variables_time, c, sepset, self.data)
         CausalBayesNetLearner.step_4(self.variables_time, c, sepset, self.data)
         CausalBayesNetLearner.step_5(c, sepset)
         CausalBayesNetLearner.step_6(c)
-
-        # Temporary, uses networkx to convert data structure to a DiGraph, later
-        # used to select actions
-        c.create_digraph()
 
         return c
 

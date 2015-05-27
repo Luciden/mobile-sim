@@ -5,4 +5,6 @@ from world import Signal
 
 from entity import Entity
 
+from log import Log
+
 import utils

@@ -101,3 +101,50 @@ class Log(object):
                 self.log.append(row)
         finally:
             f.close()
+
+    def make_kicking_data(self, file):
+        """
+        Parameters
+        ----------
+        file : string
+            File name to write to.
+        """
+        f = open(file, "wt")
+        try:
+            writer = csv.writer(f, delimiter=' ')
+
+            writer.writerow(["t", "n"])
+            for entry in self.log:
+                if "observation" in entry and entry["observation"] == "movement" and entry["value"] == "faster":
+                    writer.writerow([entry["_time"] - 1, str(1)])
+        finally:
+            f.close()
+
+    @staticmethod
+    def make_bins(name, n):
+        f = open(name + ".csv", "rt")
+        o = open(name + "_bins.csv", "wt")
+        try:
+            # Skip header
+            f.readline()
+            reader = csv.reader(f, delimiter=' ')
+
+            bins = []
+            bin = 1
+            current = 0
+            for row in reader:
+                if int(row[0]) >= bin * n:
+                    bins.append(current)
+                    bin += 1
+                    current = 0
+                current += int(row[1])
+            bins.append(current)
+
+            writer = csv.writer(o, delimiter=' ')
+
+            writer.writerow(["block", "n"])
+            for i in range(len(bins)):
+                writer.writerow([str(i), str(bins[i])])
+        finally:
+            f.close()
+            o.close()

@@ -3,7 +3,7 @@ __author__ = 'Dennis'
 import random
 from copy import copy, deepcopy
 
-from controller import Controller
+from easl.controller import Controller
 from easl.utils import stat
 from easl.visualize import *
 
@@ -422,7 +422,7 @@ class Reinforcer(object):
         .. math:: M(r, 0) = 1
         """
         if n == 0:
-            return 1
+            return 0
         else:
             return (r / float(n)) * max(0.2, 1 - (1.175 / float(n)))
 
@@ -433,7 +433,7 @@ class Reinforcer(object):
         .. math:: D(r, 0) = 0
         """
         if n == 0:
-            return 0
+            return 1
         else:
             return min(1, (r / float(n)) + (n - r) / float(0.7 * n ** 2))
 
@@ -442,10 +442,15 @@ class OperantConditioningVisual(Visual):
     @staticmethod
     def visualize(self):
         group = Group("operant")
-        group.add_element(List("predictors", [str(c) for c in self.reinforcers[0].predictors]))
-        group.add_element(List("conjunctions", [(str(c), s, f) for (c, s, f) in self.reinforcers[0].conjunctions]))
         group.add_element(List("actions", [str(a) for a in self.selected_actions]))
+        for reinforcer in self.reinforcers:
+            r = Group("reinforcer")
+            r.add_element(Number("reinforcer:", str(reinforcer.predicate)))
+            r.add_element(List("predictors", [str(c) for c in reinforcer.predictors]))
+            r.add_element(List("conjunctions", [(str(c), s, f) for (c, s, f) in reinforcer.conjunctions]))
 
+            group.add_element(r)
+            
         return group
 
 
@@ -486,7 +491,6 @@ class OperantConditioningController(Controller):
 
         self.selected_actions = []
 
-        # TODO: Explain how I got the threshold.
         self._DEMERIT_THRESHOLD = 0.5
         self._SUFFICIENT_TRIALS = 10
         self._SIMILAR_MERIT_THRESHOLD = 0.2

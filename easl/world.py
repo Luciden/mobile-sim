@@ -101,6 +101,8 @@ class World(object):
         self.queued_signals = []
 
         self.visualizer = visualizer
+        if self.visualizer is not None:
+            self.visualizer.set_world(self)
 
     def run(self, iterations=10):
         """
@@ -150,7 +152,14 @@ class World(object):
     def add_entity(self, entity):
         self.entities[entity.name] = entity
 
-    def set_area_of_effect(self, causing, attribute, event, affected):
+    def has_trigger(self, causing, attribute, event, affected):
+        for i in range(len(self.triggers)):
+            c, att, e, aff = self.triggers[i]
+            if c == causing and att == attribute and e == event and aff == affected:
+                return i
+        return None
+
+    def add_trigger(self, causing, attribute, event, affected):
         """
 
         Parameters
@@ -164,7 +173,13 @@ class World(object):
         affected : string
             Name of the Entity that is affected by the event.
         """
-        self.triggers.append((causing, attribute, event, affected))
+        if self.has_trigger(causing, attribute, event, affected) is None:
+            self.triggers.append((causing, attribute, event, affected))
+
+    def remove_trigger(self, causing, attribute, event, affected):
+        i = self.has_trigger(causing, attribute, event, affected)
+        if i is not None:
+            del self.triggers[i]
 
     def __do_physics(self):
         """

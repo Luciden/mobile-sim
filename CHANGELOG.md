@@ -7,6 +7,20 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.2.0 - 2015-05-27
+### Added
+- RouletteWheelSelection algorithm for SimpleController action selection.
+- Mobile with direction.
+- Functionality to change whether the infant is connected to the mobile.
+
+### Changed
+- Separate count updating and action selection from LearningRule into ActionSelection.
+- Make visualization of operant conditioning more general (multiple reinforcers).
+- Internal representation of Graph and usage of it in the causal learning algorithm (more efficient).
+
+### Fixed
+- Fix mix-up of demerit(r, 0) and merit(r, 0) definitions.
+
 ## 0.1.0 - 2015-05-25
 ### Added
 - More SimpleController-related documentation.

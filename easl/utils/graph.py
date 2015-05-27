@@ -1,7 +1,5 @@
 __author__ = 'Dennis'
 
-import math
-
 import networkx as nx
 import matplotlib.pyplot as plt
 
@@ -34,66 +32,49 @@ class Graph(object):
     g : networkx.DiGraph
     """
     def __init__(self):
-        self.nodes = []
-        self.edges = []
-
-        self.g = None
+        self.g = nx.DiGraph()
 
     def get_nodes(self):
-        return self.nodes
+        return nx.nodes(self.g)
 
     def get_edges(self):
-        return self.edges
+        return nx.edges(self.g)
 
     def add_node(self, name):
         # Only have unique names, so check for existence
-        if name not in self.nodes:
-            self.nodes.append(name)
+        self.g.add_node(name)
 
-    def add_edge(self, a, b, ma="", mb=""):
+    def add_edge(self, a, b):
+        """
+        Add an undirected edge, i.e. both ways.
+        """
         # Don't add edges reflexively to the same node
         if a == b:
             pass
-        elif a not in self.nodes:
+        elif not self.g.has_node(a):
             raise NonExistentNodeError("{0} is not a node.".format(a))
-        elif b not in self.nodes:
+        elif not self.g.has_node(b):
             raise NonExistentNodeError("{0} is not a node.".format(b))
         else:
             # Check if edge does not already exist
-            for (x, mx, y, my) in self.edges:
-                # When edge already exists, do nothing.
-                if x == a and y == b:
-                    return
-
-            # Store edges symmetrically
-            self.edges.append((a, ma, b, mb))
-            self.edges.append((b, mb, a, ma))
+            self.g.add_edge(a, b)
+            self.g.add_edge(b, a)
 
     def del_edge(self, a, b):
-        self.__del_edge(a, b)
-        self.__del_edge(b, a)
-
-    def __del_edge(self, a, b):
-        if a in self.nodes and b in self.nodes:
-            for i in range(len(self.edges)):
-                (x, _, y, _) = self.edges[i]
-
-                if x == a and y == b or y == a and x == b:
-                    del self.edges[i]
-                    return
+        self.g.remove_edge(a, b)
+        self.g.remove_edge(b, a)
 
     def empty(self):
         """
         Clear all nodes and edges to make an empty (null) graph.
         """
-        self.nodes = []
-        self.edges = []
+        self.g.clear()
 
-    def is_node(self, name):
-        return name in self.nodes
+    def has_node(self, name):
+        return self.g.has_node(name)
 
-    def is_edge(self, a, b):
-        return (a, b) in [(p, q) for (p, x, q, y) in self.edges]
+    def has_edge(self, a, b):
+        return self.g.has_edge(a, b)
 
     def make_complete(self, variables):
         """
@@ -104,16 +85,13 @@ class Graph(object):
         """
         # Take only the nodes that are provided
         self.empty()
-        self.nodes = variables
+        self.g.add_nodes_from(variables)
 
-        n = len(self.nodes)
-
-        if n <= 1:
-            return
+        n = len(variables)
 
         for a in range(n - 1):
             for b in range(a+1, n):
-                self.add_edge(self.nodes[a], self.nodes[b])
+                self.add_edge(variables[a], variables[b])
 
     def are_adjacent(self, a, b):
         """
@@ -124,63 +102,7 @@ class Graph(object):
         b : string
             Variable name.
         """
-        for e in self.edges:
-            if e[0] == a and e[2] == b or e[0] == b and e[2] == a:
-                return True
-        return False
-
-    def get_pairs(self):
-        """
-        All pairs A, B that are connected by an edge.
-
-        Only contains edges in one direction, so if (A, B) is in pairs, (B, A)
-        is not.
-
-        Returns
-        -------
-        [(string, string)]
-            pairs of variable names that are connected by an edge
-        """
-        pairs = []
-
-        # Consider all pairs, but contains reversed pairs as well (a, b) and
-        # (b, a)
-        for (a, b) in [(a, b) for (a, _1, b, _2) in self.edges]:
-            # Only add if
-            if (b, a) in pairs:
-                pass
-            else:
-                pairs.append((a, b))
-
-        return pairs
-
-    def get_directed_pairs(self):
-        """
-        All pairs A, B that are connected by an edge.
-
-        Only contains edges in one direction, so if (A, B) is in pairs, (B, A)
-        is not.
-
-        Returns
-        -------
-        [(string, string)]
-            pairs of variable names that are connected by an edge
-        """
-        pairs = []
-
-        # Consider all pairs, but contains reversed pairs as well (a, b) and
-        # (b, a)
-        for (a, b) in [(a, b) for (a, _1, b, p) in self.edges if p == ">"]:
-            # Only add if
-            if (b, a) in pairs:
-                pass
-            else:
-                pairs.append((a, b))
-
-        return pairs
-
-    def get_pairs_double(self):
-        return [(a, b) for (a, _1, b, _2) in self.edges]
+        return self.g.has_edge(a, b) or self.g.has_edge(b, a)
 
     def get_connected(self, a):
         """
@@ -191,72 +113,34 @@ class Graph(object):
         [string]
             Names of the nodes that it is connected to.
         """
-        return [x for (b, _1, x, _2) in self.edges if b == a]
+        return set(nx.all_neighbors(self.g, a))
 
-    def get_triples(self):
+    def arrow_from(self, a):
         """
-        All triples of nodes A, B, C that are connected as A - B - C.
-
-        Returns
-        -------
-        [(string, string, string)]
+        All nodes that have an arrow directed into them from the current node.
         """
-        triples = []
+        arrows = []
+        for b in nx.all_neighbors(self.g, a):
+            if self.g.has_edge(a, b) and "to" in self.g[a][b] and self.g[a][b] == ">":
+                arrows.append(b)
 
-        for (a, b, c) in self.get_triples_double():
-            # Only add if
-            if (c, b, a) in triples:
-                pass
-            else:
-                triples.append((a, b, c))
+        return arrows
 
-        return triples
-
-    def get_triples_double(self):
-        pairs = self.get_pairs_double()
-
-        return [(a, b, d)
-                for (a, b) in pairs
-                for (c, d) in pairs
-                if a != d and a != d and b == c]
-
-    def get_triples_special(self):
+    def orient_half(self, x, y):
         """
-        Get the triples T, V, R for which T has an edge with an arrowhead
-        directed into V and V - R, and T has no edge connecting it to R.
+        Orient X - Y as X o-> Y
         """
-        triples = self.get_triples()
-        # T ->V
-        arrowheads = [(t, v, r)
-                      for (t, v, r) in triples
-                      for (t, _, v, a) in self.edges
-                      if a == ">"]
-
-        # V - R
-        neighbours = [(t, v, r)
-                      for (t, v, r) in arrowheads
-                      for (v, _1, r, _2) in self.edges]
-
-        # Remove those for which T and R are connected
-        # T   R, 'T has no edge connecting it to R.'
-        neighbours = [(t, v, r)
-                      for (t, v, r) in neighbours
-                      if not self.are_adjacent(t, r)]
-
-        return neighbours
-
-    def orient_half(self, x, y, m=None):
-        """
-        Orient X - Y as X -> Y
-        """
-        if not self.is_edge(x, y):
+        if not self.has_edge(x, y):
             raise NonExistentEdgeError("No edge between {0} and {1}".format(x, y))
 
-        self.del_edge(x, y)
-        self.add_edge(x, y, ma="o", mb=">")
+        # Stored edges in both directions until now, so remove the reverse one
+        self.g.remove_edge(y, x)
+
+        # Mark the edge
+        self.g[x][y]["from"] = "o"
+        self.g[x][y]["to"] = ">"
 
     def visualize(self):
-
         pos = nx.spring_layout(self.g)
 
         nx.draw_networkx_nodes(self.g, pos)
@@ -265,13 +149,6 @@ class Graph(object):
 
         plt.savefig("graph.png")
         plt.show()
-
-    def create_digraph(self):
-        self.g = nx.DiGraph()
-
-        for (a, l, b, r) in self.edges:
-            if not self.g.has_edge(a, b) and r == ">":
-                self.g.add_edge(a, b)
 
     def ancestors(self, x):
         return nx.ancestors(self.g, x)

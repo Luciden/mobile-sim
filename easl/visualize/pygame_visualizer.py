@@ -9,14 +9,16 @@ import math
 
 
 class PyGameVisualizer(Visualizer):
-    BG_COLOR = (0, 0, 0)
-    FG_COLOR = (255, 255, 255)
-    OBJ_COLOR = (255, 255, 0)
+    BG_COLOR = (255, 255, 255)
+    FG_COLOR = (0, 0, 0)
+    OBJ_COLOR = (196, 0, 0)
 
     def __init__(self):
         super(PyGameVisualizer, self).__init__()
 
         pygame.init()
+
+        self.world = None
 
         self.size = 1600, 900
         self.screen = pygame.display.set_mode(self.size)
@@ -29,6 +31,9 @@ class PyGameVisualizer(Visualizer):
 
         self.keys = ["space: pause/unpause the simulation",
                      "s: step once and pause"]
+
+    def set_world(self, world):
+        self.world = world
 
     def reset_visualization(self):
         super(PyGameVisualizer, self).reset_visualization()
@@ -75,6 +80,10 @@ class PyGameVisualizer(Visualizer):
                     self.parameters["dt"] += 100
                 if event.key == pygame.K_DOWN:
                     self.parameters["dt"] -= 100
+                if event.key == pygame.K_EQUALS:
+                    self.world.add_trigger("infant", "right-foot-position", "movement", "mobile")
+                if event.key == pygame.K_MINUS:
+                    self.world.remove_trigger("infant", "right-foot-position", "movement", "mobile")
 
     def __pause(self):
         # TODO: Redraw screen while paused.
@@ -335,7 +344,7 @@ class PyGameVisualizer(Visualizer):
 
     def __draw_graph(self, graph):
         node_radius = 16
-        spacing = 2 * node_radius  # Distance between adjacent nodes' centers
+        spacing = 6 * node_radius  # Distance between adjacent nodes' centers
         coordinates = {}
 
         # If no groups were given, do a column layout
@@ -390,6 +399,7 @@ class PyGameVisualizer(Visualizer):
             height = top_height + bottom_height
 
         surface = pygame.Surface((width, height))
+        surface.fill(self.BG_COLOR)
 
         # Draw edges from stored coordinates
         for a, b in graph.edges:
