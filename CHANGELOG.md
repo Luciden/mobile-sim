@@ -8,6 +8,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 ### Added
 - RouletteWheelSelection algorithm for SimpleController action selection.
+- Mobile with direction.
+- Functionality to change whether the infant is connected to the mobile.
 
 ### Changed
 - Separate count updating and action selection from LearningRule into ActionSelection.

@@ -18,6 +18,8 @@ class PyGameVisualizer(Visualizer):
 
         pygame.init()
 
+        self.world = None
+
         self.size = 1600, 900
         self.screen = pygame.display.set_mode(self.size)
         self.font = pygame.font.SysFont("monospace", 11)
@@ -29,6 +31,9 @@ class PyGameVisualizer(Visualizer):
 
         self.keys = ["space: pause/unpause the simulation",
                      "s: step once and pause"]
+
+    def set_world(self, world):
+        self.world = world
 
     def reset_visualization(self):
         super(PyGameVisualizer, self).reset_visualization()
@@ -75,6 +80,10 @@ class PyGameVisualizer(Visualizer):
                     self.parameters["dt"] += 100
                 if event.key == pygame.K_DOWN:
                     self.parameters["dt"] -= 100
+                if event.key == pygame.K_EQUALS:
+                    self.world.add_trigger("infant", "right-foot-position", "movement", "mobile")
+                if event.key == pygame.K_MINUS:
+                    self.world.remove_trigger("infant", "right-foot-position", "movement", "mobile")
 
     def __pause(self):
         # TODO: Redraw screen while paused.

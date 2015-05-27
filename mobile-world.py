@@ -61,9 +61,9 @@ def move(old, new):
 #
 
 def swing(self):
-    speed = self.a["speed"]
+    speed = self.a["velocity"]
 
-    self.try_change("speed", max(0, min(speed - 1, 10)))
+    self.try_change("velocity", max(0, min(speed - 1, 10)))
 
 
 def swing_direction(self):
@@ -93,8 +93,8 @@ def swing_direction(self):
 
 
 def moved(self, direction):
-    self.a["previous"] = self.a["speed"]
-    self.a["speed"] += 4
+    self.a["previous"] = self.a["velocity"]
+    self.a["velocity"] += 4
 
 
 def moved_direction(self, direction):
@@ -108,7 +108,7 @@ def moved_direction(self, direction):
 
 def movement_emission_boolean(self):
     s = []
-    if self.a["speed"] > 0:
+    if self.a["velocity"] > 0:
         s.append(Signal("sight", "movement", True, [True, False]))
 
     return s
@@ -303,12 +303,12 @@ def create_experimenter(experiment_log):
 
 def experimental_condition(n, agent, v=None):
     infant = create_infant(agent)
-    mobile = create_mobile_direction()
+    mobile = create_mobile_change()
 
     world = World(v)
     world.add_entity(infant)
     world.add_entity(mobile)
-    world.set_area_of_effect("infant", "right-foot-position", "movement", "mobile")
+    world.add_trigger("infant", "right-foot-position", "movement", "mobile")
 
     world.run(n)
 
@@ -324,7 +324,7 @@ def control_condition(n, experiment_log, agent, v=None):
     world.add_entity(infant)
     world.add_entity(mobile)
     world.add_entity(experimenter)
-    world.set_area_of_effect("experimenter", "mechanical-hand-position", "movement", "mobile")
+    world.add_trigger("experimenter", "mechanical-hand-position", "movement", "mobile")
 
     world.run(n)
 
@@ -333,7 +333,9 @@ def control_condition(n, experiment_log, agent, v=None):
 
 if __name__ == '__main__':
     v = PyGameVisualizer()
-    log = experimental_condition(100, "simple", v)
+    log = experimental_condition(120, "simple", v)
+    log.make_kicking_data("data.csv")
+    Log.make_bins("data", 6)
 
     #log = control_condition(100, log, "simple", v)
 

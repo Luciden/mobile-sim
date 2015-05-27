@@ -148,7 +148,7 @@ class CausalBayesNetLearner(object):
                     finished = False
 
                 for v in adjacent:
-                    separated, s = CausalBayesNetLearner.check_seperated(graph, variables, data, n, u, v)
+                    separated, s = CausalBayesNetLearner.check_separated(graph, variables, data, n, u, v)
                     if separated:
                         sepset[u][v].append(s)
 
@@ -157,7 +157,7 @@ class CausalBayesNetLearner(object):
             n += 1
 
     @staticmethod
-    def check_seperated(graph, variables, data, n, u, v):
+    def check_separated(graph, variables, data, n, u, v):
         # Such that |adjacencies(X)\{Y}| > n
         adjacencies = set(graph.get_connected(u))
         adjacencies.remove(v)
@@ -190,6 +190,8 @@ class CausalBayesNetLearner(object):
         for (u, v) in graph.get_pairs():
             # Get all nodes connected to one of either nodes
             ts = set(graph.get_connected(u) + graph.get_connected(v))
+            ts.remove(u)
+            ts.remove(v)
 
             for t in ts:
                 if t == u or t == v:
@@ -357,7 +359,7 @@ class CausalLearningController(Controller):
 
         self.time = 0
 
-        self.exploration = self.__create_exploration_shuffle(repeat=1)
+        self.exploration = self.__create_exploration_shuffle(repeat=3)
 
     def set_values(self, vals):
         """

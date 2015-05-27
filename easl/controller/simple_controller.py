@@ -226,6 +226,12 @@ class SimpleController(Controller):
 
         # Select a new action (max probability)
         self.action = self.selection.select_action(self.counts)
+        if self.action is None:
+            a = random.choice(self.actions.keys())
+            v = random.choice(self.actions[a])
+
+            self.action = (a, v)
+
         return [self.action]
 
     def __got_reward(self):
