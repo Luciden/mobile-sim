@@ -6,7 +6,7 @@ import itertools
 
 import easl.utils
 from controller import Controller
-from easl.visualize import Visual, Group
+from easl import visualize
 
 
 class Data(object):
@@ -308,10 +308,12 @@ class CausalBayesNetLearner(object):
         return data.calculate_joint(CausalBayesNetLearner.variables_from_names(names, variables))
 
 
-class CausalLearningVisual(Visual):
+class CausalLearningVisual(visualize.Visual):
     @staticmethod
     def visualize(self):
-        group = Group("causal")
+        group = visualize.Group("causal")
+        if self.network is not None:
+            group.add_element(visualize.Graph("graph", self.network.get_nodes(), self.network.get_edges()))
 
         return group
 
@@ -583,7 +585,6 @@ class CausalLearningController(Controller):
             self.variables_time[variable + "_prev"] = self.sensory[variable]
 
         c.make_complete(self.variables_time.keys())
-        c.visualize()
 
         sepset = {}
         for a in self.variables_time:
