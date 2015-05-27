@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - Separate count updating and action selection from LearningRule into ActionSelection.
 - Make visualization of operant conditioning more general (multiple reinforcers).
+- Internal representation of Graph and usage of it in the causal learning algorithm (more efficient).
 
 ### Fixed
 - Fix mix-up of demerit(r, 0) and merit(r, 0) definitions.
