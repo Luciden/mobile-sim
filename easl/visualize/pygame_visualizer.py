@@ -9,8 +9,8 @@ import math
 
 
 class PyGameVisualizer(Visualizer):
-    BG_COLOR = (255, 255, 255)
-    FG_COLOR = (0, 0, 0)
+    BG_COLOR = (0, 0, 0)
+    FG_COLOR = (255, 255, 255)
     OBJ_COLOR = (196, 0, 0)
 
     def __init__(self):

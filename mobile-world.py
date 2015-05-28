@@ -332,7 +332,7 @@ def control_condition(n, experiment_log, agent, v=None):
 
 if __name__ == '__main__':
     v = PyGameVisualizer()
-    log = experimental_condition(120, "causal", v)
+    log = experimental_condition(300, "causal", v)
     log.make_kicking_data("data.csv")
     Log.make_bins("data", 6)
 

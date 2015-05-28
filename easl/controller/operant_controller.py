@@ -445,7 +445,7 @@ class OperantConditioningVisual(Visual):
         group.add_element(List("actions", [str(a) for a in self.selected_actions]))
         for reinforcer in self.reinforcers:
             r = Group("reinforcer")
-            r.add_element(Number("reinforcer:", str(reinforcer.predicate)))
+            r.add_element(Number("reinforcer", str(reinforcer.predicate)))
             r.add_element(List("predictors", [str(c) for c in reinforcer.predictors]))
             r.add_element(List("conjunctions", [(str(c), s, f) for (c, s, f) in reinforcer.conjunctions]))
 
@@ -501,9 +501,10 @@ class OperantConditioningController(Controller):
         self.memory = WorkingMemory(actions=self.actions.keys())
 
         # Add all actions as predictors
-        for action in self.actions:
-            for value in self.actions[action]:
-                self.reinforcers[0].add_conjunction(Conjunction((Predicate(action, value), WorkingMemory.NOW)))
+        for reinforcer in self.reinforcers:
+            for action in self.actions:
+                for value in self.actions[action]:
+                    reinforcer.add_conjunction(Conjunction((Predicate(action, value), WorkingMemory.NOW)))
 
     def sense(self, observation):
         """

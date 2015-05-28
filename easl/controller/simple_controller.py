@@ -57,7 +57,7 @@ class SimpleLearningRule(LearningRule):
         # If the reward is present, increase the probability of selecting the
         # action.
         if has_reward:
-            counts[a][v] += 1
+            counts[a][v] += 2
         # If not, decrease the probability of selecting the action again.
         else:
             counts[a][v] = max(0, counts[a][v] - 1)
@@ -194,7 +194,7 @@ class SimpleController(Controller):
         super(SimpleController, self).__init__()
         self.visual = SimpleVisual()
 
-        self.rule = BetterLearningRule()
+        self.rule = SimpleLearningRule()
         self.selection = RouletteWheelSelection()
 
         self.observations = {}
