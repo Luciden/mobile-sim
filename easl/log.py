@@ -113,15 +113,37 @@ class Log(object):
         try:
             writer = csv.writer(f, delimiter=' ')
 
-            writer.writerow(["t", "n"])
+            # Calculate changes in position for every limb.
+            positions = ["left-hand-position", "right-hand-position", "left-foot-position", "right-foot-position"]
+            headings = ["lh", "rh", "lf", "rf"]
+            data = []
             for entry in self.log:
-                if "observation" in entry and entry["observation"] == "movement" and entry["value"] == "faster":
-                    writer.writerow([entry["_time"] - 1, str(1)])
+                if "observation" in entry and entry["observation"] in positions:
+                    t = entry["_time"]
+                    if len(data) - 1 < t:
+                        data.append({})
+                    data[t][entry["observation"]] = entry["value"]
+
+            writer.writerow(["t"] + headings)
+            print len(data)
+            for i in range(len(data) - 1):
+                k = [0, 0, 0, 0]
+                print i
+                for p in range(len(positions)):
+                    if data[i][positions[p]] != data[i + 1][positions[p]]:
+                        k[p] = 1
+                writer.writerow([i] + k)
         finally:
             f.close()
 
     @staticmethod
-    def make_bins(name, n):
+    def make_bins(name, n, c=["n"]):
+        """
+        Parameters
+        ----------
+        c : int
+            Number of columns next to the time column.
+        """
         f = open(name + ".csv", "rt")
         o = open(name + "_bins.csv", "wt")
         try:
@@ -131,20 +153,21 @@ class Log(object):
 
             bins = []
             bin = 1
-            current = 0
+            current = [0] * len(c)
             for row in reader:
                 if int(row[0]) >= bin * n:
                     bins.append(current)
                     bin += 1
-                    current = 0
-                current += int(row[1])
+                    current = [0] * len(c)
+                print row
+                current = [x + y for (x, y) in zip(current, [int(z) for z in row[1:]])]
             bins.append(current)
 
             writer = csv.writer(o, delimiter=' ')
 
-            writer.writerow(["block", "n"])
+            writer.writerow(["block"] + c)
             for i in range(len(bins)):
-                writer.writerow([str(i), str(bins[i])])
+                writer.writerow([str(i)] + [str(x) for x in bins[i]])
         finally:
             f.close()
             o.close()

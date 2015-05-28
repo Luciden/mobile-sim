@@ -6,6 +6,8 @@ starting with '0.0.0' are just a reference.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
+### Added
+- Functionality to change how the entities are connected.
 
 ## 0.2.0 - 2015-05-27
 ### Added

@@ -337,9 +337,9 @@ if __name__ == '__main__':
     remove_triggers = {40: [("infant", "right-foot-position", "movement", "mobile")]}
     add_triggers = {40: [("infant", "left-hand-position", "movement", "mobile")]}
 
-    log = experimental_condition(120, "simple", v, add=add_triggers, remove=remove_triggers)
+    log = experimental_condition(120, "causal", v, add=add_triggers, remove=remove_triggers)
     log.make_kicking_data("data.csv")
-    Log.make_bins("data", 6)
+    Log.make_bins("data", 6, ["lh", "rh", "lf", "rf"])
 
     #log = control_condition(100, log, "simple", v)
 
