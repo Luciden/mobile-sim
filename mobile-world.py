@@ -301,7 +301,7 @@ def create_experimenter(experiment_log):
     return experimenter
 
 
-def experimental_condition(n, agent, v=None):
+def experimental_condition(n, agent, v=None, remove={}, add={}):
     infant = create_infant(agent)
     mobile = create_mobile_change()
 
@@ -310,7 +310,7 @@ def experimental_condition(n, agent, v=None):
     world.add_entity(mobile)
     world.add_trigger("infant", "right-foot-position", "movement", "mobile")
 
-    world.run(n)
+    world.run(n, add_triggers=add, remove_triggers=remove)
 
     return world.log
 
@@ -333,7 +333,11 @@ def control_condition(n, experiment_log, agent, v=None):
 
 if __name__ == '__main__':
     v = PyGameVisualizer()
-    log = experimental_condition(120, "causal", v)
+
+    remove_triggers = {40: [("infant", "right-foot-position", "movement", "mobile")]}
+    add_triggers = {40: [("infant", "left-hand-position", "movement", "mobile")]}
+
+    log = experimental_condition(120, "simple", v, add=add_triggers, remove=remove_triggers)
     log.make_kicking_data("data.csv")
     Log.make_bins("data", 6)
 
