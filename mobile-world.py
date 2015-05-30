@@ -364,33 +364,22 @@ def control_condition(n, experiment_log, agent, v=None):
 
 
 if __name__ == '__main__':
-    run_single = False
+    ss = SimulationSuite()
+    ss.set_visualizer(PyGameVisualizer())
+    ss.set_simulation_length(120)
+    ss.set_data_bins(6)
+    ss.add_constant_entities({"infant": create_infant, "mobile": create_mobile_direction})
+    ss.add_controllers("infant", {"simple": infant_simple_controller, "causal": infant_causal_controller})
 
+    ss.add_initial_triggers({"experimental": [("infant", "right-foot-position", "movement", "mobile")]})
+    ss.add_conditional_trigger_changes({"experimental":
+                                            {60: ([("infant", "left-hand-position", "movement", "mobile")],
+                                                  [("infant", "right-foot-position", "movement", "mobile")])}})
+
+    ss.add_constant_data_collection(["left-hand-position", "right-hand-position", "left-foot-position", "right-foot-position"], ["lh", "rh", "lf", "rf"])
+
+    run_single = True
     if run_single:
-        v = PyGameVisualizer()
-
-        remove_triggers = {40: [("infant", "right-foot-position", "movement", "mobile")]}
-        add_triggers = {40: [("infant", "left-hand-position", "movement", "mobile")]}
-
-        log = experimental_condition(120, "simple", v, add=add_triggers, remove=remove_triggers)
-
-        attribute_labels = dict(zip(["left-hand-position", "right-hand-position", "left-foot-position", "right-foot-position"], ["lh", "rh", "lf", "rf"]))
-
-        log.make_data("data", attribute_labels)
-        Log.make_bins("data", 6, attribute_labels.items())
+        ss.run_single("experimental", {"infant": "causal"})
     else:
-        ss = SimulationSuite()
-        ss.set_visualizer(PyGameVisualizer())
-        ss.set_simulation_length(120)
-        ss.set_data_bins(6)
-        ss.add_constant_entities({"infant": create_infant, "mobile": create_mobile_direction})
-        ss.add_controllers("infant", {"simple": infant_simple_controller, "causal": infant_causal_controller})
-
-        ss.add_initial_triggers({"experimental": [("infant", "right-foot-position", "movement", "mobile")]})
-        ss.add_conditional_trigger_changes({"experimental":
-                                                {60: ([("infant", "left-hand-position", "movement", "mobile")],
-                                                      [("infant", "right-foot-position", "movement", "mobile")])}})
-
-        ss.add_constant_data_collection(["left-hand-position", "right-hand-position", "left-foot-position", "right-foot-position"], ["lh", "rh", "lf", "rf"])
-
         ss.run_simulations()

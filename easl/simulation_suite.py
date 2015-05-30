@@ -54,8 +54,25 @@ class SimulationSuite(object):
     def set_data_bins(self, bins):
         self.bins = bins
 
-    def run_simulations(self):
+    def run_single(self, condition, controllers):
+        self.run_simulations(condition, controllers)
+
+    def run_simulations(self, only_condition=None, only_controllers=None):
         for setting in self.create_all_settings():
+            # Skip if this is not one of the conditions we want to simulate
+            if only_condition is not None and setting.condition != only_condition:
+                print "skipping {0}".format(only_condition)
+                continue
+            if only_controllers is not None:
+                is_match = True
+                for e in only_controllers:
+                    if only_controllers[e] != setting.controllers[e][0]:
+                        is_match = False
+
+                if not is_match:
+                    print "skipping {0}, {1}".format(only_condition, only_controllers)
+                    continue
+
             world = World(self.visualizer)
             file_name = setting.condition
 
