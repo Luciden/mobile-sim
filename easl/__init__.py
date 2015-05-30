@@ -7,4 +7,6 @@ from entity import Entity
 
 from log import Log
 
+from simulation_suite import SimulationSuite
+
 import utils

@@ -102,42 +102,42 @@ class Log(object):
         finally:
             f.close()
 
-    def make_kicking_data(self, file):
+    def make_data(self, file_name, attribute_labels):
         """
         Parameters
         ----------
         file : string
             File name to write to.
         """
-        f = open(file, "wt")
+        f = open(file_name + ".csv", "wt")
         try:
             writer = csv.writer(f, delimiter=' ')
 
             # Calculate changes in position for every limb.
-            positions = ["left-hand-position", "right-hand-position", "left-foot-position", "right-foot-position"]
-            headings = ["lh", "rh", "lf", "rf"]
+            attributes = attribute_labels.keys()
+            labels = attribute_labels.values()
+
             data = []
             for entry in self.log:
-                if "observation" in entry and entry["observation"] in positions:
+                if "observation" in entry and entry["observation"] in attributes:
                     t = entry["_time"]
                     if len(data) - 1 < t:
                         data.append({})
                     data[t][entry["observation"]] = entry["value"]
 
-            writer.writerow(["t"] + headings)
+            writer.writerow(["t"] + labels)
             print len(data)
             for i in range(len(data) - 1):
-                k = [0, 0, 0, 0]
-                print i
-                for p in range(len(positions)):
-                    if data[i][positions[p]] != data[i + 1][positions[p]]:
+                k = [0] * len(attributes)
+                for p in range(len(attributes)):
+                    if data[i][attributes[p]] != data[i + 1][attributes[p]]:
                         k[p] = 1
                 writer.writerow([i] + k)
         finally:
             f.close()
 
     @staticmethod
-    def make_bins(name, n, c=["n"]):
+    def make_bins(name, c, n):
         """
         Parameters
         ----------
@@ -152,12 +152,12 @@ class Log(object):
             reader = csv.reader(f, delimiter=' ')
 
             bins = []
-            bin = 1
+            i_bin = 1
             current = [0] * len(c)
             for row in reader:
-                if int(row[0]) >= bin * n:
+                if int(row[0]) >= i_bin * n:
                     bins.append(current)
-                    bin += 1
+                    i_bin += 1
                     current = [0] * len(c)
                 print row
                 current = [x + y for (x, y) in zip(current, [int(z) for z in row[1:]])]
