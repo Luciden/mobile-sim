@@ -126,7 +126,6 @@ class Log(object):
                     data[t][entry["observation"]] = entry["value"]
 
             writer.writerow(["t"] + labels)
-            print len(data)
             for i in range(len(data) - 1):
                 k = [0] * len(attributes)
                 for p in range(len(attributes)):
@@ -159,7 +158,6 @@ class Log(object):
                     bins.append(current)
                     i_bin += 1
                     current = [0] * len(c)
-                print row
                 current = [x + y for (x, y) in zip(current, [int(z) for z in row[1:]])]
             bins.append(current)
 

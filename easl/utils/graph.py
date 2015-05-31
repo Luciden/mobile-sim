@@ -44,7 +44,7 @@ class Graph(object):
         # Only have unique names, so check for existence
         self.g.add_node(name)
 
-    def add_edge(self, a, b):
+    def add_edge(self, a, b, causal=False):
         """
         Add an undirected edge, i.e. both ways.
         """
@@ -56,13 +56,18 @@ class Graph(object):
         elif not self.g.has_node(b):
             raise NonExistentNodeError("{0} is not a node.".format(b))
         else:
-            # Check if edge does not already exist
             self.g.add_edge(a, b)
-            self.g.add_edge(b, a)
+            if causal:
+                self.g[a][b]["from"] = ""
+                self.g[a][b]["to"] = ">"
+            else:
+                self.g.add_edge(b, a)
 
     def del_edge(self, a, b):
-        self.g.remove_edge(a, b)
-        self.g.remove_edge(b, a)
+        if self.g.has_edge(a, b):
+            self.g.remove_edge(a, b)
+        if self.g.has_edge(b, a):
+            self.g.remove_edge(b, a)
 
     def empty(self):
         """
@@ -152,6 +157,9 @@ class Graph(object):
 
     def ancestors(self, x):
         return nx.ancestors(self.g, x)
+
+    def is_dag(self):
+        return nx.is_directed_acyclic_graph(self.g)
 
     @staticmethod
     def arc_layout(n):

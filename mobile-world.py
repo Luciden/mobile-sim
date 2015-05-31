@@ -380,6 +380,6 @@ if __name__ == '__main__':
 
     run_single = True
     if run_single:
-        ss.run_single("experimental", {"infant": "causal"})
+        ss.run_single("experimental", {"infant": "simple"})
     else:
         ss.run_simulations()

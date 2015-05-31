@@ -32,9 +32,6 @@ class PyGameVisualizer(Visualizer):
         self.keys = ["space: pause/unpause the simulation",
                      "s: step once and pause"]
 
-        self.limbs = ["left-hand", "right-hand", "left-foot", "right-foot"]
-        self.selected_limb = "right-foot"
-
     def set_world(self, world):
         self.world = world
 
@@ -45,7 +42,6 @@ class PyGameVisualizer(Visualizer):
         self.visualizations.add_element(List("Key Bindings", self.keys))
         # Add the currently set parameters
         self.visualizations.add_element(Dict("Parameters", self.parameters))
-        self.visualizations.add_element(Number("Selected limb:", self.selected_limb))
 
     def update(self):
         """Draws all the current visualizations to the screen.
@@ -85,25 +81,12 @@ class PyGameVisualizer(Visualizer):
                 if event.key == pygame.K_DOWN:
                     self.parameters["dt"] -= 100
                 if event.key == pygame.K_EQUALS:
-                    self.world.add_trigger("infant", "{0}-position".format(self.selected_limb), "movement", "mobile")
+                    self.world.add_trigger("infant", "right-foot-position", "movement", "mobile")
                 if event.key == pygame.K_MINUS:
-                    self.world.remove_trigger("infant", "{0}-position".format(self.selected_limb), "movement", "mobile")
-                if event.key == pygame.K_0:
-                    for limb in self.limbs:
-                        if limb == self.selected_limb:
-                            self.world.add_trigger("infant", "{0}-position".format(self.selected_limb), "movement", "mobile")
-                        else:
-                            self.world.remove_trigger("infant", "{0}-position".format(limb), "movement", "mobile")
-                if event.key == pygame.K_1:
-                    self.selected_limb = "left-hand"
-                if event.key == pygame.K_2:
-                    self.selected_limb = "right-hand"
-                if event.key == pygame.K_3:
-                    self.selected_limb = "left-foot"
-                if event.key == pygame.K_4:
-                    self.selected_limb = "right-foot"
+                    self.world.remove_trigger("infant", "right-foot-position", "movement", "mobile")
 
     def __pause(self):
+        # TODO: Redraw screen while paused.
         while self.paused and not self.step:
             self.__handle_keys()
 
