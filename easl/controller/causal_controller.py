@@ -455,7 +455,6 @@ class CausalLearningController(Controller):
             print "calculate"
             # Calculate the causal Bayes net
             self.network = self.__learn_causality()
-            self.network.visualize()
             # then start checking the network
             self.state = CausalLearningController.ACTION_STATE
 

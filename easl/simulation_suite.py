@@ -10,7 +10,8 @@ class SimulationSetting(object):
     def __init__(self):
         self.condition = ""
         self.initial_triggers = []
-        self.trigger_changes = {}
+        self.trigger_additions = {}
+        self.trigger_removals = {}
 
         self.entities = {}
         self.controllers = {}
@@ -59,6 +60,8 @@ class SimulationSuite(object):
 
     def run_simulations(self, only_condition=None, only_controllers=None):
         for setting in self.create_all_settings():
+            print "running {0}-{1}".format(setting.condition, setting.trigger_condition)
+
             # Skip if this is not one of the conditions we want to simulate
             if only_condition is not None and setting.condition != only_condition:
                 print "skipping {0}".format(only_condition)
@@ -74,7 +77,7 @@ class SimulationSuite(object):
                     continue
 
             world = World(self.visualizer)
-            file_name = setting.condition
+            file_name = setting.condition + "-" + setting.trigger_condition
 
             for entity_name in setting.entities:
                 entity = setting.entities[entity_name]()
@@ -87,7 +90,7 @@ class SimulationSuite(object):
             for trigger in setting.initial_triggers:
                 world.add_trigger(*trigger)
 
-            world.run(self.simulation_length)
+            world.run(self.simulation_length, add_triggers=setting.trigger_additions, remove_triggers=setting.trigger_removals)
 
             log = world.log
             log.make_data(file_name, self.constant_data_collection)
@@ -101,14 +104,22 @@ class SimulationSuite(object):
             setting = SimulationSetting()
             setting.condition = condition
             setting.initial_triggers = self.initial_triggers[condition]
-            if condition in self.conditional_trigger_changes:
-                setting.trigger_changes.update(self.conditional_trigger_changes[condition])
 
             setting.entities = {}
             for entity_name in self.constant_entities:
                 setting.entities[entity_name] = self.constant_entities[entity_name]
 
-            settings.append(setting)
+            if condition in self.conditional_trigger_changes:
+                original = deepcopy(setting)
+                for trigger_condition in self.conditional_trigger_changes[condition]:
+                    setting = deepcopy(original)
+                    setting.trigger_condition = trigger_condition
+                    setting.trigger_additions.update(self.conditional_trigger_changes[condition][trigger_condition][0])
+                    setting.trigger_removals.update(self.conditional_trigger_changes[condition][trigger_condition][1])
+
+                    settings.append(setting)
+            else:
+                settings.append(setting)
 
         for i in range(len(settings)):
             setting = settings.pop()

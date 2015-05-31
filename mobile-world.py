@@ -366,20 +366,20 @@ def control_condition(n, experiment_log, agent, v=None):
 if __name__ == '__main__':
     ss = SimulationSuite()
     ss.set_visualizer(PyGameVisualizer())
-    ss.set_simulation_length(120)
+    ss.set_simulation_length(240)
     ss.set_data_bins(6)
     ss.add_constant_entities({"infant": create_infant, "mobile": create_mobile_direction})
     ss.add_controllers("infant", {"simple": infant_simple_controller, "causal": infant_causal_controller})
 
     ss.add_initial_triggers({"experimental": [("infant", "right-foot-position", "movement", "mobile")]})
-    ss.add_conditional_trigger_changes({"experimental":
-                                            {60: ([("infant", "left-hand-position", "movement", "mobile")],
-                                                  [("infant", "right-foot-position", "movement", "mobile")])}})
+    ss.add_conditional_trigger_changes({"experimental": {"plain": ([], []),
+                                                         "remove_halfway": ({60: [("infant", "left-hand-position", "movement", "mobile")]},
+                                                                            {60: [("infant", "right-foot-position", "movement", "mobile")]})}})
 
     ss.add_constant_data_collection(["left-hand-position", "right-hand-position", "left-foot-position", "right-foot-position"], ["lh", "rh", "lf", "rf"])
 
-    run_single = True
+    run_single = False
     if run_single:
-        ss.run_single("experimental", {"infant": "simple"})
+        ss.run_single("experimental", {"infant": "causal"})
     else:
         ss.run_simulations()
