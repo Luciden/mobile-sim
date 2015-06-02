@@ -5,7 +5,7 @@ starting with '0.0.0' are just a reference.
 
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.3.0 - 2015-06-03
 ### Added
 - Functionality to change how the entities are connected.
 - A way to run multiple simulations in succession.
