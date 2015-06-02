@@ -133,24 +133,33 @@ class CausalBayesNetLearner(object):
                     graph.del_edge(a, b)
 
     @staticmethod
-    def new_step_3(variables, graph, sepset, data):
+    def step_3(variables, graph, sepset, data):
         n = 1
-        while True:
+        finished = False
+        while not finished:
+            print "N: {0}".format(n)
             # Until for each ordered pair, cardinality is less than n
             finished = True
-            for u in graph.nodes:
+            # Select an ordered pair X, Y that are adjacent such that
+            # X has n or more other (not Y) adjacencies
+            # Select a subset S of size n from X's adjacencies
+            # Check if X, Y | S and remove edge between X, Y if so
+            for u in graph.get_nodes():
                 adjacent = graph.get_connected(u)
                 # If cardinality >= n, not yet finished
                 if len(adjacent) - 1 >= n:
                     finished = False
 
                 for v in adjacent:
+                    if v == u:
+                        continue
                     separated, s = CausalBayesNetLearner.check_separated(graph, variables, data, n, u, v)
                     if separated:
+                        print "({0}, {1})".format(u, v)
+                        graph.del_edge(u, v)
                         sepset[u][v].append(s)
+                        sepset[v][u].append(s)
 
-            if finished:
-                return
             n += 1
 
     @staticmethod
@@ -173,73 +182,8 @@ class CausalBayesNetLearner(object):
 
         return False, None
 
-
     @staticmethod
-    def step_3(variables, graph, sepset, data):
-        # 3. For each pair U, V of variables connected by an edge,
-        #    and for each T connected to one or both U, V, test whether
-        #    U _|_ V | T
-        #    If an independence is found, remove the edge between U and V.
-        #
-        #    P(A,B|C) = P(A|C) * P(B|C)
-        #    P(A,B,C)/P(C) = P(A,C)/P(C) * P(B,C)/P(C)
-        # Get all pairs of nodes connected by an edge
-        for u in graph.get_nodes():
-            for v in graph.get_connected(u):
-                found_independence = False
-                for t in graph.get_nodes():
-                    if found_independence:
-                        continue
-                    if t == u or t == v:
-                        continue
-                    if not graph.are_adjacent(t, u) and not graph.are_adjacent(t, v):
-                        continue
-
-                    # Test conditional independence
-                    # Calculate P(U,V,T)
-                    p_uvt = CausalBayesNetLearner.calculate_joint([u, v, t], variables, data)
-
-                    if CausalLearningController.are_conditionally_independent(u, v, [t], p_uvt):
-                        graph.del_edge(u, v)
-                        sepset[u][v].append(t)
-                        sepset[v][u].append(t)
-                        found_independence = True
-                        continue
-
-    @staticmethod
-    def step_4(variables, graph, sepset, data):
-        # 4. For each pair U, V connected by an edge and each pair of T, S of
-        #    variables, each of which is connected by an edge to either U or V,
-        #    test the hypothesis that U _|_ V | {T, S}.
-        #    If an independence is found, remove the edge between U, V.
-        #
-        #    P(A,B|C,D) = P(A|C,D) * P(B|C,D)
-        #    P(A,B,C,D)/P(C,D) = P(A,C,D)/P(C,D) * P(B,C,D)/P(C,D)
-        for u in graph.get_nodes():
-            for v in graph.get_connected(u):
-                found_independence = False
-                ts = []
-                ts.extend(graph.get_connected(u))
-                ts.extend(graph.get_connected(v))
-                ts = set(ts)
-
-                for (t, s) in [(t, s) for t in ts for s in ts if t != s]:
-                    if found_independence:
-                        continue
-                    if t == u or t == v or s == u or s == v:
-                        continue
-
-                    p_uvst = CausalBayesNetLearner.calculate_joint([u, v, s, t], variables, data)
-
-                    if CausalLearningController.are_conditionally_independent(u, v, [s, t], p_uvst):
-                        graph.del_edge(u, v)
-                        sepset[u][v].extend([s, t])
-                        sepset[v][u].extend([s, t])
-                        found_independence = True
-                        continue
-
-    @staticmethod
-    def step_5(graph, sepset):
+    def step_4(graph, sepset):
         # 5. For each triple of variables T, V, R such that T - V - R and
         #    there is no edge between T and R, orient as To -> V <- oR if
         #    and only if V was not conditioned on when removing the T - R
@@ -279,7 +223,7 @@ class CausalBayesNetLearner(object):
                         continue
 
     @staticmethod
-    def step_6(graph):
+    def step_5(graph):
         # 6. For each triple of variables T, V, R such that T has an edge
         #    with an arrowhead directed into V and V - R, and T has no edge
         #    connecting it to R, orient V - R as V -> R.
@@ -392,7 +336,7 @@ class CausalLearningController(Controller):
 
         self.time = 0
 
-        self.exploration = self.__create_exploration_shuffle(repeat=3)
+        self.exploration = self.__create_exploration_shuffle(repeat=2)
 
     def set_values(self, vals):
         """
@@ -448,6 +392,8 @@ class CausalLearningController(Controller):
         """
         # Generate all possible actions
         actions = self.all_actions(self.actions)
+        for i in range(repeat - 1):
+            actions.extend(self.all_actions(self.actions))
 
         # for i from n - 1 down to 1
         for i in range(len(actions) - 1, 0, -1):
@@ -456,12 +402,7 @@ class CausalLearningController(Controller):
             # exchange a[i] and a[j]
             actions[i], actions[j] = actions[j], actions[i]
 
-        exploration = []
-
-        for i in range(0, repeat):
-            exploration.extend(actions)
-
-        return exploration
+        return actions
 
     @staticmethod
     def all_actions(actions):
@@ -496,22 +437,19 @@ class CausalLearningController(Controller):
                 self.state = CausalLearningController.CALCULATE_NETWORK_STATE
 
             return [action]
-            """
-
-            # Select an action at random
-            action = self.__select_random_action()
-
-            # Perform the action, then calculate the network in the next step
-            self.state = CausalLearningAgent.CALCULATE_NETWORK_STATE
-
-            return [action]
-            """
-
         if self.state == CausalLearningController.CALCULATE_NETWORK_STATE:
             print "calculate"
             # Calculate the causal Bayes net
             self.network = self.__learn_causality()
-            self.network.visualize()
+
+            if self.network.is_dag():
+                print "acyclic"
+            else:
+                print "cyclic"
+
+            # Constraint the network by removing incoming links into actions
+            # self.constraint_network()
+
             # then start checking the network
             self.state = CausalLearningController.ACTION_STATE
 
@@ -524,27 +462,41 @@ class CausalLearningController(Controller):
             # Check if the aim is in the observations
             entry = self.data.get_entries_at_time(self.time)
 
-            if entry[self.aim[0]] != self.aim[1] and self.network.has_edge(self.action[0], self.aim[0]):
+            real_result = entry[self.aim[0]]
+            predicted_result = self.aim[1]
+
+            has_edge = self.network.has_edge(self.action[0] + "_prev", self.aim[0])
+
+            print "{0}/{1} ({2}, {3}) {4}".format(real_result, predicted_result, self.action[0], self.aim[0], has_edge)
+
+            if real_result != predicted_result and has_edge:
                 # Remove the edge
-                self.network.del_edge(self.action[0], self.aim[0])
+                print "deleting ({0}, {1})".format(self.action[0] + "_prev", self.aim[0])
+                self.network.del_edge(self.action[0] + "_prev", self.aim[0])
+            elif real_result == predicted_result and not has_edge:
+                print "adding ({0}, {1})".format(self.action[0] + "_prev", self.aim[0])
+                self.network.add_edge(self.action[0] + "_prev", self.aim[0], causal=True)
 
         if self.state == CausalLearningController.ACTION_STATE:
             print "action"
             self.state = CausalLearningController.CHECK_CAUSALITY_STATE
 
-            # Select action with highest probability of resulting in wanted
-            # state.
-            # Make sure to check if the state is true in the next step.
-            # Otherwise remove edge.
-            # Choose one value to aim for
+            # Either check an existing link or see if a new one can be created
             self.aim = a, v = self.__select_aim()
+            self.action = self.__select_maximizing_action(a, v)
 
-            action = self.__select_maximizing_action(a, v)
-            if action is None:
-                action = self.__select_random_action()
-            self.action = action
+            # Check if a causal link is O.K.
+            if random.randint(0, 1) == 0:
+                if self.action is None:
+                    self.action = self.__select_random_action()
+            # Check if a causal link might exist that was not yet in the network
+            else:
+                other_actions = [x for x in self.actions if x not in self.__actions_with_path_to(a)]
+                ax = random.choice(other_actions)
+                vx = random.choice(self.actions[ax])
+                self.action = (ax, vx)
 
-            return [action]
+            return [self.action]
 
     def __store_observations(self):
         """
@@ -568,6 +520,12 @@ class CausalLearningController(Controller):
 
         self.data.add_entry(observations, self.time)
         self.observations = {}
+
+    def constraint_network(self):
+        for (a, b) in self.network.get_edges():
+            if b[:-5] in self.actions.keys():
+                print "deleting edge ({0}, {1})".format(a, b)
+                self.network.del_edge(a, b)
 
     def __select_aim(self):
         a = random.choice(self.values.keys())
@@ -595,11 +553,9 @@ class CausalLearningController(Controller):
                 sepset[a][b] = []
 
         CausalBayesNetLearner.step_2(self.variables_time, c, self.data)
-        #CausalBayesNetLearner.new_step_3(self.variables, c, sepset, self.data)
-        CausalBayesNetLearner.step_3(self.variables_time, c, sepset, self.data)
-        CausalBayesNetLearner.step_4(self.variables_time, c, sepset, self.data)
-        CausalBayesNetLearner.step_5(c, sepset)
-        CausalBayesNetLearner.step_6(c)
+        CausalBayesNetLearner.step_3(self.variables, c, sepset, self.data)
+        CausalBayesNetLearner.step_4(c, sepset)
+        CausalBayesNetLearner.step_5(c)
 
         return c
 
@@ -616,6 +572,9 @@ class CausalLearningController(Controller):
                 raise Exception("Name {0} not in variables.".format(name))
 
         return selection
+
+    def __actions_with_path_to(self, variable):
+        return self.network.ancestors(variable)
 
     def __select_maximizing_action(self, variable, value):
         """

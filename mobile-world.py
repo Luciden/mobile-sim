@@ -1,3 +1,4 @@
+
 """
 Containing the experiment based on the mobile experiment.
 """
@@ -160,8 +161,29 @@ class InfantVisual(Visual):
 
         return grid
 
+def infant_random_controller():
+    return RandomController()
 
-def create_infant(agent):
+
+def infant_operant_controller():
+    controller = OperantConditioningController()
+    controller.set_primary_reinforcer("movement", "faster")
+
+    return controller
+
+
+def infant_causal_controller():
+    controller = CausalLearningController()
+    controller.set_values({"movement": "faster"})
+
+    return controller
+
+
+def infant_simple_controller():
+    return SimpleController([("movement", "faster")])
+
+
+def create_infant():
     """
     Parameters
     ----------
@@ -169,20 +191,6 @@ def create_infant(agent):
         Name of the type of controller to use.
     """
     infant = Entity("infant", visual=InfantVisual())
-
-    if agent == "random":
-        infant.set_agent(RandomController())
-    elif agent == "operant":
-        infant.set_agent(OperantConditioningController())
-        infant.agent.set_primary_reinforcer("movement", "faster")
-    elif agent == "causal":
-        cla = CausalLearningController()
-        cla.set_values({"movement": "faster"})
-        infant.set_agent(cla)
-    elif agent == "simple":
-        infant.set_agent(SimpleController([("movement", "faster")]))
-    else:
-        raise RuntimeError("Undefined controller type.")
 
     infant.add_attribute("left-hand-position", "down", ["down", "middle", "up"], move)
     infant.add_attribute("right-hand-position", "down", ["down", "middle", "up"], move)
@@ -299,9 +307,20 @@ def create_experimenter(experiment_log):
 
     return experimenter
 
+def experimental_condition(n, agent, v=None, remove={}, add={}):
+    infant = Entity("infant", visual=InfantVisual())
 
-def experimental_condition(n, agent, v=None):
-    infant = create_infant(agent)
+    if agent == "random":
+        infant.set_agent(infant_random_controller())
+    elif agent == "operant":
+        infant.set_agent(infant_operant_controller())
+    elif agent == "causal":
+        infant.set_agent(infant_causal_controller())
+    elif agent == "simple":
+        infant.set_agent(infant_simple_controller())
+    else:
+        raise RuntimeError("Undefined controller type.")
+
     mobile = create_mobile_change()
 
     world = World(v)
@@ -309,13 +328,25 @@ def experimental_condition(n, agent, v=None):
     world.add_entity(mobile)
     world.add_trigger("infant", "right-foot-position", "movement", "mobile")
 
-    world.run(n)
+    world.run(n, add_triggers=add, remove_triggers=remove)
 
     return world.log
 
 
 def control_condition(n, experiment_log, agent, v=None):
-    infant = create_infant(agent)
+    infant = Entity("infant", visual=InfantVisual())
+
+    if agent == "random":
+        infant.set_agent(infant_random_controller())
+    elif agent == "operant":
+        infant.set_agent(infant_operant_controller())
+    elif agent == "causal":
+        infant.set_agent(infant_causal_controller())
+    elif agent == "simple":
+        infant.set_agent(infant_simple_controller())
+    else:
+        raise RuntimeError("Undefined controller type.")
+
     mobile = create_mobile_change()
     experimenter = create_experimenter(experiment_log)
 
@@ -331,15 +362,22 @@ def control_condition(n, experiment_log, agent, v=None):
 
 
 if __name__ == '__main__':
-    v = PyGameVisualizer()
-    log = experimental_condition(300, "causal", v)
-    log.make_kicking_data("data.csv")
-    Log.make_bins("data", 6)
+    ss = SimulationSuite()
+    ss.set_visualizer(PyGameVisualizer())
+    ss.set_simulation_length(240)
+    ss.set_data_bins(6)
+    ss.add_constant_entities({"infant": create_infant, "mobile": create_mobile_direction})
+    ss.add_controllers("infant", {"simple": infant_simple_controller, "causal": infant_causal_controller})
 
-    #log = control_condition(100, log, "simple", v)
+    ss.add_initial_triggers({"experimental": [("infant", "right-foot-position", "movement", "mobile")]})
+    ss.add_conditional_trigger_changes({"experimental": {"plain": ([], []),
+                                                         "remove_halfway": ({60: [("infant", "left-hand-position", "movement", "mobile")]},
+                                                                            {60: [("infant", "right-foot-position", "movement", "mobile")]})}})
 
-    #v.visualize_log(log)
+    ss.add_constant_data_collection(["left-hand-position", "right-hand-position", "left-foot-position", "right-foot-position"], ["lh", "rh", "lf", "rf"])
 
-    # log2 = control_condition(n, log)
-
-    # v.visualize(log2)
+    run_single = True
+    if run_single:
+        ss.run_single("experimental", {"infant": "causal"})
+    else:
+        ss.run_simulations()

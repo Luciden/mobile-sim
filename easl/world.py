@@ -104,10 +104,16 @@ class World(object):
         if self.visualizer is not None:
             self.visualizer.set_world(self)
 
-    def run(self, iterations=10):
+    def run(self, iterations=10, remove_triggers={}, add_triggers={}):
         """
         Runs the simulation once with the currently specified Entities
         and relations between them.
+
+        Parameters
+        ----------
+        remove_triggers : {int: []}
+            For every defined time step, the triggers to be removed.
+
         """
         self.log = Log()
         self.log.set_verbose()
@@ -132,9 +138,17 @@ class World(object):
 
             self.__measure_entities()
 
+            if i in remove_triggers:
+                for (a, b, c, d) in remove_triggers[i]:
+                    self.remove_trigger(a, b, c, d)
+            if i in add_triggers:
+                for (a, b, c, d) in add_triggers[i]:
+                    self.add_trigger(a, b, c, d)
+
             if self.visualizer is not None:
                 self.visualizer.reset_visualization()
                 self.visualizer.update_visualization(Number("time", self.time))
+                self.visualizer.update_visualization(List("triggers", self.triggers))
 
                 entity_group = Group("entities")
                 agent_group = Group("agents")

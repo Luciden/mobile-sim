@@ -102,26 +102,47 @@ class Log(object):
         finally:
             f.close()
 
-    def make_kicking_data(self, file):
+    def make_data(self, file_name, attribute_labels):
         """
         Parameters
         ----------
         file : string
             File name to write to.
         """
-        f = open(file, "wt")
+        f = open(file_name + ".csv", "wt")
         try:
             writer = csv.writer(f, delimiter=' ')
 
-            writer.writerow(["t", "n"])
+            # Calculate changes in position for every limb.
+            attributes = attribute_labels.keys()
+            labels = attribute_labels.values()
+
+            data = []
             for entry in self.log:
-                if "observation" in entry and entry["observation"] == "movement" and entry["value"] == "faster":
-                    writer.writerow([entry["_time"] - 1, str(1)])
+                if "observation" in entry and entry["observation"] in attributes:
+                    t = entry["_time"]
+                    if len(data) - 1 < t:
+                        data.append({})
+                    data[t][entry["observation"]] = entry["value"]
+
+            writer.writerow(["t"] + labels)
+            for i in range(len(data) - 1):
+                k = [0] * len(attributes)
+                for p in range(len(attributes)):
+                    if data[i][attributes[p]] != data[i + 1][attributes[p]]:
+                        k[p] = 1
+                writer.writerow([i] + k)
         finally:
             f.close()
 
     @staticmethod
-    def make_bins(name, n):
+    def make_bins(name, c, n):
+        """
+        Parameters
+        ----------
+        c : int
+            Number of columns next to the time column.
+        """
         f = open(name + ".csv", "rt")
         o = open(name + "_bins.csv", "wt")
         try:
@@ -130,21 +151,21 @@ class Log(object):
             reader = csv.reader(f, delimiter=' ')
 
             bins = []
-            bin = 1
-            current = 0
+            i_bin = 1
+            current = [0] * len(c)
             for row in reader:
-                if int(row[0]) >= bin * n:
+                if int(row[0]) >= i_bin * n:
                     bins.append(current)
-                    bin += 1
-                    current = 0
-                current += int(row[1])
+                    i_bin += 1
+                    current = [0] * len(c)
+                current = [x + y for (x, y) in zip(current, [int(z) for z in row[1:]])]
             bins.append(current)
 
             writer = csv.writer(o, delimiter=' ')
 
-            writer.writerow(["block", "n"])
+            writer.writerow(["block"] + c)
             for i in range(len(bins)):
-                writer.writerow([str(i), str(bins[i])])
+                writer.writerow([str(i)] + [str(x) for x in bins[i]])
         finally:
             f.close()
             o.close()

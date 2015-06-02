@@ -57,10 +57,10 @@ class SimpleLearningRule(LearningRule):
         # If the reward is present, increase the probability of selecting the
         # action.
         if has_reward:
-            counts[a][v] += 2
+            counts[a][v] += 3
         # If not, decrease the probability of selecting the action again.
         else:
-            counts[a][v] = max(0, counts[a][v] - 1)
+            counts[a][v] = max(1, counts[a][v] - 1)
 
 
 class SimpleSelection(ActionSelection):
@@ -114,12 +114,12 @@ class BetterLearningRule(LearningRule):
                 counts[a][value] += 2
         else:
             # Decrease probability of choosing this action
-            counts[a][v] = max(0, counts[a][v] - 2)
+            counts[a][v] = max(1, counts[a][v] - 2)
             # Also decrease probability of choosing other actions of same type
             for value in counts[a]:
                 if value == v:
                     continue
-                counts[a][value] = max(0, counts[a][value] - 1)
+                counts[a][value] = max(1, counts[a][value] - 1)
 
 
 class RouletteWheelSelection(ActionSelection):
@@ -209,7 +209,7 @@ class SimpleController(Controller):
         for action in self.actions:
             self.counts[action] = {}
             for value in self.actions[action]:
-                self.counts[action][value] = 5
+                self.counts[action][value] = 1
 
         # Select a random action to do (random because all counts are 0)
         self.action = self.selection.select_action(self.counts)
