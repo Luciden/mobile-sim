@@ -336,7 +336,7 @@ class CausalLearningController(Controller):
 
         self.time = 0
 
-        self.exploration = self.__create_exploration_shuffle(repeat=3)
+        self.exploration = self.__create_exploration_shuffle(repeat=2)
 
     def set_values(self, vals):
         """
@@ -392,6 +392,8 @@ class CausalLearningController(Controller):
         """
         # Generate all possible actions
         actions = self.all_actions(self.actions)
+        for i in range(repeat - 1):
+            actions.extend(self.all_actions(self.actions))
 
         # for i from n - 1 down to 1
         for i in range(len(actions) - 1, 0, -1):
@@ -400,12 +402,7 @@ class CausalLearningController(Controller):
             # exchange a[i] and a[j]
             actions[i], actions[j] = actions[j], actions[i]
 
-        exploration = []
-
-        for i in range(0, repeat):
-            exploration.extend(actions)
-
-        return exploration
+        return actions
 
     @staticmethod
     def all_actions(actions):
@@ -440,21 +437,19 @@ class CausalLearningController(Controller):
                 self.state = CausalLearningController.CALCULATE_NETWORK_STATE
 
             return [action]
-            """
-
-            # Select an action at random
-            action = self.__select_random_action()
-
-            # Perform the action, then calculate the network in the next step
-            self.state = CausalLearningAgent.CALCULATE_NETWORK_STATE
-
-            return [action]
-            """
-
         if self.state == CausalLearningController.CALCULATE_NETWORK_STATE:
             print "calculate"
             # Calculate the causal Bayes net
             self.network = self.__learn_causality()
+
+            if self.network.is_dag():
+                print "acyclic"
+            else:
+                print "cyclic"
+
+            # Constraint the network by removing incoming links into actions
+            # self.constraint_network()
+
             # then start checking the network
             self.state = CausalLearningController.ACTION_STATE
 
@@ -494,7 +489,7 @@ class CausalLearningController(Controller):
             if random.randint(0, 1) == 0:
                 if self.action is None:
                     self.action = self.__select_random_action()
-            # Check if a causal link exists that was not yet in the network
+            # Check if a causal link might exist that was not yet in the network
             else:
                 other_actions = [x for x in self.actions if x not in self.__actions_with_path_to(a)]
                 ax = random.choice(other_actions)
@@ -526,6 +521,12 @@ class CausalLearningController(Controller):
         self.data.add_entry(observations, self.time)
         self.observations = {}
 
+    def constraint_network(self):
+        for (a, b) in self.network.get_edges():
+            if b[:-5] in self.actions.keys():
+                print "deleting edge ({0}, {1})".format(a, b)
+                self.network.del_edge(a, b)
+
     def __select_aim(self):
         a = random.choice(self.values.keys())
 
@@ -555,11 +556,6 @@ class CausalLearningController(Controller):
         CausalBayesNetLearner.step_3(self.variables, c, sepset, self.data)
         CausalBayesNetLearner.step_4(c, sepset)
         CausalBayesNetLearner.step_5(c)
-
-        if c.is_dag():
-            print "acyclic"
-        else:
-            print "cyclic"
 
         return c
 

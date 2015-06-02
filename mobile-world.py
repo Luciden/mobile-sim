@@ -378,7 +378,7 @@ if __name__ == '__main__':
 
     ss.add_constant_data_collection(["left-hand-position", "right-hand-position", "left-foot-position", "right-foot-position"], ["lh", "rh", "lf", "rf"])
 
-    run_single = False
+    run_single = True
     if run_single:
         ss.run_single("experimental", {"infant": "causal"})
     else:
