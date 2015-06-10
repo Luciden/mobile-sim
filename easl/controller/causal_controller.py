@@ -79,7 +79,7 @@ class Data(object):
         entries = []
 
         for t_i in self.entries:
-            t_k = t_i + 1
+            t_k = t_i + 0
             if t_k not in self.entries:
                 continue
 
@@ -257,7 +257,7 @@ class CausalLearningVisual(visualize.Visual):
     def visualize(self):
         group = visualize.Group("causal")
         if self.network is not None:
-            group.add_element(visualize.Graph("graph", self.network.get_nodes(), self.network.get_edges()))
+            group.add_element(visualize.Graph("graph", self.network, self.network.get_nodes(), self.network.get_edges()))
 
         return group
 
@@ -317,8 +317,10 @@ class CausalLearningController(Controller):
 
         self.observations = {}
 
-        self.action = (None, None)
-        self.aim = (None, None)
+        self.action = None
+        self.aim = None
+
+        self.rewarded = False
 
         self.network = None
         self.variables_time = {}
@@ -447,9 +449,6 @@ class CausalLearningController(Controller):
             else:
                 print "cyclic"
 
-            # Constraint the network by removing incoming links into actions
-            # self.constraint_network()
-
             # then start checking the network
             self.state = CausalLearningController.ACTION_STATE
 
@@ -469,10 +468,17 @@ class CausalLearningController(Controller):
 
             print "{0}/{1} ({2}, {3}) {4}".format(real_result, predicted_result, self.action[0], self.aim[0], has_edge)
 
+            if real_result == predicted_result:
+                self.rewarded = True
+            else:
+                self.rewarded = False
+
             if real_result != predicted_result and has_edge:
-                # Remove the edge
-                print "deleting ({0}, {1})".format(self.action[0] + "_prev", self.aim[0])
-                self.network.del_edge(self.action[0] + "_prev", self.aim[0])
+                # Remove the edge if P(B|A) \approx P(B|-A)
+                p_ab = CausalBayesNetLearner.calculate_joint([self.action[0] + "_prev", self.aim[0]], self.variables, self.data)
+                if CausalLearningController.are_independent_not(self.action[0] + "_prev", self.aim[0], p_ab):
+                    print "deleting ({0}, {1})".format(self.action[0] + "_prev", self.aim[0])
+                    self.network.del_edge(self.action[0] + "_prev", self.aim[0])
             elif real_result == predicted_result and not has_edge:
                 print "adding ({0}, {1})".format(self.action[0] + "_prev", self.aim[0])
                 self.network.add_edge(self.action[0] + "_prev", self.aim[0], causal=True)
@@ -485,16 +491,10 @@ class CausalLearningController(Controller):
             self.aim = a, v = self.__select_aim()
             self.action = self.__select_maximizing_action(a, v)
 
-            # Check if a causal link is O.K.
-            if random.randint(0, 1) == 0:
-                if self.action is None:
-                    self.action = self.__select_random_action()
-            # Check if a causal link might exist that was not yet in the network
-            else:
-                other_actions = [x for x in self.actions if x not in self.__actions_with_path_to(a)]
-                ax = random.choice(other_actions)
-                vx = random.choice(self.actions[ax])
-                self.action = (ax, vx)
+            print "selected " + str(self.action)
+
+            if self.action is None:
+                self.action = self.__select_random_action()
 
             return [self.action]
 
@@ -511,7 +511,10 @@ class CausalLearningController(Controller):
                 observations[variable] = self.observations[variable]
             # If the variable was not observed, but is an action, take the default
             elif variable in self.actions:
-                observations[variable] = self.default_action[variable]
+                if self.action and self.action[0] == variable:
+                    observations[variable] = self.action
+                else:
+                    observations[variable] = self.default_action[variable]
             # If the variable was not observed, but is a signal, take the default
             elif variable in self.signals:
                 observations[variable] = self.default_signal[variable]
@@ -650,6 +653,78 @@ class CausalLearningController(Controller):
         p_b = ab.partial_prob({var_b: val_b})
 
         return 0 if p_b == 0 else p_ab / p_b
+
+    @staticmethod
+    def are_independent_not(a, b, d):
+        """
+        Check P(A|B) \approx P(A|-B).
+
+        Parameters
+        ----------
+        a : string
+            Name of variable A
+        b : string
+            Name of variable B
+        d : Distribution
+            Distribution containing variables A and B.
+        """
+        # Check for all possible values of the parameters of A and B
+        for val_a in d.get_variable_values(a):
+            for val_b in d.get_variable_values(b):
+                # P(A|B) = P(A & B) / P(B)
+                # P(A=a&B=b)
+                p_ab = d.partial_prob({a: val_a, b: val_b})
+                # P(B=b)
+                p_a = d.single_prob(a, val_a)
+                p_b = d.single_prob(b, val_b)
+
+                # When the probabilities are not 'equal'
+                # P(A=a|B=b) ?= P(A=a|B=-b)
+                p_agb = 0 if p_b == 0 else p_ab / p_b
+                print "P({0}|{1}) = {2}, P({0}) = {3}".format(a, b, p_agb, p_a)
+                # \approx
+                if abs(p_a - p_agb) > 0.1:
+                    return False
+        return True
+
+    @staticmethod
+    def are_independent_not_old(a, b, d):
+        """
+        Check P(A|B) \approx P(A|-B).
+
+        Parameters
+        ----------
+        a : string
+            Name of variable A
+        b : string
+            Name of variable B
+        d : Distribution
+            Distribution containing variables A and B.
+        """
+        # Check for all possible values of the parameters of A and B
+        for val_a in d.get_variable_values(a):
+            for val_b in d.get_variable_values(b):
+                # P(A|B) = P(A & B) / P(B)
+                # P(A=a&B=b)
+                p_ab = d.partial_prob({a: val_a, b: val_b})
+                # P(B=b)
+                p_b = d.single_prob(b, val_b)
+
+                for val_nb in d.get_variable_values(b):
+                    if val_nb == val_b:
+                        continue
+                    p_anb = d.partial_prob({a: val_a, b: val_nb})
+                    p_nb = d.partial_prob({b: val_nb})
+
+                    # When the probabilities are not 'equal'
+                    # P(A=a|B=b) ?= P(A=a|B=-b)
+                    p_agb = 0 if p_b == 0 else p_ab / p_b
+                    p_agnb = 0 if p_nb == 0 else p_anb / p_nb
+                    print "P(A|B) = {0}, P(A|-B) = {1}".format(p_agb, p_agnb)
+                    # \approx
+                    if abs(p_agb - p_agnb) > 0.1:
+                        return False
+        return True
 
     @staticmethod
     def are_independent(a, b, d):

@@ -34,6 +34,8 @@ class PyGameVisualizer(Visualizer):
 
         self.limbs = ["left-hand", "right-hand", "left-foot", "right-foot"]
         self.selected_limb = "right-foot"
+        self.graph = None
+        self.graph_surface = None
 
     def set_world(self, world):
         self.world = world
@@ -47,7 +49,7 @@ class PyGameVisualizer(Visualizer):
         self.visualizations.add_element(Dict("Parameters", self.parameters))
         self.visualizations.add_element(Number("Selected limb:", self.selected_limb))
 
-    def update(self):
+    def update(self, iteration):
         """Draws all the current visualizations to the screen.
         """
         self.screen.fill(PyGameVisualizer.BG_COLOR)
@@ -55,6 +57,10 @@ class PyGameVisualizer(Visualizer):
 
         pygame.display.flip()
         pygame.time.delay(self.parameters["dt"])
+
+        if self.graph is not None:
+            if iteration == 24 or iteration == 40 or iteration == 60 or iteration == 135 or iteration == 230:
+                pygame.image.save(self.graph_surface, "figure_{0}.png".format(iteration))
 
         if self.step:
             self.step = False
@@ -102,6 +108,9 @@ class PyGameVisualizer(Visualizer):
                     self.selected_limb = "left-foot"
                 if event.key == pygame.K_4:
                     self.selected_limb = "right-foot"
+                if event.key == pygame.K_v:
+                    if self.graph is not None:
+                        self.graph.visualize()
 
     def __pause(self):
         while self.paused and not self.step:
@@ -360,27 +369,48 @@ class PyGameVisualizer(Visualizer):
         return surface
 
     def __draw_graph(self, graph):
+        self.graph = graph.graph
+
         node_radius = 16
         spacing = 6 * node_radius  # Distance between adjacent nodes' centers
+        vertical_spacing = 3 * node_radius
         coordinates = {}
 
         # If no groups were given, do a column layout
         if graph.groups is None:
-            max_columns = 3
-            width = 2 * node_radius * max_columns + (max_columns - 1) * spacing
+            max_columns = 6
+            positions = dict()
+            positions["left-hand-position_prev"] = (0, 0)
+            positions["right-hand-position_prev"] = (6, 0)
+            positions["left-foot-position_prev"] = (0, 6)
+            positions["right-foot-position_prev"] = (6, 6)
+            positions["left-hand-position"] = (1, 1)
+            positions["right-hand-position"] = (5, 1)
+            positions["left-foot-position"] = (1, 5)
+            positions["right-foot-position"] = (5, 5)
+            positions["left-hand_prev"] = (0, 3)
+            positions["right-hand_prev"] = (3, 0)
+            positions["left-foot_prev"] = (6, 3)
+            positions["right-foot_prev"] = (3, 6)
+            positions["movement_prev"] = (4, 2)
+            positions["movement"] = (2, 4)
 
             # Distribute node positions and store coordinates
-            x = node_radius
-            y = node_radius
-            for node in graph.nodes:
+            height = 0
+            width = 0
+            for node in positions:
+                gx, gy = positions[node]
+                x = node_radius + gx * spacing
+                y = node_radius + gy * vertical_spacing
                 coordinates[node] = (x, y)
-                x += spacing
 
-                if x > width - node_radius:
-                    x = node_radius
-                    y += spacing
+                if y > height:
+                    height = y
+                if x > width:
+                    width = x
 
-            height = y + node_radius
+            height += node_radius
+            width += spacing
         # If groups were given, do arc layouts
         else:
             left_width = 0
@@ -451,6 +481,7 @@ class PyGameVisualizer(Visualizer):
             name = self.font.render(node, 1, self.FG_COLOR)
             surface.blit(name, (x, y))
 
+        self.graph_surface = surface
         return surface
 
     def __draw_rows(self, rows):

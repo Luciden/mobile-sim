@@ -193,10 +193,10 @@ def create_infant():
     """
     infant = Entity("infant", visual=InfantVisual())
 
-    infant.add_attribute("left-hand-position", "down", ["down", "middle", "up"], move)
-    infant.add_attribute("right-hand-position", "down", ["down", "middle", "up"], move)
-    infant.add_attribute("left-foot-position", "down", ["down", "middle", "up"], move)
-    infant.add_attribute("right-foot-position", "down", ["down", "middle", "up"], move)
+    infant.add_attribute("left-hand-position", "middle", ["down", "middle", "up"], move)
+    infant.add_attribute("right-hand-position", "middle", ["down", "middle", "up"], move)
+    infant.add_attribute("left-foot-position", "middle", ["down", "middle", "up"], move)
+    infant.add_attribute("right-foot-position", "middle", ["down", "middle", "up"], move)
 
     infant.add_action("left-hand",
                       ["up", "still", "down"],
@@ -380,6 +380,6 @@ if __name__ == '__main__':
 
     run_single = True
     if run_single:
-        ss.run_single("experimental", {"infant": "causal"})
+        ss.run_single("experimental", "remove_halfway", {"infant": "causal"})
     else:
         ss.run_simulations()
