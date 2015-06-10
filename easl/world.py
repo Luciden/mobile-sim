@@ -161,7 +161,7 @@ class World(object):
                 # Update the actual screen with all visualizations
                 self.visualizer.update_visualization(entity_group)
                 self.visualizer.update_visualization(agent_group)
-                self.visualizer.update()
+                self.visualizer.update(i)
 
     def add_entity(self, entity):
         self.entities[entity.name] = entity

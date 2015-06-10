@@ -55,10 +55,10 @@ class SimulationSuite(object):
     def set_data_bins(self, bins):
         self.bins = bins
 
-    def run_single(self, condition, controllers):
-        self.run_simulations(condition, controllers)
+    def run_single(self, condition, trigger_condition, controllers):
+        self.run_simulations(condition, trigger_condition, controllers)
 
-    def run_simulations(self, only_condition=None, only_controllers=None):
+    def run_simulations(self, only_condition=None, only_trigger_condition=None, only_controllers=None):
         for setting in self.create_all_settings():
             print "running {0}-{1}".format(setting.condition, setting.trigger_condition)
 
@@ -90,6 +90,9 @@ class SimulationSuite(object):
             for trigger in setting.initial_triggers:
                 world.add_trigger(*trigger)
 
+            if only_trigger_condition is not None and setting.trigger_condition != only_trigger_condition:
+                print "skipping {0}".format(only_trigger_condition)
+                continue
             world.run(self.simulation_length, add_triggers=setting.trigger_additions, remove_triggers=setting.trigger_removals)
 
             log = world.log

@@ -149,8 +149,9 @@ class Circle(Visualization):
 
 
 class Graph(Visualization):
-    def __init__(self, name, nodes, edges, groups=None):
+    def __init__(self, name, graph, nodes, edges, groups=None):
         super(Graph, self).__init__(name)
+        self.graph = graph
 
         self.nodes = nodes
         self.edges = edges
@@ -171,7 +172,7 @@ class Visualizer(object):
         else:
             self.visualizations.add_element(v)
 
-    def update(self):
+    def update(self, iteration):
         """Draws all the current visualizations to the screen.
         """
         raise NotImplementedError("Blah")
