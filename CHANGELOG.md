@@ -5,7 +5,7 @@ starting with '0.0.0' are just a reference.
 
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.4.0 - 2015-06-10
 ### Changed
 - Some implementation of the causal learning algorithm.
 - Small changes related to layout etc.
