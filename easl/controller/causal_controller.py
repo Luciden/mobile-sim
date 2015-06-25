@@ -59,7 +59,7 @@ class Data(object):
         Distribution
             the joint probability table
         """
-        freq = easl.utils.Table(variables)
+        freq = easl.utils.FullTable(variables)
 
         for entry in self.entries:
             freq.inc_value(self.entries[entry])
@@ -74,7 +74,7 @@ class Data(object):
         Calculates the probability of taking actions from previous time step and
         sensories from next.
         """
-        freq = easl.utils.Table(variables)
+        freq = easl.utils.FullTable(variables)
 
         entries = []
 

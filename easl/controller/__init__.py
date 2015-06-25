@@ -10,3 +10,4 @@ from operant_controller import OperantConditioningController
 from operant_controller import WorkingMemory
 from operant_controller import Predicate
 from simple_controller import SimpleController
+from new_causal_controller import NewCausalController

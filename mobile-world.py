@@ -180,6 +180,13 @@ def infant_causal_controller():
     return controller
 
 
+def infant_new_causal_controller():
+    controller = NewCausalController()
+    controller.add_ignored(["movement"])
+
+    return controller
+
+
 def infant_simple_controller():
     return SimpleController([("movement", "faster")])
 
@@ -346,6 +353,9 @@ def control_condition(n, experiment_log, agent, v=None):
         infant.set_agent(infant_causal_controller())
     elif agent == "simple":
         infant.set_agent(infant_simple_controller())
+    elif agent == "new_causal":
+        print "test"
+        infant.set_agent(infant_new_causal_controller())
     else:
         raise RuntimeError("Undefined controller type.")
 
@@ -369,7 +379,7 @@ if __name__ == '__main__':
     ss.set_simulation_length(240)
     ss.set_data_bins(6)
     ss.add_constant_entities({"infant": create_infant, "mobile": create_mobile_direction})
-    ss.add_controllers("infant", {"simple": infant_simple_controller, "causal": infant_causal_controller})
+    ss.add_controllers("infant", {"simple": infant_simple_controller, "new_causal": infant_new_causal_controller})
 
     ss.add_initial_triggers({"experimental": [("infant", "right-foot-position", "movement", "mobile")]})
     ss.add_conditional_trigger_changes({"experimental": {"plain": ([], []),
@@ -380,6 +390,6 @@ if __name__ == '__main__':
 
     run_single = True
     if run_single:
-        ss.run_single("experimental", "remove_halfway", {"infant": "causal"})
+        ss.run_single("experimental", "plain", {"infant": "new_causal"})
     else:
         ss.run_simulations()

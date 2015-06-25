@@ -380,20 +380,48 @@ class PyGameVisualizer(Visualizer):
         if graph.groups is None:
             max_columns = 6
             positions = dict()
-            positions["left-hand-position_prev"] = (0, 0)
-            positions["right-hand-position_prev"] = (6, 0)
-            positions["left-foot-position_prev"] = (0, 6)
-            positions["right-foot-position_prev"] = (6, 6)
-            positions["left-hand-position"] = (1, 1)
-            positions["right-hand-position"] = (5, 1)
-            positions["left-foot-position"] = (1, 5)
-            positions["right-foot-position"] = (5, 5)
-            positions["left-hand_prev"] = (0, 3)
-            positions["right-hand_prev"] = (3, 0)
-            positions["left-foot_prev"] = (6, 3)
-            positions["right-foot_prev"] = (3, 6)
-            positions["movement_prev"] = (4, 2)
-            positions["movement"] = (2, 4)
+            """ Old, 'intuitive' layout
+            positions["left-hand-position_previous"] = (0, 0)
+            positions["right-hand-position_previous"] = (6, 0)
+            positions["left-foot-position_previous"] = (0, 6)
+            positions["right-foot-position_previous"] = (6, 6)
+            positions["left-hand-position_current"] = (1, 1)
+            positions["right-hand-position_current"] = (5, 1)
+            positions["left-foot-position_current"] = (1, 5)
+            positions["right-foot-position_current"] = (5, 5)
+            positions["left-hand_previous"] = (0, 1)
+            positions["right-hand_previous"] = (5, 0)
+            positions["left-foot_previous"] = (6, 3)
+            positions["right-foot_previous"] = (3, 6)
+            positions["left-hand_current"] = (1, 0)
+            positions["right-hand_current"] = (6, 1)
+            positions["left-foot_current"] = (6, 3)
+            positions["right-foot_current"] = (3, 6)
+            positions["movement_previous"] = (4, 2)
+            positions["movement_current"] = (2, 4)
+            """
+            positions["left-hand_previous"] = (0, 5)
+            positions["right-hand_previous"] = (0, 6)
+            positions["left-foot_previous"] = (0, 7)
+            positions["right-foot_previous"] = (0, 8)
+
+            positions["left-hand-position_previous"] = (1, 1)
+            positions["right-hand-position_previous"] = (1, 2)
+            positions["left-foot-position_previous"] = (1, 3)
+            positions["right-foot-position_previous"] = (1, 4)
+
+            positions["left-hand_current"] = (3, 5)
+            positions["right-hand_current"] = (3, 6)
+            positions["left-foot_current"] = (3, 7)
+            positions["right-foot_current"] = (3, 8)
+
+            positions["left-hand-position_current"] = (4, 1)
+            positions["right-hand-position_current"] = (4, 2)
+            positions["left-foot-position_current"] = (4, 3)
+            positions["right-foot-position_current"] = (4, 4)
+
+            positions["movement_previous"] = (5, 4)
+            positions["movement_current"] = (5, 6)
 
             # Distribute node positions and store coordinates
             height = 0
