@@ -1,4 +1,4 @@
-# EASL 0.4.0
+# EASL 0.5.0
 Simulator for an experiment involving artificial infants, and a mobile.
 
 ## Running simulations with the Simulation Suite
