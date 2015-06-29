@@ -10,6 +10,27 @@ class DifferentVariableError(Exception):
 
 class Table(object):
     def __init__(self, variables):
+        self.table = {}
+        self.variables = variables
+
+        # Sort the variables so the representation is more predictable
+        self.order = list(self.variables.keys())
+        self.order.sort()
+
+        self.last = self.order.pop()
+
+    def get_value(self, vals):
+        raise NotImplementedError()
+
+    def set_value(self, vals, value):
+        raise NotImplementedError()
+
+    def get_variable_values(self, name):
+        raise NotImplementedError()
+
+
+class FullTable(Table):
+    def __init__(self, variables):
         """
         Parameters
         ----------
@@ -22,16 +43,10 @@ class Table(object):
         order : [name]
         last : name
         """
-        self.table = {}
-        self.variables = variables
-
-        # Sort the variables so the representation is more predictable
-        self.order = list(self.variables.keys())
-        self.order.sort()
-
-        self.last = self.order.pop()
+        super(FullTable, self).__init__(variables)
 
         self.table = self.__make_table_rec(self.order)
+        print "Made table"
 
     def __make_table_rec(self, order):
         """
@@ -128,7 +143,106 @@ class Table(object):
                 self.__do_operation_rec(f, current[value], order[1:])
 
 
-class Distribution(Table):
+class SparseTable(Table):
+    def __init__(self, variables):
+        super(SparseTable, self).__init__(variables)
+        # Reset the table, make a
+        self.table = {}
+        self.variables = variables
+
+        self.order = list(self.variables.keys())
+        self.order.sort()
+
+        self.last = self.order.pop()
+
+    def get_variables(self):
+        return self.variables.copy()
+
+    def get_variable_values(self, name):
+        return self.variables[name]
+
+    def __make_entry(self, entry):
+        current = self.table
+
+        for name in self.order:
+            if entry[name] in current:
+                current = current[entry[name]]
+                continue
+            else:
+                current[entry[name]] = {}
+                current = current[entry[name]]
+                continue
+
+        current = 0
+
+    def set_value(self, vals, value):
+        current = self.table
+
+        for name in self.order:
+            if vals[name] not in current:
+                self.__make_entry(vals)
+                # try again, but now the entry exists
+                self.set_value(vals, value)
+                return
+
+            current = current[vals[name]]
+
+        current[vals[self.last]] = value
+
+    def inc_value(self, vals):
+        """
+        Parameters
+        ----------
+        vals : {name: value}
+        """
+        # Go down the path taking the turn appropriate for the value in the
+        # entry.
+        # Then increment.
+        current = self.table
+
+        for name in self.order:
+            if vals[name] not in current:
+                self.__make_entry(vals)
+                self.set_value(vals, 1)
+                return
+
+            current = current[vals[name]]
+
+        current[vals[self.last]] += 1
+
+    def get_value(self, vals):
+        """
+        Parameters
+        ----------
+        vals : {name: value}
+        """
+        current = self.table
+
+        for name in self.order:
+            current = current[vals[name]]
+
+        return current[vals[self.last]]
+
+    def do_operation(self, f):
+        """
+        Perform function f(x) on every element.
+
+        Parameters
+        ----------
+        f : function x: f(x)
+        """
+        self.__do_operation_rec(f, self.table, self.order)
+
+    def __do_operation_rec(self, f, current, order):
+        if len(order) == 0:
+            for value in current:
+                current[value] = f(current[value])
+        else:
+            for value in current:
+                self.__do_operation_rec(f, current[value], order[1:])
+
+
+class Distribution(SparseTable):
     def __init__(self, variables, freq=None):
         """
         Parameters
@@ -142,7 +256,7 @@ class Distribution(Table):
         """
         if freq is None:
             super(Distribution, self).__init__(variables)
-        elif isinstance(freq, Table):
+        elif isinstance(freq, SparseTable):
             self.variables = deepcopy(freq.variables)
             self.order = deepcopy(freq.order)
             self.last = deepcopy(freq.last)
@@ -182,6 +296,15 @@ class Distribution(Table):
                 return False
 
         return True
+
+    def get_value(self, vals):
+        return super(Distribution, self).get_value(vals)
+
+    def set_value(self, vals, value):
+        super(Distribution, self).set_value(vals, value)
+
+    def get_variable_values(self, name):
+        return super(Distribution, self).get_variable_values(name)
 
     def set_prob(self, vals, p):
         """
@@ -241,7 +364,10 @@ class Distribution(Table):
             # If we found the variable
             if order[0] in vals:
                 # Take only the branch with the specified value for that variable
-                p += self.__partial_prob_rec(vals, current[vals[order[0]]], order[1:])
+                if vals[order[0]] in current:
+                    p += self.__partial_prob_rec(vals, current[vals[order[0]]], order[1:])
+                else:
+                    return 0.0
             # If the variable is one we do not have a particular value for
             else:
                 # Sum the probabilities of all possible values for that variable
@@ -252,7 +378,8 @@ class Distribution(Table):
             # If this is the variable
             if self.last in vals:
                 # Only take the number for the value that the variable was set to
-                p += current[vals[self.last]]
+                if vals[self.last] in current:
+                    p += current[vals[self.last]]
             # If its a different variable
             else:
                 # Sum over all the values

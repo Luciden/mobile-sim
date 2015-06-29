@@ -58,10 +58,10 @@ class TestDistribution(TestCase):
 
         self.assertEqual(0.25, d.table["heads"]["heads"])
 
-    def test_set_prob_wrong_index(self):
-        d = Distribution({"Coin1": ["heads", "tails"], "Coin2": ["heads", "tails"]})
+    #def test_set_prob_wrong_index(self):
+    #    d = Distribution({"Coin1": ["heads", "tails"], "Coin2": ["heads", "tails"]})
 
-        self.assertRaises(IndexError, d.set_prob, {"Rain": "yes"}, 1)
+    #    self.assertRaises(IndexError, d.set_prob, {"Rain": "yes"}, 1)
 
     def test_prob_normal(self):
         d = Distribution({"Coin1": ["heads", "tails"], "Coin2": ["heads", "tails"]})
