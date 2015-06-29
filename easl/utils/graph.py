@@ -139,7 +139,8 @@ class Graph(object):
             raise NonExistentEdgeError("No edge between {0} and {1}".format(x, y))
 
         # Stored edges in both directions until now, so remove the reverse one
-        self.g.remove_edge(y, x)
+        if self.has_edge(y, x):
+            self.g.remove_edge(y, x)
 
         # Mark the edge
         self.g[x][y]["from"] = "o"

@@ -420,8 +420,8 @@ class PyGameVisualizer(Visualizer):
             positions["left-foot-position_current"] = (4, 3)
             positions["right-foot-position_current"] = (4, 4)
 
-            positions["movement_previous"] = (5, 4)
-            positions["movement_current"] = (5, 6)
+            positions["movement_previous"] = (5, 5)
+            positions["movement_current"] = (5, 7)
 
             # Distribute node positions and store coordinates
             height = 0
