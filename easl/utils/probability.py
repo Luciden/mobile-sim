@@ -241,6 +241,20 @@ class SparseTable(Table):
             for value in current:
                 self.__do_operation_rec(f, current[value], order[1:])
 
+    def to_string(self):
+        return self.__to_string_rec(self.table, self.order, "")
+
+    def __to_string_rec(self, current, order, so_far):
+        s = ""
+        if len(order) == 0:
+            for value in current:
+                s += "{0}, {1}={2}: {3}\n".format(so_far, self.last, value, current[value])
+        else:
+            for value in current:
+                s += self.__to_string_rec(current[value], order[1:], "{2}, {0}={1}".format(order[0], value, so_far))
+
+        return s
+
 
 class Distribution(SparseTable):
     def __init__(self, variables, freq=None):

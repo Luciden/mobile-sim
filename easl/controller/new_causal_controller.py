@@ -20,19 +20,24 @@ class Data(object):
     def get_entries_at_time(self, time):
         return self.entries[time]
 
-    def get_entries_previous_current(self, time):
-        if time >= len(self.entries) or time - 1 < 0:
+    def get_entries_previous_current(self, time, motor):
+        if time >= len(self.entries) or time - 2 < 0:
             return {}
 
+        past = self.entries[time - 2]
         previous = self.entries[time - 1]
         current = self.entries[time]
 
-        previous = {x + NewCausalController.PREVIOUS: y for (x, y) in previous.iteritems()}
-        current = {x + NewCausalController.CURRENT: y for (x, y) in current.iteritems()}
+        previous_entries_motor = {x + NewCausalController.PREVIOUS: y for (x, y) in past.iteritems() if x in motor}
+        current_entries_motor = {x + NewCausalController.CURRENT: y for (x, y) in previous.iteritems() if x in motor}
+        previous_entries_sensor = {x + NewCausalController.PREVIOUS: y for (x, y) in previous.iteritems() if x not in motor}
+        current_entries_sensor = {x + NewCausalController.CURRENT: y for (x, y) in current.iteritems() if x not in motor}
 
         entries = {}
-        entries.update(previous)
-        entries.update(current)
+        entries.update(previous_entries_motor)
+        entries.update(current_entries_motor)
+        entries.update(previous_entries_sensor)
+        entries.update(current_entries_sensor)
 
         return entries
 
@@ -82,8 +87,6 @@ class NewCausalController(Controller):
             Similar to `nodes`, but for the variables that were ignored in the exploration phase.
         node_values_exp
             See `nodes_exp`
-        numberings_exp
-            See `nodes_exp`
         current_number : int
             Used to create a numbering of nodes that is used to determine the network's edges' directions.
         data : Data
@@ -105,7 +108,7 @@ class NewCausalController(Controller):
         super(NewCausalController, self).__init__(visual=CausalLearningVisual())
 
         self.state = self.STATE_EXPLORATION
-        self.exploration_iterations = 5
+        self.exploration_iterations = 10
 
         self.ignored_variables = []
 
@@ -115,7 +118,6 @@ class NewCausalController(Controller):
 
         self.nodes_exp = {}
         self.node_values_exp = {}
-        self.numberings_exp = {}
 
         self.current_number = 1
 
@@ -129,6 +131,7 @@ class NewCausalController(Controller):
         self.iteration = 0
 
         self.selection_bias = 0.5
+        self.calculate_once = True
 
     def init_internal(self, entity):
         super(NewCausalController, self).init_internal(entity)
@@ -136,6 +139,7 @@ class NewCausalController(Controller):
         # Initialize the node numbering, and other relevant information, for all nodes, 'previous' and 'current'
         self.__create_node_numbering()
         self.__add_experiment_nodes()
+        print "Numbering: {0}".format(self.numberings)
 
     def set_selection_bias(self, bias):
         self.selection_bias = bias
@@ -190,6 +194,9 @@ class NewCausalController(Controller):
     def act(self):
         self.iteration += 1
 
+        if self.iteration == self.exploration_iterations:
+            print "Exploration Complete"
+
         # 2. Get information (limbs current)
         #    Add current information to memory
         self.new_information = {}
@@ -209,17 +216,25 @@ class NewCausalController(Controller):
         if self.state == self.STATE_EXPLORATION:
             self.data.add_entry(self.new_information)
         elif self.state == self.STATE_EXPERIMENT:
-            self.data.add_entry(self.new_information)
+            self.data2.add_entry(self.new_information)
         self.current_information = {}
 
+        if self.state == self.STATE_EXPLORATION and self.calculate_once and self.iteration < self.exploration_iterations:
+            # Do not calculate the network now
+            return motor_signals
+        elif self.state == self.STATE_EXPLORATION and self.iteration > self.exploration_iterations:
+            self.state = self.STATE_EXPERIMENT
+
         # 3. Compute joint probability distribution
-        jpd = self.__compute_joint_probability_distribution(self.node_values)
+        jpd = self.__compute_joint_probability_distribution(self.node_values, self.data)
+        print jpd.to_string()
+
         jpd2 = None
         if self.state == self.STATE_EXPERIMENT:
             nodes = {}
             nodes.update(self.node_values)
             nodes.update(self.node_values_exp)
-            jpd2 = self.__compute_joint_probability_distribution(nodes, min_i=self.exploration_iterations)
+            jpd2 = self.__compute_joint_probability_distribution(nodes, self.data2)
 
         # 4. Learn dependency relations
         #    Check all subsets for independency
@@ -235,9 +250,6 @@ class NewCausalController(Controller):
             self.__add_nodes_to_network(self.network, self.nodes_exp.values())
             self.__learn_experiment_dependencies(self.network, jpd2)
             self.jpd2 = jpd2
-
-        if self.iteration > self.exploration_iterations:
-            self.state = self.STATE_EXPERIMENT
 
         return motor_signals
 
@@ -257,8 +269,6 @@ class NewCausalController(Controller):
                 signals.append((action, "up"))
             else:
                 signals.append((action, "down"))
-
-            # signals.append((action, random.choice(self.actions[action])))
 
         return signals
 
@@ -305,18 +315,18 @@ class NewCausalController(Controller):
 
         return 0 if p_g == 0 else p_ng / float(p_g)
 
-    def __compute_joint_probability_distribution(self, variables, min_i=None, max_i=None):
+    def __compute_joint_probability_distribution(self, variables, data):
         freq = SparseTable(variables)
 
-        entries = []
+        first = 2
+        last = data.last_time()
 
-        first = 1 if min_i is None else min_i
-        last = self.data.last_time() if max_i is None else max_i
+        n = 0
 
         for t_i in range(first, last):
-            freq.inc_value(self.data.get_entries_previous_current(t_i))
+            n += 1
+            freq.inc_value(data.get_entries_previous_current(t_i, self.actions.keys()))
 
-        n = len(entries)
         if n > 0:
             freq.do_operation(lambda x: x / float(n))
 
@@ -375,6 +385,7 @@ class NewCausalController(Controller):
                 # Check for independence by checking P(A & B) = P(A) * P(B)
                 if self.are_independent(a, b, jpd):
                     graph.del_edge(a, b)
+                    break
 
     def __check_conditional_independencies(self, graph, jpd, constrained_set=None):
         for n in range(1, len(self.nodes) - 1):
@@ -389,7 +400,7 @@ class NewCausalController(Controller):
                 adjacent = graph.get_connected(u)
 
                 for v in adjacent:
-                    if v == u:
+                    if v == u or v not in graph.get_connected(u):
                         continue
 
                     adjacencies = set(graph.get_connected(u))
@@ -405,6 +416,7 @@ class NewCausalController(Controller):
                         if self.are_conditionally_independent(u, v, subset, jpd):
                             # print "({0}, {1})".format(u, v)
                             graph.del_edge(u, v)
+                            break
 
     def __orient_edges(self, graph):
         for a, b in graph.get_edges():
@@ -436,7 +448,10 @@ class NewCausalController(Controller):
 
                 # When the probabilities are not 'equal'
                 if abs(p_ab - p_a * p_b) > 1e-6:
+                    # print "{0} not independent from {1} as P({0}={2},{1}={3}) != P({0}={2}) * P({1}={3})".format(a, b, val_a, val_b)
                     return False
+
+        print "{0} and {1} independent as P({0},{1}) == P({0}) * P({1})".format(a, b)
         return True
 
     @staticmethod
@@ -491,4 +506,6 @@ class NewCausalController(Controller):
 
                         if abs(left - right) > 1e-6:
                             return False
+
+        print "{0} independent of {1} given {2} as P({0},{1}|{2}) = P({0}|{2}) * P({1}|{2})".format(a, b, y)
         return True

@@ -191,6 +191,10 @@ def infant_simple_controller():
     return SimpleController([("movement", "faster")])
 
 
+def infant_new_simple_controller():
+    return NewSimpleController([("movement", "faster")])
+
+
 def create_infant():
     """
     Parameters
@@ -379,7 +383,7 @@ if __name__ == '__main__':
     ss.set_simulation_length(240)
     ss.set_data_bins(6)
     ss.add_constant_entities({"infant": create_infant, "mobile": create_mobile_direction})
-    ss.add_controllers("infant", {"simple": infant_simple_controller, "new_causal": infant_new_causal_controller})
+    ss.add_controllers("infant", {"new_simple": infant_new_simple_controller, "new_causal": infant_new_causal_controller})
 
     ss.add_initial_triggers({"experimental": [("infant", "right-foot-position", "movement", "mobile")]})
     ss.add_conditional_trigger_changes({"experimental": {"plain": ([], []),
@@ -390,6 +394,6 @@ if __name__ == '__main__':
 
     run_single = True
     if run_single:
-        ss.run_single("experimental", "plain", {"infant": "new_causal"})
+        ss.run_single("experimental", "plain", {"infant": "new_simple"})
     else:
         ss.run_simulations()

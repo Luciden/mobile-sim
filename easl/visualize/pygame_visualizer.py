@@ -59,8 +59,9 @@ class PyGameVisualizer(Visualizer):
         pygame.time.delay(self.parameters["dt"])
 
         if self.graph is not None:
-            if iteration == 24 or iteration == 40 or iteration == 60 or iteration == 135 or iteration == 230:
-                pygame.image.save(self.graph_surface, "figure_{0}.png".format(iteration))
+            #if iteration == 24 or iteration == 40 or iteration == 60 or iteration == 135 or iteration == 230:
+            #    pygame.image.save(self.graph_surface, "figure_{0}.png".format(iteration))
+            pygame.image.save(self.graph_surface, "figure_{0}.png".format(iteration))
 
         if self.step:
             self.step = False
