@@ -61,6 +61,8 @@ class NewSimpleController(Controller):
         self.action = None
         self.probabilities = None
 
+        self.still_bias = 0.5
+
         self.delta = 0.1
         self.max_probability = 0.9
         self.min_probability = 0.001

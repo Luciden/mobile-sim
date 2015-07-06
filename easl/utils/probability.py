@@ -173,7 +173,7 @@ class SparseTable(Table):
                 current = current[entry[name]]
                 continue
 
-        current = 0
+        current[entry[self.last]] = 0
 
     def set_value(self, vals, value):
         current = self.table
@@ -187,7 +187,12 @@ class SparseTable(Table):
 
             current = current[vals[name]]
 
-        current[vals[self.last]] = value
+        if vals[self.last] not in current:
+            self.__make_entry(vals)
+            self.set_value(vals, value)
+            return
+        else:
+            current[vals[self.last]] = value
 
     def inc_value(self, vals):
         """
@@ -208,7 +213,12 @@ class SparseTable(Table):
 
             current = current[vals[name]]
 
-        current[vals[self.last]] += 1
+        if vals[self.last] not in current:
+            self.__make_entry(vals)
+            self.set_value(vals, 1)
+            return
+        else:
+            current[vals[self.last]] += 1
 
     def get_value(self, vals):
         """
@@ -227,7 +237,8 @@ class SparseTable(Table):
         if vals[self.last] not in current:
             return 0
         else:
-            return current[vals[self.last]]
+            v = current[vals[self.last]]
+            return v
 
     def get_nonzero_entries(self):
         return self.__get_nonzero_entries_rec(self.table, self.order, {})

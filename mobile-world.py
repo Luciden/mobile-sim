@@ -70,6 +70,7 @@ def swing_direction(self):
     v = self.a["velocity"]
     p = self.a["position"]
     d = self.a["direction"]
+    self.a["previous"] = self.a["velocity"]
 
     if d == "+":
         p_new = p + v
@@ -93,17 +94,20 @@ def swing_direction(self):
 
 
 def moved(self, direction):
-    self.a["previous"] = self.a["velocity"]
     self.a["velocity"] += 4
 
 
 def moved_direction(self, direction):
-    self.a["previous"] = self.a["velocity"]
-    if self.a["direction"] == "+":
-        self.a["velocity"] = abs(self.a["velocity"] - 3)
-    elif self.a["direction"] == "-":
+    ignore_direction = True
+
+    if ignore_direction:
         self.a["velocity"] = min(self.a["velocity"] + 3, 10)
-    self.a["direction"] = "-"
+    else:
+        if self.a["direction"] == "+":
+            self.a["velocity"] = 3
+        elif self.a["direction"] == "-":
+            self.a["velocity"] = min(self.a["velocity"] + 3, 10)
+        self.a["direction"] = "-"
 
 
 def movement_emission_boolean(self):
@@ -268,6 +272,7 @@ class MobileDirectionVisual(Visual):
 
         return group
 
+
 def create_mobile_change():
     mobile = Entity("mobile", visual=MobileVisual())
 
@@ -381,7 +386,7 @@ def control_condition(n, experiment_log, agent, v=None):
 if __name__ == '__main__':
     ss = SimulationSuite()
     ss.set_visualizer(PyGameVisualizer())
-    ss.set_simulation_length(300)
+    ss.set_simulation_length(1000)
     ss.set_data_bins(6)
     ss.add_constant_entities({"infant": create_infant, "mobile": create_mobile_direction})
     ss.add_controllers("infant", {"new_simple": infant_new_simple_controller, "new_causal": infant_new_causal_controller})
@@ -395,6 +400,6 @@ if __name__ == '__main__':
 
     run_single = True
     if run_single:
-        ss.run_single("experimental", "remove_halfway", {"infant": "new_causal"})
+        ss.run_single("experimental", "plain", {"infant": "new_causal"})
     else:
         ss.run_simulations()

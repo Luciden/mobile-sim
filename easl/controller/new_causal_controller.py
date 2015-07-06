@@ -6,7 +6,6 @@ from controller import Controller
 from easl import visualize
 
 import random
-import itertools
 from copy import deepcopy
 
 
@@ -53,7 +52,6 @@ class Data(object):
         return len(self.entries) - 1
 
     def get_latest_entry(self, offset=0):
-        print "Length {0}".format(len(self.entries))
         return self.entries[-1 - offset]
 
 
@@ -117,10 +115,11 @@ class NewCausalController(Controller):
             Determines by which probability a 'still' motor signal is chosen.
             TODO: Hacked specifically for the babybot now; might be necessary to generalize later.
         """
+        # TODO: Try learning only with current motor signal and previous limb position
         super(NewCausalController, self).__init__(visual=CausalLearningVisual())
 
         self.state = self.STATE_EXPLORATION
-        self.exploration_iterations = 10
+        self.exploration_iterations = 50
 
         self.rewards = {}
 
@@ -180,8 +179,10 @@ class NewCausalController(Controller):
 
     def __create_node_numbering(self):
         # Create motor_prev nodes and number them
+        """
         for action in self.actions:
             self.__add_node(action, self.PREVIOUS)
+        """
         # Create sense_prev nodes
         for sense in self.sensory:
             if sense in self.ignored_variables:
@@ -191,10 +192,12 @@ class NewCausalController(Controller):
         for action in self.actions:
             self.__add_node(action, self.CURRENT)
         # Create sense_current nodes
+        """
         for sense in self.sensory:
             if sense in self.ignored_variables:
                 continue
             self.__add_node(sense, self.CURRENT)
+        """
 
         print self.nodes
 
@@ -230,6 +233,7 @@ class NewCausalController(Controller):
         if self.iteration == self.exploration_iterations:
             print "Exploration Complete"
             # Calculate the probability table from the exploration data once
+            print self.node_values
             self.jpd = self.__compute_joint_probability_distribution(self.node_values, self.data)
 
             # Transfer data so new actions can be calculated immediately
@@ -247,7 +251,7 @@ class NewCausalController(Controller):
         elif self.state == self.STATE_EXPERIMENT:
             # Select signals by maximum likelihood from collected (all) data
             self.jpd2 = self.__compute_conditional_probability_distribution(self.node_values_all, self.data2)
-            motor_signals = self.__select_maximum(self.jpd2)
+            motor_signals = self.__select_maximum()
             if motor_signals is None:
                 print "Selecting randomly"
                 motor_signals = self.__select_random_motor_signals()
@@ -291,7 +295,6 @@ class NewCausalController(Controller):
     def __compute_conditional_probability_distribution(self, variables, data):
         """
         """
-        print "Data length {0}".format(len(data.entries))
         freq, n = self.__compute_frequency_table(variables, data)
 
         # Total number of occurences with only exploration variables
@@ -305,9 +308,7 @@ class NewCausalController(Controller):
         for entry in freq.get_nonzero_entries():
             filtered = {k: v for k, v in entry.iteritems() if k not in self.node_values_exp.keys()}
             # Add the values to increase the total
-            print "Frequency add: {0} to {1}".format(freq.get_value(entry), totals.get_value(filtered))
             totals.set_value(filtered, totals.get_value(filtered) + freq.get_value(entry))
-            print "Now: {0}".format(totals.get_value(filtered))
 
         # Make conditional table by dividing by subtotals
         for entry in freq.get_nonzero_entries():
@@ -319,7 +320,7 @@ class NewCausalController(Controller):
 
         return jpd
 
-    def __select_maximum(self, jpd):
+    def __select_maximum(self):
         # Select the combination of motor signals that maximizes probability
 
         constant = {}
@@ -343,6 +344,7 @@ class NewCausalController(Controller):
             constant[signal + self.CURRENT] = self.rewards[signal]
 
         # Get maximum probability by checking all possible combinations of motor signals
+        # P(Motor) = P(Motor|Rest) * P(Rest)
         max_probability = 0.0
         max_combination = None
         for combination in self.all_possibilities(self.actions):
@@ -352,15 +354,32 @@ class NewCausalController(Controller):
 
             # Marginalize over current 'limb positions'
             total = 0.0
+            """
             for sensories in self.all_possibilities(self.sensory):
                 total_assignment = {}
                 total_assignment.update(assignment)
-                total_assignment.update({k + self.CURRENT: v for k, v in sensories.iteritems()})
+                total_assignment.update({k + self.CURRENT: v for k, v in sensories.iteritems()
+                                         if k not in self.rewards.keys()})
 
-                total += jpd.get_value(total_assignment)
+                # Filter
+                total_assignment = {k: v for k, v in total_assignment.iteritems()
+                                    if k in self.node_values_all.keys()}
 
-            print "probability: {0}".format(total)
+                exploration_assignment = {}
+                exploration_assignment.update(total_assignment)
+                exploration_assignment = {k: v for k, v in exploration_assignment.iteritems()
+                                          if k not in self.node_values_exp.keys()}
+
+                conditional = self.jpd2.get_value(total_assignment)
+                if conditional != 0.0:
+                    print "Conditional {0} {1}".format(conditional, total_assignment)
+
+                total += conditional
+            """
+            total = self.jpd2.get_value(assignment)
+
             if total > max_probability:
+                print "Updated"
                 max_probability = total
                 max_combination = combination
 
@@ -369,68 +388,6 @@ class NewCausalController(Controller):
             return [(k, v) for k, v in max_combination.iteritems()]
         else:
             return None
-
-    def act_old(self):
-        self.iteration += 1
-
-        if self.iteration == self.exploration_iterations:
-            print "Exploration Complete"
-
-        # 2. Get information (limbs current)
-        #    Add current information to memory
-        self.new_information = {}
-        self.new_information.update(self.current_information)
-
-        # 1. Do babbling
-        #    For every motor signal, select a random value
-        motor_signals = []
-        if self.state == self.STATE_EXPLORATION or self.STATE_EXPERIMENT and self.jpd2 is None:
-            motor_signals = self.__select_random_motor_signals()
-        elif self.STATE_EXPERIMENT:
-            motor_signals = self.__select_maximum_likelihood_motor_signals(("movement", "faster"), self.jpd2)
-        print motor_signals
-
-        self.new_information.update(dict(motor_signals))
-
-        if self.state == self.STATE_EXPLORATION:
-            self.data.add_entry(self.new_information)
-        elif self.state == self.STATE_EXPERIMENT:
-            self.data2.add_entry(self.new_information)
-        self.current_information = {}
-
-        if self.state == self.STATE_EXPLORATION and self.calculate_once and self.iteration < self.exploration_iterations:
-            # Do not calculate the network now
-            return motor_signals
-        elif self.state == self.STATE_EXPLORATION and self.iteration > self.exploration_iterations:
-            self.state = self.STATE_EXPERIMENT
-
-        # 3. Compute joint probability distribution
-        jpd = self.__compute_joint_probability_distribution(self.node_values, self.data)
-        print jpd.to_string()
-
-        jpd2 = None
-        if self.state == self.STATE_EXPERIMENT:
-            nodes = {}
-            nodes.update(self.node_values)
-            nodes.update(self.node_values_exp)
-            jpd2 = self.__compute_joint_probability_distribution(nodes, self.data2)
-
-        # 4. Learn dependency relations
-        #    Check all subsets for independency
-        #    Orient resulting network according to constraints (from lower numbers to higher)
-        # Create complete network from exploration phase nodes
-        self.network = self.__create_complete_network(self.nodes.values())
-
-        # Learn connections from data
-        self.__learn_dependency_relations(self.network, jpd)
-
-        if self.state == self.STATE_EXPERIMENT:
-            # Also learn the other nodes' edges
-            self.__add_nodes_to_network(self.network, self.nodes_exp.values())
-            self.__learn_experiment_dependencies(self.network, jpd2)
-            self.jpd2 = jpd2
-
-        return motor_signals
 
     def __select_random_motor_signals(self):
         """
@@ -450,224 +407,3 @@ class NewCausalController(Controller):
                 signals.append((action, "down"))
 
         return signals
-
-    def __select_maximum_likelihood_motor_signals(self, variable, jpd):
-        """
-        Calculates argmax_CurrentSituation P(Wanted|CurrentSituation).
-        """
-        # For every assignment of all motor signals (previous)
-        assignments = [dict(zip(self.actions, product)) for product in itertools.product(*(self.actions[name] for name in self.actions))]
-
-        arg = None
-        max_prob = 0
-
-        for assignment in assignments:
-            # Set 'previous' actions to selected actions
-            altered = {k + self.PREVIOUS: v for k, v in assignment.items()}
-            # Set 'previous' nodes to current situation
-            altered.update({k + self.PREVIOUS: v for k, v in self.current_information.items()})
-
-            # Set variable to be calculated as '_current'
-            altered_variable = (variable[0] + self.CURRENT, variable[1])
-
-            # Calculate the probability of the 'reinforcer' given the assignment and current information
-            prob = self.__calculate_probability_of_given(altered_variable, altered, jpd)
-
-            if prob > max_prob:
-                arg = assignment
-                max_prob = prob
-
-        if arg is None:
-            print "random"
-            return self.__select_random_motor_signals()
-        else:
-            print "probability: {0}".format(max_prob)
-            return [(k, v) for k, v in arg.items()]
-
-    def __calculate_probability_of_given(self, node, given, jpd):
-        # Calculate P(N|G)
-        all_nodes = {node[0]: node[1]}
-        all_nodes.update(given)
-
-        p_ng = jpd.partial_prob(all_nodes)
-        p_g = jpd.partial_prob(given)
-
-        return 0 if p_g == 0 else p_ng / float(p_g)
-
-    @staticmethod
-    def __create_complete_network(nodes):
-        c = easl.utils.Graph()
-        c.make_complete(nodes)
-
-        return c
-
-    @staticmethod
-    def __add_nodes_to_network(network, nodes):
-        """
-        Adds the new nodes and connects them to all previous nodes
-        """
-        # Add edges to new nodes
-        for node in network.get_nodes():
-            for new_node in nodes:
-                network.add_node(new_node)
-                network.add_edge(node, new_node)
-
-        for x in nodes:
-            for y in nodes:
-                if x == y:
-                    continue
-
-                network.add_edge(x, y)
-
-    def __learn_dependency_relations(self, network, jpd):
-        # Check independencies pairwise
-        self.__check_independencies(network, jpd)
-
-        # Check all conditional independencies (subsets)
-        self.__check_conditional_independencies(network, jpd)
-
-        # Orient edges according to constraints
-        self.__orient_edges(network)
-
-    def __learn_experiment_dependencies(self, network, jpd):
-        # Check independencies pairwise
-        self.__check_independencies(network, jpd, constrained_set=self.nodes_exp.values())
-
-        # Check all conditional independencies (subsets)
-        self.__check_conditional_independencies(network, jpd, constrained_set=self.nodes_exp.values())
-
-        # Orient edges according to constraints
-        self.__orient_edges(network)
-
-    def __check_independencies(self, graph, jpd, constrained_set=None):
-        nodes = graph.get_nodes() if constrained_set is None else constrained_set
-
-        for a in nodes:
-            for b in graph.get_connected(a):
-                # Check for independence by checking P(A & B) = P(A) * P(B)
-                if self.are_independent(a, b, jpd):
-                    graph.del_edge(a, b)
-                    break
-
-    def __check_conditional_independencies(self, graph, jpd, constrained_set=None):
-        for n in range(1, len(self.nodes) - 1):
-            print "N: {0}".format(n)
-            # Select an ordered pair X, Y that are adjacent such that
-            # X has n or more other (not Y) adjacencies
-            # Select a subset S of size n from X's adjacencies
-            # Check if X, Y | S and remove edge between X, Y if so
-            nodes = graph.get_nodes() if constrained_set is None else constrained_set
-
-            for u in nodes:
-                adjacent = graph.get_connected(u)
-
-                for v in adjacent:
-                    if v == u or v not in graph.get_connected(u):
-                        continue
-
-                    adjacencies = set(graph.get_connected(u))
-                    adjacencies.remove(v)
-
-                    # Cardinality of subset should be greater than or equal to n
-                    if len(adjacencies) < n:
-                        continue
-
-                    for subset in list(itertools.combinations(adjacencies, n)):
-                        subset = list(subset)
-                        # if X and Y are d-separated, remove X-Y and record S in Sepset(X,Y)
-                        if self.are_conditionally_independent(u, v, subset, jpd):
-                            # print "({0}, {1})".format(u, v)
-                            graph.del_edge(u, v)
-                            break
-
-    def __orient_edges(self, graph):
-        for a, b in graph.get_edges():
-            # Check because of possible removal when orienting previously
-            if graph.has_edge(a, b) and self.numberings[a] < self.numberings[b]:
-                    graph.orient_half(a, b)
-
-    @staticmethod
-    def are_independent(a, b, d):
-        """
-        Checks the distributions according to P(A & B) = P(A) * P(B)
-
-        Parameters
-        ----------
-        a : string
-            Name of variable A
-        b : string
-            Name of variable B
-        d : Distribution
-            Distribution containing variables A and B.
-        """
-        # Check for all possible values of the parameters of A and B
-        for val_a in d.get_variable_values(a):
-            for val_b in d.get_variable_values(b):
-                # P(A & B) = P(A) * P(B)
-                p_ab = d.partial_prob({a: val_a, b: val_b})
-                p_a = d.single_prob(a, val_a)
-                p_b = d.single_prob(b, val_b)
-
-                # When the probabilities are not 'equal'
-                if abs(p_ab - p_a * p_b) > 1e-6:
-                    # print "{0} not independent from {1} as P({0}={2},{1}={3}) != P({0}={2}) * P({1}={3})".format(a, b, val_a, val_b)
-                    return False
-
-        print "{0} and {1} independent as P({0},{1}) == P({0}) * P({1})".format(a, b)
-        return True
-
-    @staticmethod
-    def are_conditionally_independent(a, b, y, d):
-        """
-        Calculates the conditional probability.
-
-        P(A,B|C) = P(A|C) * P(B|C)
-        P(A,B,C)/P(C) = P(A,C)/P(C) * P(B,C)/P(C)
-
-        Generalized:
-        P(A,B|Y) = P(A|Y) * P(B|Y)
-        P(A,B,Y) / P(Y) = P(A,Y) / P(Y) * P(B,Y) / P(Y)
-
-        Parameters
-        ----------
-        a : string
-            Name for variable A.
-        b : string
-            Name for variable B.
-        y : [string]
-            Names for the conditional variables Y.
-        d : Distribution
-        """
-        values = [d.get_variable_values(variable) for variable in y]
-
-        for val_a in d.get_variable_values(a):
-            for val_b in d.get_variable_values(b):
-                vals_aby = {a: val_a, b: val_b}
-                vals_ay = {a: val_a}
-                vals_by = {b: val_b}
-                vals_y = {}
-
-                for combination in list(itertools.product(*values)):
-                    for i in range(len(combination)):
-                        x = y[i]
-
-                        vals_aby[x] = combination[i]
-                        vals_ay[x] = combination[i]
-                        vals_by[x] = combination[i]
-                        vals_y[x] = combination[i]
-
-                    p_aby = d.partial_prob(vals_aby)
-                    p_ay = d.partial_prob(vals_ay)
-                    p_by = d.partial_prob(vals_by)
-                    p_y = d.partial_prob(vals_y)
-
-                    # P(A,B,Y) / P(Y) = P(A,Y) / P(Y) * P(B,Y) / P(Y)
-                    if p_y != float(0):
-                        left = p_aby / float(p_y)
-                        right = (p_ay / float(p_y)) * (p_by / float(p_y))
-
-                        if abs(left - right) > 1e-6:
-                            return False
-
-        print "{0} independent of {1} given {2} as P({0},{1}|{2}) = P({0}|{2}) * P({1}|{2})".format(a, b, y)
-        return True
