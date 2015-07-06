@@ -20,7 +20,7 @@ class Data(object):
     def get_entries_at_time(self, time):
         return self.entries[time]
 
-    def get_entries_previous_current(self, time, motor):
+    def get_entries_previous_current(self, time, variables, motor):
         if time >= len(self.entries) or time - 2 < 0:
             return {}
 
@@ -28,10 +28,18 @@ class Data(object):
         previous = self.entries[time - 1]
         current = self.entries[time]
 
-        previous_entries_motor = {x + NewCausalController.PREVIOUS: y for (x, y) in past.iteritems() if x in motor}
-        current_entries_motor = {x + NewCausalController.CURRENT: y for (x, y) in previous.iteritems() if x in motor}
-        previous_entries_sensor = {x + NewCausalController.PREVIOUS: y for (x, y) in previous.iteritems() if x not in motor}
-        current_entries_sensor = {x + NewCausalController.CURRENT: y for (x, y) in current.iteritems() if x not in motor}
+        previous_entries_motor = {x + NewCausalController.PREVIOUS: y
+                                  for (x, y) in past.iteritems()
+                                  if x in motor and x + NewCausalController.PREVIOUS in variables}
+        current_entries_motor = {x + NewCausalController.CURRENT: y
+                                 for (x, y) in previous.iteritems()
+                                 if x in motor and x + NewCausalController.CURRENT in variables}
+        previous_entries_sensor = {x + NewCausalController.PREVIOUS: y
+                                   for (x, y) in previous.iteritems()
+                                   if x not in motor and x + NewCausalController.PREVIOUS in variables}
+        current_entries_sensor = {x + NewCausalController.CURRENT: y
+                                  for (x, y) in current.iteritems()
+                                  if x not in motor and x + NewCausalController.CURRENT in variables}
 
         entries = {}
         entries.update(previous_entries_motor)
@@ -43,6 +51,10 @@ class Data(object):
 
     def last_time(self):
         return len(self.entries) - 1
+
+    def get_latest_entry(self, offset=0):
+        print "Length {0}".format(len(self.entries))
+        return self.entries[-1 - offset]
 
 
 class CausalLearningVisual(visualize.Visual):
@@ -110,20 +122,27 @@ class NewCausalController(Controller):
         self.state = self.STATE_EXPLORATION
         self.exploration_iterations = 10
 
+        self.rewards = {}
+
         self.ignored_variables = []
+
+        self.numberings = {}
 
         self.nodes = {}
         self.node_values = {}
-        self.numberings = {}
 
         self.nodes_exp = {}
         self.node_values_exp = {}
+
+        self.nodes_all = {}
+        self.node_values_all = {}
 
         self.current_number = 1
 
         self.data = Data()
         self.data2 = Data()
         self.network = None
+        self.jpd = None
         self.jpd2 = None
 
         self.current_information = {}
@@ -139,10 +158,22 @@ class NewCausalController(Controller):
         # Initialize the node numbering, and other relevant information, for all nodes, 'previous' and 'current'
         self.__create_node_numbering()
         self.__add_experiment_nodes()
+
+        self.nodes_all.update(self.nodes)
+        self.nodes_all.update(self.nodes_exp)
+
+        self.node_values_all.update(self.node_values)
+        self.node_values_all.update(self.node_values_exp)
+
         print "Numbering: {0}".format(self.numberings)
 
     def set_selection_bias(self, bias):
         self.selection_bias = bias
+
+    def set_rewards(self, vals):
+        """
+        """
+        self.rewards.update(vals)
 
     def add_ignored(self, ignored):
         self.ignored_variables.extend(ignored)
@@ -168,14 +199,16 @@ class NewCausalController(Controller):
         print self.nodes
 
     def __add_node(self, name, suffix, exploration=True):
-        if exploration:
-            self.nodes[self.current_number] = name + suffix
-            self.node_values[name + suffix] = self.variables[name]
-        else:
-            self.nodes_exp[self.current_number] = name + suffix
-            self.node_values_exp[name + suffix] = self.variables[name]
+        node = name + suffix
 
-        self.numberings[name + suffix] = self.current_number
+        if exploration:
+            self.nodes[self.current_number] = node
+            self.node_values[node] = self.variables[name]
+        else:
+            self.nodes_exp[self.current_number] = node
+            self.node_values_exp[node] = self.variables[name]
+
+        self.numberings[node] = self.current_number
 
         self.current_number += 1
 
@@ -192,6 +225,152 @@ class NewCausalController(Controller):
         self.current_information[name] = value
 
     def act(self):
+        self.iteration += 1
+
+        if self.iteration == self.exploration_iterations:
+            print "Exploration Complete"
+            # Calculate the probability table from the exploration data once
+            self.jpd = self.__compute_joint_probability_distribution(self.node_values, self.data)
+
+            # Transfer data so new actions can be calculated immediately
+            self.data2.add_entry(self.data.get_latest_entry(2))
+            self.data2.add_entry(self.data.get_latest_entry(1))
+            self.data2.add_entry(self.data.get_latest_entry())
+
+            self.state = self.STATE_EXPERIMENT
+
+        motor_signals = []
+
+        if self.state == self.STATE_EXPLORATION:
+            # Motor babbling; select random motor signals
+            motor_signals = self.__select_random_motor_signals()
+        elif self.state == self.STATE_EXPERIMENT:
+            # Select signals by maximum likelihood from collected (all) data
+            self.jpd2 = self.__compute_conditional_probability_distribution(self.node_values_all, self.data2)
+            motor_signals = self.__select_maximum(self.jpd2)
+            if motor_signals is None:
+                print "Selecting randomly"
+                motor_signals = self.__select_random_motor_signals()
+
+        self.new_information = {}
+        self.new_information.update(self.current_information)
+        self.new_information.update(dict(motor_signals))
+
+        if self.state == self.STATE_EXPLORATION:
+            self.data.add_entry(self.new_information)
+        elif self.state == self.STATE_EXPERIMENT:
+            self.data2.add_entry(self.new_information)
+
+        # Reset for new iteration
+        self.current_information = {}
+
+        return motor_signals
+
+    def __compute_frequency_table(self, variables, data):
+        freq = SparseTable(variables)
+
+        first = 2
+        last = data.last_time() + 1
+
+        n = 0
+
+        for t_i in range(first, last):
+            n += 1
+            freq.inc_value(data.get_entries_previous_current(t_i, variables.keys(), self.actions.keys()))
+
+        return freq, n
+
+    def __compute_joint_probability_distribution(self, variables, data):
+        freq, n = self.__compute_frequency_table(variables, data)
+
+        if n > 0:
+            freq.do_operation(lambda x: x / float(n))
+
+        return easl.utils.Distribution(variables, freq)
+
+    def __compute_conditional_probability_distribution(self, variables, data):
+        """
+        """
+        print "Data length {0}".format(len(data.entries))
+        freq, n = self.__compute_frequency_table(variables, data)
+
+        # Total number of occurences with only exploration variables
+        totals = SparseTable({k: v for k, v in variables.iteritems()
+                              if k not in self.node_values_exp.keys()})
+
+        jpd = SparseTable(variables)
+
+        # Make conditional on exploration variables
+        # i.e. divide by total number of
+        for entry in freq.get_nonzero_entries():
+            filtered = {k: v for k, v in entry.iteritems() if k not in self.node_values_exp.keys()}
+            # Add the values to increase the total
+            print "Frequency add: {0} to {1}".format(freq.get_value(entry), totals.get_value(filtered))
+            totals.set_value(filtered, totals.get_value(filtered) + freq.get_value(entry))
+            print "Now: {0}".format(totals.get_value(filtered))
+
+        # Make conditional table by dividing by subtotals
+        for entry in freq.get_nonzero_entries():
+            filtered = {k: v for k, v in entry.iteritems() if k not in self.node_values_exp.keys()}
+
+            # P(M|R) = F(M&R) / F(R)
+            f_r = float(totals.get_value(filtered))
+            jpd.set_value(entry, 0 if f_r == 0 else freq.get_value(entry) / f_r)
+
+        return jpd
+
+    def __select_maximum(self, jpd):
+        # Select the combination of motor signals that maximizes probability
+
+        constant = {}
+
+        # Set latest selected motor signals as previous motor signals
+        for signal in self.actions.keys():
+            constant[signal + self.PREVIOUS] = self.data2.get_latest_entry()[signal]
+
+        # Set latest known limb positions as previous limb positions
+        for signal in self.sensory.keys():
+            if signal in self.ignored_variables:
+                continue
+
+            constant[signal + self.PREVIOUS] = self.current_information[signal]
+
+        # Set latest known mobile thing as previous mobile thing
+        for signal in self.ignored_variables:
+            constant[signal + self.PREVIOUS] = self.current_information[signal]
+
+        for signal in self.rewards:
+            constant[signal + self.CURRENT] = self.rewards[signal]
+
+        # Get maximum probability by checking all possible combinations of motor signals
+        max_probability = 0.0
+        max_combination = None
+        for combination in self.all_possibilities(self.actions):
+            assignment = {}
+            assignment.update(constant)
+            assignment.update({k + self.CURRENT: v for k, v in combination.iteritems()})
+
+            # Marginalize over current 'limb positions'
+            total = 0.0
+            for sensories in self.all_possibilities(self.sensory):
+                total_assignment = {}
+                total_assignment.update(assignment)
+                total_assignment.update({k + self.CURRENT: v for k, v in sensories.iteritems()})
+
+                total += jpd.get_value(total_assignment)
+
+            print "probability: {0}".format(total)
+            if total > max_probability:
+                max_probability = total
+                max_combination = combination
+
+        if max_combination is not None:
+            print "Selected {0} with probability {1}".format(max_combination, max_probability)
+            return [(k, v) for k, v in max_combination.iteritems()]
+        else:
+            return None
+
+    def act_old(self):
         self.iteration += 1
 
         if self.iteration == self.exploration_iterations:
@@ -314,23 +493,6 @@ class NewCausalController(Controller):
         p_g = jpd.partial_prob(given)
 
         return 0 if p_g == 0 else p_ng / float(p_g)
-
-    def __compute_joint_probability_distribution(self, variables, data):
-        freq = SparseTable(variables)
-
-        first = 2
-        last = data.last_time()
-
-        n = 0
-
-        for t_i in range(first, last):
-            n += 1
-            freq.inc_value(data.get_entries_previous_current(t_i, self.actions.keys()))
-
-        if n > 0:
-            freq.do_operation(lambda x: x / float(n))
-
-        return easl.utils.Distribution(variables, freq)
 
     @staticmethod
     def __create_complete_network(nodes):

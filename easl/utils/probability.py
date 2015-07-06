@@ -219,9 +219,35 @@ class SparseTable(Table):
         current = self.table
 
         for name in self.order:
+            if vals[name] not in current:
+                return 0
+
             current = current[vals[name]]
 
-        return current[vals[self.last]]
+        if vals[self.last] not in current:
+            return 0
+        else:
+            return current[vals[self.last]]
+
+    def get_nonzero_entries(self):
+        return self.__get_nonzero_entries_rec(self.table, self.order, {})
+
+    def __get_nonzero_entries_rec(self, current, order, entry):
+        if len(order) == 0:
+            for value in current:
+                new_entry = deepcopy(entry)
+                new_entry[self.last] = value
+
+                return [new_entry]
+        else:
+            entries = []
+            for value in current:
+                new_entry = deepcopy(entry)
+                new_entry[order[0]] = value
+
+                entries += self.__get_nonzero_entries_rec(current[value], order[1:], new_entry)
+
+            return entries
 
     def do_operation(self, f):
         """

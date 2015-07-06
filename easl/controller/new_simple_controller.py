@@ -4,21 +4,18 @@ from controller import Controller
 from easl import *
 from easl.visualize import *
 import random
-import itertools
 
 
 class NewSimpleVisual(Visual):
     @staticmethod
     def visualize(self):
-        tree = Tree("probabilities", self.probabilities.table)
-
         trees = {}
         for action in self.actions:
             trees[action] = {}
             for value in self.actions[action]:
                 trees[action][value] = 0.0
 
-        for combination in NewSimpleController.all_possibilities(self.actions):
+        for combination in self.all_possibilities(self.actions):
             for k, v in combination.iteritems():
                 trees[k][v] += self.probabilities.get_value(combination)
 
@@ -141,12 +138,3 @@ class NewSimpleController(Controller):
             if name in self.observations and self.observations[name] == value:
                 return True
         return False
-
-    @staticmethod
-    def all_possibilities(actions):
-        """
-        Parameters
-        ----------
-        actions : {string: [string]}
-        """
-        return [dict(zip(actions, product)) for product in itertools.product(*(actions[name] for name in actions))]

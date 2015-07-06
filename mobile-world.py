@@ -182,6 +182,7 @@ def infant_causal_controller():
 
 def infant_new_causal_controller():
     controller = NewCausalController()
+    controller.set_rewards({"movement": "faster"})
     controller.add_ignored(["movement"])
 
     return controller
@@ -380,20 +381,20 @@ def control_condition(n, experiment_log, agent, v=None):
 if __name__ == '__main__':
     ss = SimulationSuite()
     ss.set_visualizer(PyGameVisualizer())
-    ss.set_simulation_length(240)
+    ss.set_simulation_length(300)
     ss.set_data_bins(6)
     ss.add_constant_entities({"infant": create_infant, "mobile": create_mobile_direction})
     ss.add_controllers("infant", {"new_simple": infant_new_simple_controller, "new_causal": infant_new_causal_controller})
 
     ss.add_initial_triggers({"experimental": [("infant", "right-foot-position", "movement", "mobile")]})
     ss.add_conditional_trigger_changes({"experimental": {"plain": ([], []),
-                                                         "remove_halfway": ({60: [("infant", "left-hand-position", "movement", "mobile")]},
-                                                                            {60: [("infant", "right-foot-position", "movement", "mobile")]})}})
+                                                         "remove_halfway": ({150: [("infant", "left-hand-position", "movement", "mobile")]},
+                                                                            {150: [("infant", "right-foot-position", "movement", "mobile")]})}})
 
     ss.add_constant_data_collection(["left-hand-position", "right-hand-position", "left-foot-position", "right-foot-position"], ["lh", "rh", "lf", "rf"])
 
     run_single = True
     if run_single:
-        ss.run_single("experimental", "plain", {"infant": "new_simple"})
+        ss.run_single("experimental", "remove_halfway", {"infant": "new_causal"})
     else:
         ss.run_simulations()
