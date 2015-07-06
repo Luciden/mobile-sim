@@ -123,6 +123,9 @@ class NewCausalController(Controller):
 
         self.rewards = {}
 
+        self.motor_signal_valuation = lambda x: 1.0
+        self.motor_signal_bias = 1.0
+
         self.ignored_variables = []
 
         self.numberings = {}
@@ -168,6 +171,10 @@ class NewCausalController(Controller):
 
     def set_selection_bias(self, bias):
         self.selection_bias = bias
+
+    def set_motor_signal_bias(self, valuation, bias):
+        self.motor_signal_valuation = valuation
+        self.motor_signal_bias = bias
 
     def set_rewards(self, vals):
         """
@@ -345,7 +352,7 @@ class NewCausalController(Controller):
 
         # Get maximum probability by checking all possible combinations of motor signals
         # P(Motor) = P(Motor|Rest) * P(Rest)
-        max_probability = 0.0
+        max_valuation = 0.0
         max_combination = None
         for combination in self.all_possibilities(self.actions):
             assignment = {}
@@ -378,13 +385,15 @@ class NewCausalController(Controller):
             """
             total = self.jpd2.get_value(assignment)
 
-            if total > max_probability:
+            valuation = self.motor_signal_bias * total + (1.0 - self.motor_signal_bias) * self.motor_signal_valuation(combination)
+
+            if valuation > max_valuation:
                 print "Updated"
-                max_probability = total
+                max_valuation = valuation
                 max_combination = combination
 
         if max_combination is not None:
-            print "Selected {0} with probability {1}".format(max_combination, max_probability)
+            print "Selected {0} with probability {1}".format(max_combination, max_valuation)
             return [(k, v) for k, v in max_combination.iteritems()]
         else:
             return None

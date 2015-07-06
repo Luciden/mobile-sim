@@ -188,6 +188,7 @@ def infant_new_causal_controller():
     controller = NewCausalController()
     controller.set_rewards({"movement": "faster"})
     controller.add_ignored(["movement"])
+    controller.set_motor_signal_bias(infant_action_valuation, 0.75)
 
     return controller
 
@@ -237,6 +238,21 @@ def create_infant():
     infant.add_sensor(SightSensorChange())
 
     return infant
+
+
+def infant_action_valuation(signals):
+    """
+    Parameters
+    ----------
+    signals : dict
+    """
+    count = 0
+
+    for signal in signals:
+        if signals[signal] == "still":
+            count += 1
+
+    return count / float(4)
 
 
 def create_mobile_boolean():
