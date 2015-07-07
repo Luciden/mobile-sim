@@ -188,7 +188,9 @@ def infant_new_causal_controller():
     controller = NewCausalController()
     controller.set_rewards({"movement": "faster"})
     controller.add_ignored(["movement"])
-    controller.set_motor_signal_bias(infant_action_valuation, 0.75)
+    controller.set_motor_signal_bias(infant_action_valuation, 0.5)
+    controller.set_considered_signals(["left-foot", "right-foot", "left-hand", "right-hand"])
+    controller.set_considered_sensory(["left-foot-position", "right-foot-position", "left-hand-position", "right-hand-position"])
 
     return controller
 
@@ -198,7 +200,9 @@ def infant_simple_controller():
 
 
 def infant_new_simple_controller():
-    return NewSimpleController([("movement", "faster")])
+    controller = NewSimpleController([("movement", "faster")])
+    controller.set_motor_signal_bias(infant_action_valuation, 1.0)
+    return controller
 
 
 def create_infant():
@@ -402,7 +406,7 @@ def control_condition(n, experiment_log, agent, v=None):
 if __name__ == '__main__':
     ss = SimulationSuite()
     ss.set_visualizer(PyGameVisualizer())
-    ss.set_simulation_length(1000)
+    ss.set_simulation_length(300)
     ss.set_data_bins(6)
     ss.add_constant_entities({"infant": create_infant, "mobile": create_mobile_direction})
     ss.add_controllers("infant", {"new_simple": infant_new_simple_controller, "new_causal": infant_new_causal_controller})

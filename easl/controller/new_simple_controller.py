@@ -61,11 +61,12 @@ class NewSimpleController(Controller):
         self.action = None
         self.probabilities = None
 
-        self.still_bias = 0.5
+        self.motor_signal_valuation = lambda x: 1.0
+        self.motor_signal_bias = 1.0
 
         self.delta = 0.1
         self.max_probability = 0.9
-        self.min_probability = 0.001
+        self.min_probability = 0.01
 
     def init_internal(self, entity):
         super(NewSimpleController, self).init_internal(entity)
@@ -81,6 +82,10 @@ class NewSimpleController(Controller):
         p = 1 / float(n)
         self.probabilities.do_operation(lambda x: p)
         print self.probabilities.table
+
+    def set_motor_signal_bias(self, valuation, bias):
+        self.motor_signal_valuation = valuation
+        self.motor_signal_bias = bias
 
     def sense(self, observation):
         name, value = observation
@@ -103,16 +108,26 @@ class NewSimpleController(Controller):
         Select the combination of actions with the maximum likelihood of
         resulting in a reward.
         """
+        values = []
+        total = 0.0
+
+        possibilities = self.all_possibilities(self.actions)
+
+        for combination in possibilities:
+            v = self.probabilities.get_value(combination) * self.motor_signal_bias + (1.0 - self.motor_signal_bias) * self.motor_signal_valuation(combination)
+            values.append(v)
+
+            total += v
+
         r = random.random()
 
         cumulative = 0.0
-        for combination in self.all_possibilities(self.actions):
-            p = self.probabilities.get_value(combination)
-            cumulative += p
+        for i in range(len(values)):
+            cumulative += values[i]
 
             if cumulative >= r:
-                print "Selected {0}, which had probability {1}".format(combination, p)
-                return combination
+                print "Selected {0}, which had probability {1}".format(possibilities[i], values[i] / float(total))
+                return possibilities[i]
 
     def __update_probabilities(self, rewarded):
         old = self.probabilities.get_value(self.action)
@@ -128,6 +143,8 @@ class NewSimpleController(Controller):
 
         # Renormalize
         self.probabilities.do_operation(lambda x: x / float(1.0 + (new - old)))
+
+        print "Old: {0}, New {1}, Normalized {2}".format(old, new, self.probabilities.get_value(self.action))
 
     def __got_reward(self):
         """

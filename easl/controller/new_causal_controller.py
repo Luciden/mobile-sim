@@ -55,6 +55,68 @@ class Data(object):
         return self.entries[-1 - offset]
 
 
+class DistributionComputer(object):
+    @staticmethod
+    def compute_frequency_table(variables, data, motor):
+        """
+        Parameters
+        ----------
+        variables : [string]
+        data : Data
+        motor : [string]
+        """
+        freq = SparseTable(variables)
+
+        first = 2
+        last = data.last_time() + 1
+
+        n = 0
+
+        for t_i in range(first, last):
+            n += 1
+            freq.inc_value(data.get_entries_previous_current(t_i, variables.keys(), motor))
+
+        return freq, n
+
+    @staticmethod
+    def compute_joint_probability_distribution(variables, data, motor):
+        freq, n = DistributionComputer.compute_frequency_table(variables, data, motor)
+
+        if n > 0:
+            freq.do_operation(lambda x: x / float(n))
+
+        return easl.utils.Distribution(variables, freq)
+
+    @staticmethod
+    def compute_conditional_probability_distribution(variables, data, motor, ignored):
+        """
+        """
+        freq, n = DistributionComputer.compute_frequency_table(variables, data, motor)
+
+        # Total number of occurences with only exploration variables
+        totals = SparseTable({k: v for k, v in variables.iteritems()
+                              if k not in ignored})
+
+        jpd = SparseTable(variables)
+
+        # Make conditional on exploration variables
+        # i.e. divide by total number of
+        for entry in freq.get_nonzero_entries():
+            filtered = {k: v for k, v in entry.iteritems() if k not in ignored}
+            # Add the values to increase the total
+            totals.set_value(filtered, totals.get_value(filtered) + freq.get_value(entry))
+
+        # Make conditional table by dividing by subtotals
+        for entry in freq.get_nonzero_entries():
+            filtered = {k: v for k, v in entry.iteritems() if k not in ignored}
+
+            # P(M|R) = F(M&R) / F(R)
+            f_r = float(totals.get_value(filtered))
+            jpd.set_value(entry, 0 if f_r == 0 else freq.get_value(entry) / f_r)
+
+        return jpd
+
+
 class CausalLearningVisual(visualize.Visual):
     @staticmethod
     def visualize(self):
@@ -115,7 +177,6 @@ class NewCausalController(Controller):
             Determines by which probability a 'still' motor signal is chosen.
             TODO: Hacked specifically for the babybot now; might be necessary to generalize later.
         """
-        # TODO: Try learning only with current motor signal and previous limb position
         super(NewCausalController, self).__init__(visual=CausalLearningVisual())
 
         self.state = self.STATE_EXPLORATION
@@ -127,6 +188,8 @@ class NewCausalController(Controller):
         self.motor_signal_bias = 1.0
 
         self.ignored_variables = []
+        self.considered_signals = []
+        self.considered_sensory = []
 
         self.numberings = {}
 
@@ -161,13 +224,7 @@ class NewCausalController(Controller):
         self.__create_node_numbering()
         self.__add_experiment_nodes()
 
-        self.nodes_all.update(self.nodes)
-        self.nodes_all.update(self.nodes_exp)
-
-        self.node_values_all.update(self.node_values)
-        self.node_values_all.update(self.node_values_exp)
-
-        print "Numbering: {0}".format(self.numberings)
+        print self.nodes_all
 
     def set_selection_bias(self, bias):
         self.selection_bias = bias
@@ -177,36 +234,42 @@ class NewCausalController(Controller):
         self.motor_signal_bias = bias
 
     def set_rewards(self, vals):
-        """
-        """
         self.rewards.update(vals)
 
     def add_ignored(self, ignored):
         self.ignored_variables.extend(ignored)
 
+    def set_considered_signals(self, signals):
+        self.considered_signals = signals
+
+    def set_considered_sensory(self, sensory):
+        self.considered_sensory = sensory
+
     def __create_node_numbering(self):
         # Create motor_prev nodes and number them
         """
         for action in self.actions:
+            if action not in self.considered_signals:
+                continue
             self.__add_node(action, self.PREVIOUS)
         """
         # Create sense_prev nodes
         for sense in self.sensory:
             if sense in self.ignored_variables:
                 continue
+            if sense not in self.considered_sensory:
+                continue
             self.__add_node(sense, self.PREVIOUS)
         # Create action_current nodes
         for action in self.actions:
+            if action not in self.considered_signals:
+                continue
             self.__add_node(action, self.CURRENT)
         # Create sense_current nodes
-        """
         for sense in self.sensory:
             if sense in self.ignored_variables:
                 continue
             self.__add_node(sense, self.CURRENT)
-        """
-
-        print self.nodes
 
     def __add_node(self, name, suffix, exploration=True):
         node = name + suffix
@@ -219,6 +282,9 @@ class NewCausalController(Controller):
             self.node_values_exp[node] = self.variables[name]
 
         self.numberings[node] = self.current_number
+
+        self.nodes_all[self.current_number] = node
+        self.node_values_all[node] = self.variables[name]
 
         self.current_number += 1
 
@@ -241,7 +307,7 @@ class NewCausalController(Controller):
             print "Exploration Complete"
             # Calculate the probability table from the exploration data once
             print self.node_values
-            self.jpd = self.__compute_joint_probability_distribution(self.node_values, self.data)
+            self.jpd = DistributionComputer.compute_joint_probability_distribution(self.node_values, self.data, self.actions.keys())
 
             # Transfer data so new actions can be calculated immediately
             self.data2.add_entry(self.data.get_latest_entry(2))
@@ -257,7 +323,10 @@ class NewCausalController(Controller):
             motor_signals = self.__select_random_motor_signals()
         elif self.state == self.STATE_EXPERIMENT:
             # Select signals by maximum likelihood from collected (all) data
-            self.jpd2 = self.__compute_conditional_probability_distribution(self.node_values_all, self.data2)
+            self.jpd2 = DistributionComputer.compute_conditional_probability_distribution(self.node_values_all,
+                                                                                          self.data2,
+                                                                                          self.actions.keys(),
+                                                                                          self.node_values_exp.keys())
             motor_signals = self.__select_maximum()
             if motor_signals is None:
                 print "Selecting randomly"
@@ -276,56 +345,6 @@ class NewCausalController(Controller):
         self.current_information = {}
 
         return motor_signals
-
-    def __compute_frequency_table(self, variables, data):
-        freq = SparseTable(variables)
-
-        first = 2
-        last = data.last_time() + 1
-
-        n = 0
-
-        for t_i in range(first, last):
-            n += 1
-            freq.inc_value(data.get_entries_previous_current(t_i, variables.keys(), self.actions.keys()))
-
-        return freq, n
-
-    def __compute_joint_probability_distribution(self, variables, data):
-        freq, n = self.__compute_frequency_table(variables, data)
-
-        if n > 0:
-            freq.do_operation(lambda x: x / float(n))
-
-        return easl.utils.Distribution(variables, freq)
-
-    def __compute_conditional_probability_distribution(self, variables, data):
-        """
-        """
-        freq, n = self.__compute_frequency_table(variables, data)
-
-        # Total number of occurences with only exploration variables
-        totals = SparseTable({k: v for k, v in variables.iteritems()
-                              if k not in self.node_values_exp.keys()})
-
-        jpd = SparseTable(variables)
-
-        # Make conditional on exploration variables
-        # i.e. divide by total number of
-        for entry in freq.get_nonzero_entries():
-            filtered = {k: v for k, v in entry.iteritems() if k not in self.node_values_exp.keys()}
-            # Add the values to increase the total
-            totals.set_value(filtered, totals.get_value(filtered) + freq.get_value(entry))
-
-        # Make conditional table by dividing by subtotals
-        for entry in freq.get_nonzero_entries():
-            filtered = {k: v for k, v in entry.iteritems() if k not in self.node_values_exp.keys()}
-
-            # P(M|R) = F(M&R) / F(R)
-            f_r = float(totals.get_value(filtered))
-            jpd.set_value(entry, 0 if f_r == 0 else freq.get_value(entry) / f_r)
-
-        return jpd
 
     def __select_maximum(self):
         # Select the combination of motor signals that maximizes probability
@@ -354,38 +373,52 @@ class NewCausalController(Controller):
         # P(Motor) = P(Motor|Rest) * P(Rest)
         max_valuation = 0.0
         max_combination = None
-        for combination in self.all_possibilities(self.actions):
+        for combination in self.all_possibilities({k: v for k, v in self.actions.iteritems() if k in self.considered_signals}):
+            combination.update({k: "still" for k in self.actions.keys() if k not in self.considered_signals})
+
             assignment = {}
             assignment.update(constant)
             assignment.update({k + self.CURRENT: v for k, v in combination.iteritems()})
 
-            # Marginalize over current 'limb positions'
+
             total = 0.0
-            """
-            for sensories in self.all_possibilities(self.sensory):
-                total_assignment = {}
-                total_assignment.update(assignment)
-                total_assignment.update({k + self.CURRENT: v for k, v in sensories.iteritems()
-                                         if k not in self.rewards.keys()})
+            if self.__are_all_nodes(assignment):
+                total = self.jpd2.get_value(assignment)
+            else:
+                # Marginalize over current 'limb positions'
+                # P(X|Y = y) = \sum_A P(X,A,Y = y) * P(A,Y = y) / \sum_A P(A,Y = y) * P(Y = y)
+                total_left = 0.0
+                total_right = 0.0
+                for sensories in self.all_possibilities(self.sensory):
+                    sensory_assignment = {k + self.CURRENT: v for k, v in sensories.iteritems()
+                                          if k not in self.rewards.keys()}
+                    total_assignment = {}
+                    total_assignment.update(assignment)
+                    total_assignment.update(sensory_assignment)
 
-                # Filter
-                total_assignment = {k: v for k, v in total_assignment.iteritems()
-                                    if k in self.node_values_all.keys()}
+                    # Filter
+                    total_assignment = {k: v for k, v in total_assignment.iteritems()
+                                        if k in self.node_values_all.keys()}
 
-                exploration_assignment = {}
-                exploration_assignment.update(total_assignment)
-                exploration_assignment = {k: v for k, v in exploration_assignment.iteritems()
-                                          if k not in self.node_values_exp.keys()}
+                    exploration_assignment = {}
+                    exploration_assignment.update(total_assignment)
+                    exploration_assignment = {k: v for k, v in exploration_assignment.iteritems()
+                                              if k not in self.node_values_exp.keys()}
 
-                conditional = self.jpd2.get_value(total_assignment)
-                if conditional != 0.0:
-                    print "Conditional {0} {1}".format(conditional, total_assignment)
+                    conditional = self.jpd2.get_value(total_assignment)
+                    partial = self.jpd.partial_prob({k: v for k, v in exploration_assignment.iteritems()
+                                                     if k not in sensory_assignment.keys()})
+                    prior = self.jpd.get_value(exploration_assignment)
 
-                total += conditional
-            """
-            total = self.jpd2.get_value(assignment)
+                    total_left += conditional * partial
+                    total_right += partial * prior
 
-            valuation = self.motor_signal_bias * total + (1.0 - self.motor_signal_bias) * self.motor_signal_valuation(combination)
+                    print "Combination {0}".format(total_assignment)
+
+                    total = total_left / float(total_right) if total_right != 0.0 else 0.0
+
+            # valuation = self.motor_signal_bias * total + (1.0 - self.motor_signal_bias) * self.motor_signal_valuation(combination)
+            valuation = total
 
             if valuation > max_valuation:
                 print "Updated"
@@ -397,6 +430,12 @@ class NewCausalController(Controller):
             return [(k, v) for k, v in max_combination.iteritems()]
         else:
             return None
+
+    def __are_all_nodes(self, assignment):
+        for node in self.node_values_all.keys():
+            if node not in assignment.keys():
+                return False
+        return True
 
     def __select_random_motor_signals(self):
         """
