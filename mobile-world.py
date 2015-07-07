@@ -70,6 +70,7 @@ def swing_direction(self):
     v = self.a["velocity"]
     p = self.a["position"]
     d = self.a["direction"]
+    self.a["previous"] = self.a["velocity"]
 
     if d == "+":
         p_new = p + v
@@ -93,17 +94,20 @@ def swing_direction(self):
 
 
 def moved(self, direction):
-    self.a["previous"] = self.a["velocity"]
     self.a["velocity"] += 4
 
 
 def moved_direction(self, direction):
-    self.a["previous"] = self.a["velocity"]
-    if self.a["direction"] == "+":
-        self.a["velocity"] = abs(self.a["velocity"] - 3)
-    elif self.a["direction"] == "-":
+    ignore_direction = True
+
+    if ignore_direction:
         self.a["velocity"] = min(self.a["velocity"] + 3, 10)
-    self.a["direction"] = "-"
+    else:
+        if self.a["direction"] == "+":
+            self.a["velocity"] = 3
+        elif self.a["direction"] == "-":
+            self.a["velocity"] = min(self.a["velocity"] + 3, 10)
+        self.a["direction"] = "-"
 
 
 def movement_emission_boolean(self):
@@ -181,13 +185,23 @@ def infant_causal_controller():
 
 def infant_new_causal_controller():
     controller = NewCausalController()
+    controller.set_rewards({"movement": "faster"})
     controller.add_ignored(["movement"])
+    controller.set_motor_signal_bias(infant_action_valuation, 0.5)
+    controller.set_considered_signals(["left-foot", "right-foot", "left-hand", "right-hand"])
+    controller.set_considered_sensory(["left-foot-position", "right-foot-position", "left-hand-position", "right-hand-position"])
 
     return controller
 
 
 def infant_simple_controller():
     return SimpleController([("movement", "faster")])
+
+
+def infant_new_simple_controller():
+    controller = NewSimpleController([("movement", "faster")])
+    controller.set_motor_signal_bias(infant_action_valuation, 1.0)
+    return controller
 
 
 def create_infant():
@@ -229,6 +243,21 @@ def create_infant():
     return infant
 
 
+def infant_action_valuation(signals):
+    """
+    Parameters
+    ----------
+    signals : dict
+    """
+    count = 0
+
+    for signal in signals:
+        if signals[signal] == "still":
+            count += 1
+
+    return count / float(4)
+
+
 def create_mobile_boolean():
     mobile = Entity("mobile")
 
@@ -261,6 +290,7 @@ class MobileDirectionVisual(Visual):
         group.add_element(Circle("velocity", 0, 10, self.a["velocity"]))
 
         return group
+
 
 def create_mobile_change():
     mobile = Entity("mobile", visual=MobileVisual())
@@ -374,15 +404,15 @@ def control_condition(n, experiment_log, agent, v=None):
 if __name__ == '__main__':
     ss = SimulationSuite()
     ss.set_visualizer(PyGameVisualizer())
-    ss.set_simulation_length(240)
+    ss.set_simulation_length(300)
     ss.set_data_bins(6)
     ss.add_constant_entities({"infant": create_infant, "mobile": create_mobile_direction})
-    ss.add_controllers("infant", {"simple": infant_simple_controller, "new_causal": infant_new_causal_controller})
+    ss.add_controllers("infant", {"new_simple": infant_new_simple_controller, "new_causal": infant_new_causal_controller})
 
     ss.add_initial_triggers({"experimental": [("infant", "right-foot-position", "movement", "mobile")]})
     ss.add_conditional_trigger_changes({"experimental": {"plain": ([], []),
-                                                         "remove_halfway": ({60: [("infant", "left-hand-position", "movement", "mobile")]},
-                                                                            {60: [("infant", "right-foot-position", "movement", "mobile")]})}})
+                                                         "remove_halfway": ({150: [("infant", "left-hand-position", "movement", "mobile")]},
+                                                                            {150: [("infant", "right-foot-position", "movement", "mobile")]})}})
 
     ss.add_constant_data_collection(["left-hand-position", "right-hand-position", "left-foot-position", "right-foot-position"], ["lh", "rh", "lf", "rf"])
 

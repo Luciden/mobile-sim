@@ -173,7 +173,7 @@ class SparseTable(Table):
                 current = current[entry[name]]
                 continue
 
-        current = 0
+        current[entry[self.last]] = 0
 
     def set_value(self, vals, value):
         current = self.table
@@ -187,7 +187,12 @@ class SparseTable(Table):
 
             current = current[vals[name]]
 
-        current[vals[self.last]] = value
+        if vals[self.last] not in current:
+            self.__make_entry(vals)
+            self.set_value(vals, value)
+            return
+        else:
+            current[vals[self.last]] = value
 
     def inc_value(self, vals):
         """
@@ -208,7 +213,12 @@ class SparseTable(Table):
 
             current = current[vals[name]]
 
-        current[vals[self.last]] += 1
+        if vals[self.last] not in current:
+            self.__make_entry(vals)
+            self.set_value(vals, 1)
+            return
+        else:
+            current[vals[self.last]] += 1
 
     def get_value(self, vals):
         """
@@ -219,9 +229,36 @@ class SparseTable(Table):
         current = self.table
 
         for name in self.order:
+            if vals[name] not in current:
+                return 0
+
             current = current[vals[name]]
 
-        return current[vals[self.last]]
+        if vals[self.last] not in current:
+            return 0
+        else:
+            v = current[vals[self.last]]
+            return v
+
+    def get_nonzero_entries(self):
+        return self.__get_nonzero_entries_rec(self.table, self.order, {})
+
+    def __get_nonzero_entries_rec(self, current, order, entry):
+        if len(order) == 0:
+            for value in current:
+                new_entry = deepcopy(entry)
+                new_entry[self.last] = value
+
+                return [new_entry]
+        else:
+            entries = []
+            for value in current:
+                new_entry = deepcopy(entry)
+                new_entry[order[0]] = value
+
+                entries += self.__get_nonzero_entries_rec(current[value], order[1:], new_entry)
+
+            return entries
 
     def do_operation(self, f):
         """
@@ -240,6 +277,20 @@ class SparseTable(Table):
         else:
             for value in current:
                 self.__do_operation_rec(f, current[value], order[1:])
+
+    def to_string(self):
+        return self.__to_string_rec(self.table, self.order, "")
+
+    def __to_string_rec(self, current, order, so_far):
+        s = ""
+        if len(order) == 0:
+            for value in current:
+                s += "{0}, {1}={2}: {3}\n".format(so_far, self.last, value, current[value])
+        else:
+            for value in current:
+                s += self.__to_string_rec(current[value], order[1:], "{2}, {0}={1}".format(order[0], value, so_far))
+
+        return s
 
 
 class Distribution(SparseTable):

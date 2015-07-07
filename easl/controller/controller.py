@@ -1,6 +1,9 @@
 __author__ = 'Dennis'
 
 
+import itertools
+
+
 class Controller(object):
     """
     Blah.
@@ -106,3 +109,12 @@ class Controller(object):
             return self.visual.visualize(self)
         else:
             return None
+
+    @staticmethod
+    def all_possibilities(actions):
+        """
+        Parameters
+        ----------
+        actions : {string: [string]}
+        """
+        return [dict(zip(actions, product)) for product in itertools.product(*(actions[name] for name in actions))]
