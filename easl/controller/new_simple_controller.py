@@ -64,8 +64,8 @@ class NewSimpleController(Controller):
         self.motor_signal_valuation = lambda x: 1.0
         self.motor_signal_bias = 1.0
 
-        self.delta = 0.1
-        self.max_probability = 0.9
+        self.delta_pos = 0.1
+        self.delta_neg = 0.05
         self.min_probability = 0.01
 
     def init_internal(self, entity):
@@ -111,15 +111,19 @@ class NewSimpleController(Controller):
         values = []
         total = 0.0
 
+        print self.probabilities.table
+
         possibilities = self.all_possibilities(self.actions)
 
         for combination in possibilities:
-            v = self.probabilities.get_value(combination) * self.motor_signal_bias + (1.0 - self.motor_signal_bias) * self.motor_signal_valuation(combination)
+            # v = self.probabilities.get_value(combination) * self.motor_signal_bias + (1.0 - self.motor_signal_bias) * self.motor_signal_valuation(combination)
+            v = self.probabilities.get_value(combination) * self.motor_signal_valuation(combination)
+            # v = self.probabilities.get_value(combination)
             values.append(v)
 
             total += v
 
-        r = random.random()
+        r = random.random() * total
 
         cumulative = 0.0
         for i in range(len(values)):
@@ -135,16 +139,48 @@ class NewSimpleController(Controller):
 
         # Change probability of one particular
         if rewarded:
-            new = min(old + self.delta, self.max_probability)
+            print "Rewarded"
+            new = old + self.delta_pos
         else:
-            new = max(old - self.delta, self.min_probability)
+            new = max(old - self.delta_neg, self.min_probability)
 
         self.probabilities.set_value(self.action, new)
 
         # Renormalize
-        self.probabilities.do_operation(lambda x: x / float(1.0 + (new - old)))
+        self.__normalize(1.0 + (new - old))
 
         print "Old: {0}, New {1}, Normalized {2}".format(old, new, self.probabilities.get_value(self.action))
+
+    def __normalize(self, new_total):
+        self.probabilities.do_operation(lambda x: x / float(new_total))
+
+    def __increase_probability(self, combination):
+        old = self.probabilities.get_value(self.action)
+
+        # Change probability of one particular
+        new = old + self.delta_pos
+
+        self.probabilities.set_value(combination, new)
+
+        return new - old
+
+    def __update_probabilities_subsets(self, rewarded):
+        if rewarded:
+            print "Rewarded"
+            new_total = 1.0
+            for combination in self.all_possibilities(self.actions):
+                match = False
+
+                for k, v in self.action.iteritems():
+                    if combination[k] == v:
+                        match = True
+
+                if match:
+                    new_total += self.__increase_probability(combination)
+            print "New {0}".format(new_total)
+            self.__normalize(new_total)
+        else:
+            self.__update_probabilities(rewarded)
 
     def __got_reward(self):
         """

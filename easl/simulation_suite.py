@@ -1,6 +1,7 @@
 __author__ = 'Dennis'
 
 from copy import deepcopy
+import csv
 
 from world import World
 from log import Log
@@ -58,7 +59,45 @@ class SimulationSuite(object):
     def run_single(self, condition, trigger_condition, controllers):
         self.run_simulations(condition, trigger_condition, controllers)
 
-    def run_simulations(self, only_condition=None, only_trigger_condition=None, only_controllers=None):
+    def run_multiple(self, condition, trigger_condition, controllers, n):
+        for i in range(n):
+            self.run_simulations(condition, trigger_condition, controllers, number=i)
+
+    @staticmethod
+    def make_average(name, n):
+        data_meta = {}
+        c = []
+        for i in range(n):
+            f = open(name + "_{0}_bins".format(str(i)) + ".csv", "rt")
+            try:
+                # Skip header
+                header = f.readline()
+                c = [x.rstrip() for x in header.split(' ')[1:]]
+
+                reader = csv.reader(f, delimiter=' ')
+
+                current_data = []
+                for row in reader:
+                    current_data.append([int(x) for x in row[1:]])
+
+                data_meta[i] = current_data
+            finally:
+                f.close()
+
+        # Calculate totals and averages
+        totals = deepcopy(data_meta[0])
+        for i in range(1, n):
+            for j in range(len(totals)):
+                for k in range(len(c)):
+                    totals[j][k] = totals[j][k] + data_meta[i][j][k]
+
+        for i in range(len(totals)):
+            for k in range(len(c)):
+                totals[i][k] /= float(n)
+
+        Log.write_data(name + "_avg", c, totals)
+
+    def run_simulations(self, only_condition=None, only_trigger_condition=None, only_controllers=None, number=None):
         for setting in self.create_all_settings():
             print "running {0}-{1}".format(setting.condition, setting.trigger_condition)
 
@@ -96,8 +135,8 @@ class SimulationSuite(object):
             world.run(self.simulation_length, add_triggers=setting.trigger_additions, remove_triggers=setting.trigger_removals)
 
             log = world.log
-            log.make_data(file_name, self.constant_data_collection)
-            Log.make_bins(file_name, self.constant_data_collection.values(), self.bins)
+            log.make_data(file_name, self.constant_data_collection, number)
+            Log.make_bins(file_name, self.constant_data_collection.values(), self.bins, number)
 
     def create_all_settings(self):
         settings = []
