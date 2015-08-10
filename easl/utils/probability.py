@@ -293,6 +293,24 @@ class SparseTable(Table):
         return s
 
 
+class SparseConditionalTable(SparseTable):
+    def __init__(self, variables, conditional):
+        super(SparseConditionalTable, self).__init__(variables)
+
+        self.conditional = conditional
+
+        self.conditional_table = SparseTable(conditional)
+
+    def set_value(self, vals, value):
+        super(SparseConditionalTable, self).set_value(vals, value)
+
+        # Add entry to the conditional table
+        self.conditional_table.set_value({k: v for k, v in vals.iteritems() if k in self.conditional.keys()}, True)
+
+    def has_data(self, conditional):
+        return self.conditional_table.get_value(conditional)
+
+
 class Distribution(SparseTable):
     def __init__(self, variables, freq=None):
         """

@@ -122,13 +122,13 @@ def movement_emission_change(self):
     s = []
 
     if self.a["velocity"] == 0:
-        s.append(Signal("sight", "movement", "idle", ["idle", "faster", "slower", "same"]))
+        s.append(Signal("sight", "movement", "idle", ["idle", "faster", "slower"]))
     elif self.a["velocity"] > self.a["previous"]:
-        s.append(Signal("sight", "movement", "faster", ["idle", "faster", "slower", "same"]))
+        s.append(Signal("sight", "movement", "faster", ["idle", "faster", "slower"]))
     elif self.a["velocity"] < self.a["previous"]:
-        s.append(Signal("sight", "movement", "slower", ["idle", "faster", "slower", "same"]))
+        s.append(Signal("sight", "movement", "slower", ["idle", "faster", "slower"]))
     else:
-        s.append(Signal("sight", "movement", "same", ["idle", "faster", "slower", "same"]))
+        s.append(Signal("sight", "movement", "slower", ["idle", "faster", "slower"]))
 
     return s
 
@@ -144,7 +144,7 @@ class SightSensorBoolean(Sensor):
 
 class SightSensorChange(Sensor):
     def init(self):
-        self.signals.update({"movement": ["idle", "faster", "slower", "same"]})
+        self.signals.update({"movement": ["idle", "faster", "slower"]})
         self.default_signals.update({"movement": "idle"})
 
     def detects_modality(self, modality):
@@ -188,9 +188,11 @@ def infant_new_causal_controller():
     controller = NewCausalController()
     controller.set_rewards({"movement": "faster"})
     controller.add_ignored(["movement"])
-    controller.set_motor_signal_bias(infant_action_valuation, 0.5)
+    controller.set_motor_signal_bias(infant_action_valuation_constant, 0.5)
     controller.set_considered_signals(["left-foot", "right-foot", "left-hand", "right-hand"])
     controller.set_considered_sensory(["left-foot-position", "right-foot-position", "left-hand-position", "right-hand-position"])
+    #controller.set_considered_signals(["right-foot"])
+    #controller.set_considered_sensory(["right-foot-position"])
 
     return controller
 
@@ -201,7 +203,7 @@ def infant_simple_controller():
 
 def infant_new_simple_controller():
     controller = NewSimpleController([("movement", "faster")])
-    controller.set_motor_signal_bias(infant_action_valuation, 1.0)
+    controller.set_motor_signal_bias(infant_action_valuation_single_limb, 1.0)
     return controller
 
 
@@ -256,7 +258,34 @@ def infant_action_valuation(signals):
         if signals[signal] == "still":
             count += 1
 
-    return count / float(4)
+    return max(count / float(4), 0.1)
+
+
+def infant_action_valuation_move_n_limbs(n, signals):
+    still = 0
+
+    for signal in signals:
+        if signals[signal] == "still":
+            still += 1
+
+    moving = 4 - still
+
+    if 0 < moving <= n:
+        return 1.0
+    else:
+        return 0.0
+
+
+def infant_action_valuation_single_limb(signals):
+    return infant_action_valuation_move_n_limbs(1, signals)
+
+
+def infant_action_valuation_two_limbs(signals):
+    return infant_action_valuation_move_n_limbs(2, signals)
+
+
+def infant_action_valuation_constant(signals):
+    return 1.0
 
 
 def create_mobile_boolean():
@@ -419,7 +448,12 @@ if __name__ == '__main__':
     ss.add_constant_data_collection(["left-hand-position", "right-hand-position", "left-foot-position", "right-foot-position"], ["lh", "rh", "lf", "rf"])
 
     run_single = True
+    make_average = True
     if run_single:
-        ss.run_single("experimental", "plain", {"infant": "new_causal"})
+        if make_average:
+            #ss.run_multiple("experimental", "remove_halfway", {"infant": "new_causal"}, 10)
+            ss.make_average("experimental-remove_halfway-infant-new_simple", 10)
+        else:
+            ss.run_single("experimental", "plain", {"infant": "new_causal"})
     else:
         ss.run_simulations()

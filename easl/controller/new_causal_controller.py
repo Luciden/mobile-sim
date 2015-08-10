@@ -2,6 +2,7 @@ __author__ = 'Dennis'
 
 import easl
 from easl.utils import SparseTable
+from easl.utils import SparseConditionalTable
 from controller import Controller
 from easl import visualize
 
@@ -88,27 +89,27 @@ class DistributionComputer(object):
         return easl.utils.Distribution(variables, freq)
 
     @staticmethod
-    def compute_conditional_probability_distribution(variables, data, motor, ignored):
+    def compute_conditional_probability_distribution(variables, data, motor, conditioned):
         """
         """
         freq, n = DistributionComputer.compute_frequency_table(variables, data, motor)
 
         # Total number of occurences with only exploration variables
         totals = SparseTable({k: v for k, v in variables.iteritems()
-                              if k not in ignored})
+                              if k not in conditioned})
 
-        jpd = SparseTable(variables)
+        jpd = SparseConditionalTable(variables, {k: v for k, v in variables.iteritems() if k not in conditioned})
 
         # Make conditional on exploration variables
         # i.e. divide by total number of
         for entry in freq.get_nonzero_entries():
-            filtered = {k: v for k, v in entry.iteritems() if k not in ignored}
+            filtered = {k: v for k, v in entry.iteritems() if k not in conditioned}
             # Add the values to increase the total
             totals.set_value(filtered, totals.get_value(filtered) + freq.get_value(entry))
 
         # Make conditional table by dividing by subtotals
         for entry in freq.get_nonzero_entries():
-            filtered = {k: v for k, v in entry.iteritems() if k not in ignored}
+            filtered = {k: v for k, v in entry.iteritems() if k not in conditioned}
 
             # P(M|R) = F(M&R) / F(R)
             f_r = float(totals.get_value(filtered))
@@ -193,14 +194,23 @@ class NewCausalController(Controller):
 
         self.numberings = {}
 
+        # Variables in the exploration phase
         self.nodes = {}
         self.node_values = {}
 
+        # Variables added after the exploration phase
         self.nodes_exp = {}
         self.node_values_exp = {}
 
+        # All variables
         self.nodes_all = {}
         self.node_values_all = {}
+
+        self.node_values_cond_motor = {}
+        self.node_values_cond_limb = {}
+
+        self.node_values_limb = {}
+        self.node_values_motor = {}
 
         self.current_number = 1
 
@@ -208,7 +218,10 @@ class NewCausalController(Controller):
         self.data2 = Data()
         self.network = None
         self.jpd = None
+        # P(limb|motor)
         self.jpd2 = None
+        # P(mobile|limb)
+        self.jpd3 = None
 
         self.current_information = {}
         self.new_information = {}
@@ -216,6 +229,8 @@ class NewCausalController(Controller):
 
         self.selection_bias = 0.5
         self.calculate_once = True
+
+        self.epsilon = 0.2
 
     def init_internal(self, entity):
         super(NewCausalController, self).init_internal(entity)
@@ -247,12 +262,10 @@ class NewCausalController(Controller):
 
     def __create_node_numbering(self):
         # Create motor_prev nodes and number them
-        """
         for action in self.actions:
             if action not in self.considered_signals:
                 continue
             self.__add_node(action, self.PREVIOUS)
-        """
         # Create sense_prev nodes
         for sense in self.sensory:
             if sense in self.ignored_variables:
@@ -286,6 +299,18 @@ class NewCausalController(Controller):
         self.nodes_all[self.current_number] = node
         self.node_values_all[node] = self.variables[name]
 
+        if name in self.actions.keys():
+            self.node_values_cond_motor[node] = self.variables[name]
+
+            self.node_values_motor[node] = self.variables[name]
+        elif name in self.ignored_variables:
+            self.node_values_cond_limb[node] = self.variables[name]
+        else:
+            self.node_values_cond_motor[node] = self.variables[name]
+            self.node_values_cond_limb[node] = self.variables[name]
+
+            self.node_values_limb[node] = self.variables[name]
+
         self.current_number += 1
 
     def __add_experiment_nodes(self):
@@ -306,8 +331,11 @@ class NewCausalController(Controller):
         if self.iteration == self.exploration_iterations:
             print "Exploration Complete"
             # Calculate the probability table from the exploration data once
-            print self.node_values
             self.jpd = DistributionComputer.compute_joint_probability_distribution(self.node_values, self.data, self.actions.keys())
+            self.jpd2 = DistributionComputer.compute_conditional_probability_distribution(self.node_values_cond_motor,
+                                                                                          self.data,
+                                                                                          self.actions.keys(),
+                                                                                          self.node_values_limb.keys())
 
             # Transfer data so new actions can be calculated immediately
             self.data2.add_entry(self.data.get_latest_entry(2))
@@ -323,14 +351,17 @@ class NewCausalController(Controller):
             motor_signals = self.__select_random_motor_signals()
         elif self.state == self.STATE_EXPERIMENT:
             # Select signals by maximum likelihood from collected (all) data
-            self.jpd2 = DistributionComputer.compute_conditional_probability_distribution(self.node_values_all,
+            self.jpd3 = DistributionComputer.compute_conditional_probability_distribution(self.node_values_cond_limb,
                                                                                           self.data2,
                                                                                           self.actions.keys(),
                                                                                           self.node_values_exp.keys())
-            motor_signals = self.__select_maximum()
-            if motor_signals is None:
+
+            r = random.random()
+            if r < self.epsilon:
                 print "Selecting randomly"
                 motor_signals = self.__select_random_motor_signals()
+            else:
+                motor_signals = self.__select_maximum()
 
         self.new_information = {}
         self.new_information.update(self.current_information)
@@ -348,7 +379,6 @@ class NewCausalController(Controller):
 
     def __select_maximum(self):
         # Select the combination of motor signals that maximizes probability
-
         constant = {}
 
         # Set latest selected motor signals as previous motor signals
@@ -370,16 +400,15 @@ class NewCausalController(Controller):
             constant[signal + self.CURRENT] = self.rewards[signal]
 
         # Get maximum probability by checking all possible combinations of motor signals
-        # P(Motor) = P(Motor|Rest) * P(Rest)
         max_valuation = 0.0
-        max_combination = None
+        max_combinations = []
         for combination in self.all_possibilities({k: v for k, v in self.actions.iteritems() if k in self.considered_signals}):
+        #for combination in self.__subset_possibilities(self.actions, 1):
             combination.update({k: "still" for k in self.actions.keys() if k not in self.considered_signals})
 
             assignment = {}
             assignment.update(constant)
             assignment.update({k + self.CURRENT: v for k, v in combination.iteritems()})
-
 
             total = 0.0
             if self.__are_all_nodes(assignment):
@@ -387,8 +416,6 @@ class NewCausalController(Controller):
             else:
                 # Marginalize over current 'limb positions'
                 # P(X|Y = y) = \sum_A P(X,A,Y = y) * P(A,Y = y) / \sum_A P(A,Y = y) * P(Y = y)
-                total_left = 0.0
-                total_right = 0.0
                 for sensories in self.all_possibilities(self.sensory):
                     sensory_assignment = {k + self.CURRENT: v for k, v in sensories.iteritems()
                                           if k not in self.rewards.keys()}
@@ -400,32 +427,39 @@ class NewCausalController(Controller):
                     total_assignment = {k: v for k, v in total_assignment.iteritems()
                                         if k in self.node_values_all.keys()}
 
-                    exploration_assignment = {}
-                    exploration_assignment.update(total_assignment)
-                    exploration_assignment = {k: v for k, v in exploration_assignment.iteritems()
-                                              if k not in self.node_values_exp.keys()}
+                    motor_assignment = {k: v for k, v in total_assignment.iteritems() if k in self.node_values_cond_motor.keys()}
+                    limb_assignment = {k: v for k, v in total_assignment.iteritems() if k in self.node_values_cond_limb.keys()}
 
-                    conditional = self.jpd2.get_value(total_assignment)
-                    partial = self.jpd.partial_prob({k: v for k, v in exploration_assignment.iteritems()
-                                                     if k not in sensory_assignment.keys()})
-                    prior = self.jpd.get_value(exploration_assignment)
+                    pl_m_assignment = {}
+                    pl_m_assignment.update({k: v for k, v in assignment.iteritems() if k in self.node_values_motor.keys()})
+                    pl_m_assignment.update({k: v for k, v in motor_assignment.iteritems() if k in self.node_values_motor.keys()})
 
-                    total_left += conditional * partial
-                    total_right += partial * prior
+                    if self.jpd2.has_data(pl_m_assignment):
+                        pl_m = self.jpd2.get_value(motor_assignment)
+                    else:
+                        pl_m = 1 / float(81)
 
-                    print "Combination {0}".format(total_assignment)
+                    # if all pmm_l are zero for all mm, then give a default one
+                    if self.jpd3.has_data({k: v for k, v in limb_assignment.iteritems() if k in self.node_values_limb.keys()}):
+                        pmm_l = self.jpd3.get_value(limb_assignment)
+                    else:
+                        pmm_l = 1 / float(16)
 
-                    total = total_left / float(total_right) if total_right != 0.0 else 0.0
+                    total += pl_m * pmm_l
+                    #print "total {0} = {1} * {2}".format(total, pl_m, pmm_l)
 
-            # valuation = self.motor_signal_bias * total + (1.0 - self.motor_signal_bias) * self.motor_signal_valuation(combination)
-            valuation = total
+            valuation = total * self.motor_signal_valuation(combination)
 
-            if valuation > max_valuation:
+            if valuation == max_valuation:
+                max_combinations.append(combination)
+            elif valuation > max_valuation:
                 print "Updated"
                 max_valuation = valuation
-                max_combination = combination
+                max_combinations = []
+                max_combinations.append(combination)
 
-        if max_combination is not None:
+        if len(max_combinations) is not 0:
+            max_combination = random.choice(max_combinations)
             print "Selected {0} with probability {1}".format(max_combination, max_valuation)
             return [(k, v) for k, v in max_combination.iteritems()]
         else:
@@ -455,3 +489,23 @@ class NewCausalController(Controller):
                 signals.append((action, "down"))
 
         return signals
+
+    @staticmethod
+    def __subset_possibilities(variables, n):
+        possibilities = []
+
+        for v in variables:
+            for val in variables[v]:
+                if val == "still":
+                    continue
+
+                possibility = {v: val}
+                for u in variables:
+                    if u == v:
+                        continue
+
+                    possibility[u] = "still"
+
+                possibilities.append(possibility)
+
+        return possibilities

@@ -102,14 +102,15 @@ class Log(object):
         finally:
             f.close()
 
-    def make_data(self, file_name, attribute_labels):
+    def make_data(self, file_name, attribute_labels, number=None):
         """
         Parameters
         ----------
         file : string
             File name to write to.
         """
-        f = open(file_name + ".csv", "wt")
+        suffix = "" if number is None else "_{0}".format(str(number))
+        f = open(file_name + suffix + ".csv", "wt")
         try:
             writer = csv.writer(f, delimiter=' ')
 
@@ -136,15 +137,17 @@ class Log(object):
             f.close()
 
     @staticmethod
-    def make_bins(name, c, n):
+    def make_bins(name, c, n, number=None):
         """
         Parameters
         ----------
         c : int
             Number of columns next to the time column.
         """
-        f = open(name + ".csv", "rt")
-        o = open(name + "_bins.csv", "wt")
+        suffix = "" if number is None else "_{0}".format(str(number))
+
+        f = open(name + suffix + ".csv", "rt")
+        o = open(name + suffix + "_bins.csv", "wt")
         try:
             # Skip header
             f.readline()
@@ -168,4 +171,17 @@ class Log(object):
                 writer.writerow([str(i)] + [str(x) for x in bins[i]])
         finally:
             f.close()
+            o.close()
+
+    @staticmethod
+    def write_data(name, c, data):
+        o = open(name + ".csv", "wt")
+
+        try:
+            writer = csv.writer(o, delimiter=' ')
+
+            writer.writerow(["block"] + c)
+            for i in range(len(data)):
+                writer.writerow([str(i)] + [str(x) for x in data[i]])
+        finally:
             o.close()
