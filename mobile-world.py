@@ -5,7 +5,7 @@ Containing the experiment based on the mobile experiment.
 import functools
 
 from easl import *
-from easl.controller import *
+from easl.mechanisms import *
 from easl.visualize import *
 
 
@@ -167,7 +167,7 @@ class InfantVisual(Visual):
 
 
 def infant_random_controller():
-    return RandomController()
+    return RandomMechanism()
 
 
 def infant_operant_controller():
@@ -178,21 +178,21 @@ def infant_operant_controller():
 
 
 def infant_causal_controller():
-    controller = CausalLearningController()
+    controller = CausalLearningMechanism()
     controller.set_values({"movement": "faster"})
 
     return controller
 
 
 def infant_new_causal_controller():
-    controller = NewCausalController()
+    controller = CausalLearningMechanism()
     controller.set_rewards({"movement": "faster"})
     controller.add_ignored(["movement"])
     controller.set_motor_signal_bias(infant_action_valuation_constant, 0.5)
     controller.set_considered_signals(["left-foot", "right-foot", "left-hand", "right-hand"])
     controller.set_considered_sensory(["left-foot-position", "right-foot-position", "left-hand-position", "right-hand-position"])
-    #controller.set_considered_signals(["right-foot"])
-    #controller.set_considered_sensory(["right-foot-position"])
+    #mechanisms.set_considered_signals(["right-foot"])
+    #mechanisms.set_considered_sensory(["right-foot-position"])
 
     return controller
 
@@ -202,7 +202,7 @@ def infant_simple_controller():
 
 
 def infant_new_simple_controller():
-    controller = NewSimpleController([("movement", "faster")])
+    controller = NewSimpleMechanism([("movement", "faster")])
     controller.set_motor_signal_bias(infant_action_valuation_single_limb, 1.0)
     return controller
 
@@ -211,8 +211,8 @@ def create_infant():
     """
     Parameters
     ----------
-    controller : string
-        Name of the type of controller to use.
+    mechanisms : string
+        Name of the type of mechanisms to use.
     """
     infant = Entity("infant", visual=InfantVisual())
 
@@ -387,7 +387,7 @@ def experimental_condition(n, agent, v=None, remove={}, add={}):
     elif agent == "simple":
         infant.set_agent(infant_simple_controller())
     else:
-        raise RuntimeError("Undefined controller type.")
+        raise RuntimeError("Undefined mechanisms type.")
 
     mobile = create_mobile_change()
 
@@ -416,7 +416,7 @@ def control_condition(n, experiment_log, agent, v=None):
         print "test"
         infant.set_agent(infant_new_causal_controller())
     else:
-        raise RuntimeError("Undefined controller type.")
+        raise RuntimeError("Undefined mechanisms type.")
 
     mobile = create_mobile_change()
     experimenter = create_experimenter(experiment_log)

@@ -1,5 +1,5 @@
 from unittest import TestCase
-from easl.controller.new_causal_controller import *
+from easl.mechanisms.causal_learning import *
 
 __author__ = 'Dennis'
 

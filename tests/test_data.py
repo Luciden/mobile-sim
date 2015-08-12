@@ -1,5 +1,4 @@
 from unittest import TestCase
-from easl.controller.causal_controller import Data
 from easl.utils import Distribution
 
 __author__ = 'Dennis'

@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from easl.controller.operant_controller import *
+from easl.mechanisms.operant_controller import *
 
 __author__ = 'Dennis'
 

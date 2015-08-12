@@ -1,5 +1,5 @@
 from unittest import TestCase
-from easl.controller import *
+from easl.mechanisms import *
 
 __author__ = 'Dennis'
 

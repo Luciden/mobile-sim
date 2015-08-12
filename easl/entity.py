@@ -52,7 +52,7 @@ class Entity(object):
         parameters name/value pairs.
     triggers : {name: function(self, ...)}
         callback functions that change the attributes when called
-    controller : Agent
+    mechanisms : Agent
     motor_signal_queue : [(name, value)]
         All action/parameter pairs that are queued to be executed.
         Both name and its parameter name/value pairs are provided.
@@ -143,13 +143,13 @@ class Entity(object):
 
         See Also
         --------
-        easl.controller.Agent.act : Functionality delegated to Agent.
+        easl.mechanisms.Agent.act : Functionality delegated to Agent.
         """
         if self.agent is None:
             self.motor_signal_queue = []
             return
 
-        # pass all observations to controller and have it convert to internal representation
+        # pass all observations to mechanisms and have it convert to internal representation
         for observation in self.observations:
             self.log.do_log("observation",
                             {"entity": self.name, "observation": observation, "value": self.observations[observation]})
@@ -163,7 +163,7 @@ class Entity(object):
                             {"entity": self.name, "observation": observation, "value": self.attributes[observation]})
             self.agent.sense((observation, self.attributes[observation]))
 
-        # ask controller to give actions
+        # ask mechanisms to give actions
         self.motor_signal_queue = self.agent.act()
 
     def add_attribute(self, name, initial_value, values, event):
@@ -263,7 +263,7 @@ class Entity(object):
 
     def is_active(self):
         """
-        If the entity performs any actions, i.e. has an associated controller.
+        If the entity performs any actions, i.e. has an associated mechanisms.
         """
         return self.agent is not None
 

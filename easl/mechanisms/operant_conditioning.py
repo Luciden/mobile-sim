@@ -1,6 +1,6 @@
 __author__ = 'Dennis'
 
-from controller import Controller
+from mechanism import Mechanism
 from easl import *
 from easl.visualize import *
 import random
@@ -26,7 +26,7 @@ class NewSimpleVisual(Visual):
         return group
 
 
-class NewSimpleController(Controller):
+class NewSimpleMechanism(Mechanism):
     """
     Learns based on operant conditioning.
 
@@ -52,7 +52,7 @@ class NewSimpleController(Controller):
         rewards : [(name, value)]
             List of sensory stimuli that are considered as rewarding.
         """
-        super(NewSimpleController, self).__init__()
+        super(NewSimpleMechanism, self).__init__()
         self.visual = NewSimpleVisual()
 
         self.observations = {}
@@ -69,7 +69,7 @@ class NewSimpleController(Controller):
         self.min_probability = 0.01
 
     def init_internal(self, entity):
-        super(NewSimpleController, self).init_internal(entity)
+        super(NewSimpleMechanism, self).init_internal(entity)
 
         # Initialize the probability table
         self.probabilities = utils.FullTable(self.actions)
