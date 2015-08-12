@@ -53,19 +53,13 @@ def relative_direction(self, value, attribute):
     self.try_change(attribute, new_position(self.a[attribute], value))
 
 
-def move(old, new):
+def move_limb(old, new):
     return "movement", {"direction": calc_direction(old, new)}
 
 
 #
 # Mobile functions
 #
-
-def swing(self):
-    speed = self.a["velocity"]
-
-    self.try_change("velocity", max(0, min(speed - 1, 10)))
-
 
 def swing_direction(self):
     v = self.a["velocity"]
@@ -94,10 +88,6 @@ def swing_direction(self):
     self.try_change("velocity", max(0, min(v - 1, 10)))
 
 
-def moved(self, direction):
-    self.a["velocity"] += 4
-
-
 def moved_direction(self, direction):
     ignore_direction = True
 
@@ -109,14 +99,6 @@ def moved_direction(self, direction):
         elif self.a["direction"] == "-":
             self.a["velocity"] = min(self.a["velocity"] + 3, 10)
         self.a["direction"] = "-"
-
-
-def movement_emission_boolean(self):
-    s = []
-    if self.a["velocity"] > 0:
-        s.append(Signal("sight", "movement", True, [True, False]))
-
-    return s
 
 
 def movement_emission_change(self):
@@ -132,15 +114,6 @@ def movement_emission_change(self):
         s.append(Signal("sight", "movement", "slower", ["idle", "faster", "slower"]))
 
     return s
-
-
-class SightSensorBoolean(Sensor):
-    def init(self):
-        self.signals.update({"movement": [True, False]})
-        self.default_signals.update({"movement": False})
-
-    def detects_modality(self, modality):
-        return modality == "sight"
 
 
 class SightSensorChange(Sensor):
@@ -167,24 +140,6 @@ class InfantVisual(Visual):
         return grid
 
 
-def infant_random_controller():
-    return RandomizedMechanism()
-
-
-def infant_operant_controller():
-    controller = OperantConditioningController()
-    controller.set_primary_reinforcer("movement", "faster")
-
-    return controller
-
-
-def infant_causal_controller():
-    controller = CausalLearningMechanism()
-    controller.set_values({"movement": "faster"})
-
-    return controller
-
-
 def infant_new_causal_controller():
     controller = CausalLearningMechanism()
     controller.set_rewards({"movement": "faster"})
@@ -192,18 +147,12 @@ def infant_new_causal_controller():
     controller.set_motor_signal_bias(infant_action_valuation_constant, 0.5)
     controller.set_considered_signals(["left-foot", "right-foot", "left-hand", "right-hand"])
     controller.set_considered_sensory(["left-foot-position", "right-foot-position", "left-hand-position", "right-hand-position"])
-    #mechanisms.set_considered_signals(["right-foot"])
-    #mechanisms.set_considered_sensory(["right-foot-position"])
 
     return controller
 
 
-def infant_simple_controller():
-    return SimpleController([("movement", "faster")])
-
-
 def infant_new_simple_controller():
-    controller = NewSimpleMechanism([("movement", "faster")])
+    controller = OperantConditioningMechanism([("movement", "faster")])
     controller.set_motor_signal_bias(infant_action_valuation_single_limb, 1.0)
     return controller
 
@@ -217,10 +166,10 @@ def create_infant():
     """
     infant = Entity("infant", visual=InfantVisual())
 
-    infant.add_attribute("left-hand-position", "middle", ["down", "middle", "up"], move)
-    infant.add_attribute("right-hand-position", "middle", ["down", "middle", "up"], move)
-    infant.add_attribute("left-foot-position", "middle", ["down", "middle", "up"], move)
-    infant.add_attribute("right-foot-position", "middle", ["down", "middle", "up"], move)
+    infant.add_attribute("left-hand-position", "middle", ["down", "middle", "up"], move_limb)
+    infant.add_attribute("right-hand-position", "middle", ["down", "middle", "up"], move_limb)
+    infant.add_attribute("left-foot-position", "middle", ["down", "middle", "up"], move_limb)
+    infant.add_attribute("right-foot-position", "middle", ["down", "middle", "up"], move_limb)
 
     infant.add_action("left-hand",
                       ["up", "still", "down"],
@@ -289,28 +238,6 @@ def infant_action_valuation_constant(signals):
     return 1.0
 
 
-def create_mobile_boolean():
-    mobile = Entity("mobile")
-
-    mobile.add_attribute("velocity", 0, range(0, 10), lambda old, new: None)
-    mobile.set_physics(swing)
-
-    mobile.add_trigger("movement", moved)
-    mobile.set_emission(movement_emission_boolean)
-
-    return mobile
-
-
-class MobileVisual(Visual):
-    @staticmethod
-    def visualize(self):
-        group = Group("mobile")
-        group.add_element(Number("velocity", self.a["velocity"]))
-        group.add_element(Circle("velocity", 0, 10, self.a["velocity"]))
-
-        return group
-
-
 class MobileDirectionVisual(Visual):
     @staticmethod
     def visualize(self):
@@ -321,20 +248,6 @@ class MobileDirectionVisual(Visual):
         group.add_element(Circle("velocity", 0, 10, self.a["velocity"]))
 
         return group
-
-
-def create_mobile_change():
-    mobile = Entity("mobile", visual=MobileVisual())
-
-    mobile.add_attribute("velocity", 0, range(0, 10), lambda old, new: None)
-    mobile.add_attribute("previous", 0, range(0, 10), lambda old, new: None)
-
-    mobile.set_physics(swing)
-
-    mobile.add_trigger("movement", moved)
-    mobile.set_emission(movement_emission_change)
-
-    return mobile
 
 
 def create_mobile_direction():
@@ -351,32 +264,6 @@ def create_mobile_direction():
     mobile.set_emission(movement_emission_change)
 
     return mobile
-
-
-def experimental_condition(n, agent, v=None, remove={}, add={}):
-    infant = Entity("infant", visual=InfantVisual())
-
-    if agent == "random":
-        infant.set_agent(infant_random_controller())
-    elif agent == "operant":
-        infant.set_agent(infant_operant_controller())
-    elif agent == "causal":
-        infant.set_agent(infant_causal_controller())
-    elif agent == "simple":
-        infant.set_agent(infant_simple_controller())
-    else:
-        raise RuntimeError("Undefined mechanisms type.")
-
-    mobile = create_mobile_change()
-
-    world = World(v)
-    world.add_entity(infant)
-    world.add_entity(mobile)
-    world.add_trigger("infant", "right-foot-position", "movement", "mobile")
-
-    world.run(n, add_triggers=add, remove_triggers=remove)
-
-    return world.log
 
 
 if __name__ == '__main__':

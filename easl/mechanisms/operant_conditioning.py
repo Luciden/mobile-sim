@@ -26,7 +26,7 @@ class NewSimpleVisual(Visual):
         return group
 
 
-class NewSimpleMechanism(Mechanism):
+class OperantConditioningMechanism(Mechanism):
     """
     Learns based on operant conditioning.
 
@@ -52,7 +52,7 @@ class NewSimpleMechanism(Mechanism):
         rewards : [(name, value)]
             List of sensory stimuli that are considered as rewarding.
         """
-        super(NewSimpleMechanism, self).__init__()
+        super(OperantConditioningMechanism, self).__init__()
         self.visual = NewSimpleVisual()
 
         self.observations = {}
@@ -69,7 +69,7 @@ class NewSimpleMechanism(Mechanism):
         self.min_probability = 0.01
 
     def init_internal(self, entity):
-        super(NewSimpleMechanism, self).init_internal(entity)
+        super(OperantConditioningMechanism, self).init_internal(entity)
 
         # Initialize the probability table
         self.probabilities = utils.FullTable(self.actions)
