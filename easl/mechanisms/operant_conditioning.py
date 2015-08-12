@@ -116,9 +116,7 @@ class NewSimpleMechanism(Mechanism):
         possibilities = self.all_possibilities(self.actions)
 
         for combination in possibilities:
-            # v = self.probabilities.get_value(combination) * self.motor_signal_bias + (1.0 - self.motor_signal_bias) * self.motor_signal_valuation(combination)
             v = self.probabilities.get_value(combination) * self.motor_signal_valuation(combination)
-            # v = self.probabilities.get_value(combination)
             values.append(v)
 
             total += v

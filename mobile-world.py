@@ -167,7 +167,7 @@ class InfantVisual(Visual):
 
 
 def infant_random_controller():
-    return RandomMechanism()
+    return RandomizedMechanism()
 
 
 def infant_operant_controller():
@@ -352,29 +352,6 @@ def create_mobile_direction():
     return mobile
 
 
-def create_experimenter(experiment_log):
-    """
-    Parameters
-    ----------
-    log : Log
-        Log to play back kicking behavior from.
-    """
-    experimenter = Entity("experimenter")
-    # second argument is dictionary of which actions of the original log match which actions.
-    agent = LogController("infant", experiment_log)
-    agent.set_watched("right-foot-position", "mechanical-hand", calc_direction)
-    experimenter.set_agent(agent)
-
-    experimenter.add_attribute("mechanical-hand-position", "down", ["down", "middle", "up"], move)
-
-    experimenter.add_action("mechanical-hand",
-                            ["up", "still", "down"],
-                            "still",
-                            functools.partial(relative_direction, attribute="mechanical-hand-position"))
-
-    return experimenter
-
-
 def experimental_condition(n, agent, v=None, remove={}, add={}):
     infant = Entity("infant", visual=InfantVisual())
 
@@ -401,37 +378,6 @@ def experimental_condition(n, agent, v=None, remove={}, add={}):
     return world.log
 
 
-def control_condition(n, experiment_log, agent, v=None):
-    infant = Entity("infant", visual=InfantVisual())
-
-    if agent == "random":
-        infant.set_agent(infant_random_controller())
-    elif agent == "operant":
-        infant.set_agent(infant_operant_controller())
-    elif agent == "causal":
-        infant.set_agent(infant_causal_controller())
-    elif agent == "simple":
-        infant.set_agent(infant_simple_controller())
-    elif agent == "new_causal":
-        print "test"
-        infant.set_agent(infant_new_causal_controller())
-    else:
-        raise RuntimeError("Undefined mechanisms type.")
-
-    mobile = create_mobile_change()
-    experimenter = create_experimenter(experiment_log)
-
-    world = World(v)
-    world.add_entity(infant)
-    world.add_entity(mobile)
-    world.add_entity(experimenter)
-    world.add_trigger("experimenter", "mechanical-hand-position", "movement", "mobile")
-
-    world.run(n)
-
-    return world.log
-
-
 if __name__ == '__main__':
     ss = SimulationSuite()
     ss.set_visualizer(PyGameVisualizer())
@@ -450,10 +396,6 @@ if __name__ == '__main__':
     run_single = True
     make_average = True
     if run_single:
-        if make_average:
-            #ss.run_multiple("experimental", "remove_halfway", {"infant": "new_causal"}, 10)
-            ss.make_average("experimental-remove_halfway-infant-new_simple", 10)
-        else:
-            ss.run_single("experimental", "plain", {"infant": "new_causal"})
+        ss.run_single("experimental", "plain", {"infant": "new_simple"})
     else:
         ss.run_simulations()

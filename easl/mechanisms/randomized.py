@@ -5,12 +5,12 @@ import random
 from mechanism import Mechanism
 
 
-class RandomMechanism(Mechanism):
+class RandomizedMechanism(Mechanism):
     """
     Agent that performs a single random action at every iteration..
     """
     def __init__(self):
-        super(RandomMechanism, self).__init__()
+        super(RandomizedMechanism, self).__init__()
 
         self.actions = {}
 
