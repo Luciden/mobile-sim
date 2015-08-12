@@ -5,6 +5,13 @@ starting with '0.0.0' are just a reference.
 
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## 0.6.0a - 2015-08-12
+### Changed
+- Refactoring.
+
+### Removed
+- A lot of unused code. Mostly old algorithms and ideas for algorithms.
+
 ## 0.6.0 - 2015-08-10
 ### Changed
 - Some changes.
