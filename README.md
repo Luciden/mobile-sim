@@ -1,4 +1,4 @@
-# EASL 0.6.0
+# EASL 0.6.0a
 Simulator for an experiment involving artificial infants, and a mobile.
 
 ## Running simulations with the Simulation Suite

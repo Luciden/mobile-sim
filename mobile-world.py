@@ -3,9 +3,10 @@
 Containing the experiment based on the mobile experiment.
 """
 import functools
+import argparse
 
 from easl import *
-from easl.controller import *
+from easl.mechanisms import *
 from easl.visualize import *
 
 
@@ -52,19 +53,13 @@ def relative_direction(self, value, attribute):
     self.try_change(attribute, new_position(self.a[attribute], value))
 
 
-def move(old, new):
+def move_limb(old, new):
     return "movement", {"direction": calc_direction(old, new)}
 
 
 #
 # Mobile functions
 #
-
-def swing(self):
-    speed = self.a["velocity"]
-
-    self.try_change("velocity", max(0, min(speed - 1, 10)))
-
 
 def swing_direction(self):
     v = self.a["velocity"]
@@ -93,10 +88,6 @@ def swing_direction(self):
     self.try_change("velocity", max(0, min(v - 1, 10)))
 
 
-def moved(self, direction):
-    self.a["velocity"] += 4
-
-
 def moved_direction(self, direction):
     ignore_direction = True
 
@@ -108,14 +99,6 @@ def moved_direction(self, direction):
         elif self.a["direction"] == "-":
             self.a["velocity"] = min(self.a["velocity"] + 3, 10)
         self.a["direction"] = "-"
-
-
-def movement_emission_boolean(self):
-    s = []
-    if self.a["velocity"] > 0:
-        s.append(Signal("sight", "movement", True, [True, False]))
-
-    return s
 
 
 def movement_emission_change(self):
@@ -131,15 +114,6 @@ def movement_emission_change(self):
         s.append(Signal("sight", "movement", "slower", ["idle", "faster", "slower"]))
 
     return s
-
-
-class SightSensorBoolean(Sensor):
-    def init(self):
-        self.signals.update({"movement": [True, False]})
-        self.default_signals.update({"movement": False})
-
-    def detects_modality(self, modality):
-        return modality == "sight"
 
 
 class SightSensorChange(Sensor):
@@ -165,6 +139,7 @@ class InfantVisual(Visual):
 
         return grid
 
+<<<<<<< HEAD
 def infant_random_controller():
     return RandomController()
 
@@ -182,26 +157,22 @@ def infant_causal_controller():
 
     return controller
 
+=======
+>>>>>>> release-0.6.0a
 
 def infant_new_causal_controller():
-    controller = NewCausalController()
+    controller = CausalLearningMechanism()
     controller.set_rewards({"movement": "faster"})
     controller.add_ignored(["movement"])
     controller.set_motor_signal_bias(infant_action_valuation_constant, 0.5)
     controller.set_considered_signals(["left-foot", "right-foot", "left-hand", "right-hand"])
     controller.set_considered_sensory(["left-foot-position", "right-foot-position", "left-hand-position", "right-hand-position"])
-    #controller.set_considered_signals(["right-foot"])
-    #controller.set_considered_sensory(["right-foot-position"])
 
     return controller
 
 
-def infant_simple_controller():
-    return SimpleController([("movement", "faster")])
-
-
 def infant_new_simple_controller():
-    controller = NewSimpleController([("movement", "faster")])
+    controller = OperantConditioningMechanism([("movement", "faster")])
     controller.set_motor_signal_bias(infant_action_valuation_single_limb, 1.0)
     return controller
 
@@ -210,15 +181,15 @@ def create_infant():
     """
     Parameters
     ----------
-    controller : string
-        Name of the type of controller to use.
+    mechanisms : string
+        Name of the type of mechanisms to use.
     """
     infant = Entity("infant", visual=InfantVisual())
 
-    infant.add_attribute("left-hand-position", "middle", ["down", "middle", "up"], move)
-    infant.add_attribute("right-hand-position", "middle", ["down", "middle", "up"], move)
-    infant.add_attribute("left-foot-position", "middle", ["down", "middle", "up"], move)
-    infant.add_attribute("right-foot-position", "middle", ["down", "middle", "up"], move)
+    infant.add_attribute("left-hand-position", "middle", ["down", "middle", "up"], move_limb)
+    infant.add_attribute("right-hand-position", "middle", ["down", "middle", "up"], move_limb)
+    infant.add_attribute("left-foot-position", "middle", ["down", "middle", "up"], move_limb)
+    infant.add_attribute("right-foot-position", "middle", ["down", "middle", "up"], move_limb)
 
     infant.add_action("left-hand",
                       ["up", "still", "down"],
@@ -287,28 +258,6 @@ def infant_action_valuation_constant(signals):
     return 1.0
 
 
-def create_mobile_boolean():
-    mobile = Entity("mobile")
-
-    mobile.add_attribute("velocity", 0, range(0, 10), lambda old, new: None)
-    mobile.set_physics(swing)
-
-    mobile.add_trigger("movement", moved)
-    mobile.set_emission(movement_emission_boolean)
-
-    return mobile
-
-
-class MobileVisual(Visual):
-    @staticmethod
-    def visualize(self):
-        group = Group("mobile")
-        group.add_element(Number("velocity", self.a["velocity"]))
-        group.add_element(Circle("velocity", 0, 10, self.a["velocity"]))
-
-        return group
-
-
 class MobileDirectionVisual(Visual):
     @staticmethod
     def visualize(self):
@@ -319,20 +268,6 @@ class MobileDirectionVisual(Visual):
         group.add_element(Circle("velocity", 0, 10, self.a["velocity"]))
 
         return group
-
-
-def create_mobile_change():
-    mobile = Entity("mobile", visual=MobileVisual())
-
-    mobile.add_attribute("velocity", 0, range(0, 10), lambda old, new: None)
-    mobile.add_attribute("previous", 0, range(0, 10), lambda old, new: None)
-
-    mobile.set_physics(swing)
-
-    mobile.add_trigger("movement", moved)
-    mobile.set_emission(movement_emission_change)
-
-    return mobile
 
 
 def create_mobile_direction():
@@ -351,6 +286,7 @@ def create_mobile_direction():
     return mobile
 
 
+<<<<<<< HEAD
 def create_experimenter(experiment_log):
     """
     Parameters
@@ -430,17 +366,36 @@ def control_condition(n, experiment_log, agent, v=None):
     return world.log
 
 
+=======
+>>>>>>> release-0.6.0a
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    # parser.add_argument("-q", "--quiet", help="when specified, text output to the console is suppressed (not implemented yet)",
+    #                     action="store_true")
+    parser.add_argument("-V", "--visualizer", help="when specified, the simulation is visualized using PyGame",
+                        action="store_true")
+    parser.add_argument("mechanism", type=str, help="specify the mechanism to be used",
+                        choices=["operant_conditioning", "causal_learning"])
+    parser.add_argument("condition", type=str, help="specify which condition to simulate",
+                        choices=["normal", "switch_halfway"])
+    args = parser.parse_args()
+
+    visualize = args.visualizer
+
+    mechanism = args.mechanism
+    condition = args.condition
+
     ss = SimulationSuite()
-    ss.set_visualizer(PyGameVisualizer())
+    if visualize:
+        ss.set_visualizer(PyGameVisualizer())
     ss.set_simulation_length(300)
     ss.set_data_bins(6)
     ss.add_constant_entities({"infant": create_infant, "mobile": create_mobile_direction})
-    ss.add_controllers("infant", {"new_simple": infant_new_simple_controller, "new_causal": infant_new_causal_controller})
+    ss.add_controllers("infant", {"operant_conditioning": infant_new_simple_controller, "causal_learning": infant_new_causal_controller})
 
     ss.add_initial_triggers({"experimental": [("infant", "right-foot-position", "movement", "mobile")]})
-    ss.add_conditional_trigger_changes({"experimental": {"plain": ([], []),
-                                                         "remove_halfway": ({150: [("infant", "left-hand-position", "movement", "mobile")]},
+    ss.add_conditional_trigger_changes({"experimental": {"normal": ([], []),
+                                                         "switch_halfway": ({150: [("infant", "left-hand-position", "movement", "mobile")]},
                                                                             {150: [("infant", "right-foot-position", "movement", "mobile")]})}})
 
     ss.add_constant_data_collection(["left-hand-position", "right-hand-position", "left-foot-position", "right-foot-position"], ["lh", "rh", "lf", "rf"])
@@ -448,10 +403,6 @@ if __name__ == '__main__':
     run_single = True
     make_average = True
     if run_single:
-        if make_average:
-            #ss.run_multiple("experimental", "remove_halfway", {"infant": "new_causal"}, 10)
-            ss.make_average("experimental-remove_halfway-infant-new_simple", 10)
-        else:
-            ss.run_single("experimental", "plain", {"infant": "new_causal"})
+        ss.run_single("experimental", condition, {"infant": mechanism})
     else:
         ss.run_simulations()

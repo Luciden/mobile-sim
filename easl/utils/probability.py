@@ -9,32 +9,51 @@ class DifferentVariableError(Exception):
 
 
 class Table(object):
-    def __init__(self, variables):
-        self.table = {}
-        self.variables = variables
+    """
+    Given a set of variables and respective domains, this data structure provides
+    read/write access to a value assigned to each full combination of all variables.
 
-        # Sort the variables so the representation is more predictable
-        self.order = list(self.variables.keys())
-        self.order.sort()
+    For N variables, each with K values, this means a total of K^N values.
+    """
+    def __init__(self, column_names):
+        """
+        Attributes
+        ----------
+        column_names : {str: [str]}
+            Names of the columns that make up the table and a list of all possible values for each.
+        """
+        self._column_names = column_names
 
-        self.last = self.order.pop()
+    def get_value(self, row):
+        """
+        Parameters
+        ----------
+        row : {str: str}
+            Pairs of column name/value
 
-    def get_value(self, vals):
+        Preconditions
+        -------------
+        All columns' values should be specified.
+        """
         raise NotImplementedError()
 
-    def set_value(self, vals, value):
-        raise NotImplementedError()
+    def set_value(self, row, value):
+        """ Set the value that corresponds with the provided combination of column/value.
 
-    def get_variable_values(self, name):
+        Preconditions
+        -------------
+        All columns' values should be specified.
+        """
         raise NotImplementedError()
 
 
 class FullTable(Table):
-    def __init__(self, variables):
+    def __init__(self, column_names):
         """
         Parameters
         ----------
-        variables : {name: [value]}
+        column_names : {str: [str]}
+            See Table.
 
         Attributes
         ----------
@@ -43,10 +62,15 @@ class FullTable(Table):
         order : [name]
         last : name
         """
-        super(FullTable, self).__init__(variables)
+        super(FullTable, self).__init__(column_names)
+
+        # Sort the variables so the representation is more predictable
+        self.order = list(self._column_names.keys())
+        self.order.sort()
+
+        self.last = self.order.pop()
 
         self.table = self.__make_table_rec(self.order)
-        print "Made table"
 
     def __make_table_rec(self, order):
         """
@@ -61,41 +85,42 @@ class FullTable(Table):
         if len(order) == 0:
             counts = {}
 
-            for value in self.variables[self.last]:
+            for value in self._column_names[self.last]:
                 counts[value] = 0
 
             return counts
         else:
             current = {}
 
-            for value in self.variables[order[0]]:
+            for value in self._column_names[order[0]]:
                 current[value] = self.__make_table_rec(order[1:])
 
             return current
 
-    def get_variables(self):
-        return self.variables.copy()
+    def set_value(self, row, value):
+        current = self.table
 
-    def get_variable_values(self, name):
-        return self.variables[name]
+        for name in self.order:
+            if name not in row:
+                raise IndexError("There is no variable {0} in this Table".format(name))
+            current = current[row[name]]
 
-    def set_value(self, vals, value):
+        current[row[self.last]] = value
+
+    def get_value(self, row):
         """
         Parameters
         ----------
         vals : {name: value}
-        value : value
         """
         current = self.table
 
         for name in self.order:
-            if name not in vals:
-                raise IndexError("There is no variable {0} in this Table".format(name))
-            current = current[vals[name]]
+            current = current[row[name]]
 
-        current[vals[self.last]] = value
+        return current[row[self.last]]
 
-    def inc_value(self, vals):
+    def increment_value(self, vals):
         """
         Parameters
         ----------
@@ -111,20 +136,7 @@ class FullTable(Table):
 
         current[vals[self.last]] += 1
 
-    def get_value(self, vals):
-        """
-        Parameters
-        ----------
-        vals : {name: value}
-        """
-        current = self.table
-
-        for name in self.order:
-            current = current[vals[name]]
-
-        return current[vals[self.last]]
-
-    def do_operation(self, f):
+    def map_function_over_all_values(self, f):
         """
         Perform function f(x) on every element.
 
@@ -132,34 +144,31 @@ class FullTable(Table):
         ----------
         f : function x: f(x)
         """
-        self.__do_operation_rec(f, self.table, self.order)
+        self.__map_function_over_all_values_recursive(f, self.table, self.order)
 
-    def __do_operation_rec(self, f, current, order):
+    def __map_function_over_all_values_recursive(self, f, current, order):
         if len(order) == 0:
             for value in current:
                 current[value] = f(current[value])
         else:
             for value in current:
-                self.__do_operation_rec(f, current[value], order[1:])
+                self.__map_function_over_all_values_recursive(f, current[value], order[1:])
 
 
 class SparseTable(Table):
-    def __init__(self, variables):
-        super(SparseTable, self).__init__(variables)
-        # Reset the table, make a
-        self.table = {}
-        self.variables = variables
+    def __init__(self, column_names):
+        super(SparseTable, self).__init__(column_names)
 
-        self.order = list(self.variables.keys())
+        self.table = {}
+        self._column_names = column_names
+
+        self.order = list(self._column_names.keys())
         self.order.sort()
 
         self.last = self.order.pop()
 
     def get_variables(self):
-        return self.variables.copy()
-
-    def get_variable_values(self, name):
-        return self.variables[name]
+        return self._column_names.copy()
 
     def __make_entry(self, entry):
         current = self.table
@@ -175,24 +184,24 @@ class SparseTable(Table):
 
         current[entry[self.last]] = 0
 
-    def set_value(self, vals, value):
+    def set_value(self, row, value):
         current = self.table
 
         for name in self.order:
-            if vals[name] not in current:
-                self.__make_entry(vals)
+            if row[name] not in current:
+                self.__make_entry(row)
                 # try again, but now the entry exists
-                self.set_value(vals, value)
+                self.set_value(row, value)
                 return
 
-            current = current[vals[name]]
+            current = current[row[name]]
 
-        if vals[self.last] not in current:
-            self.__make_entry(vals)
-            self.set_value(vals, value)
+        if row[self.last] not in current:
+            self.__make_entry(row)
+            self.set_value(row, value)
             return
         else:
-            current[vals[self.last]] = value
+            current[row[self.last]] = value
 
     def inc_value(self, vals):
         """
@@ -220,7 +229,7 @@ class SparseTable(Table):
         else:
             current[vals[self.last]] += 1
 
-    def get_value(self, vals):
+    def get_value(self, row):
         """
         Parameters
         ----------
@@ -229,15 +238,15 @@ class SparseTable(Table):
         current = self.table
 
         for name in self.order:
-            if vals[name] not in current:
+            if row[name] not in current:
                 return 0
 
-            current = current[vals[name]]
+            current = current[row[name]]
 
-        if vals[self.last] not in current:
+        if row[self.last] not in current:
             return 0
         else:
-            v = current[vals[self.last]]
+            v = current[row[self.last]]
             return v
 
     def get_nonzero_entries(self):
@@ -278,41 +287,27 @@ class SparseTable(Table):
             for value in current:
                 self.__do_operation_rec(f, current[value], order[1:])
 
-    def to_string(self):
-        return self.__to_string_rec(self.table, self.order, "")
-
-    def __to_string_rec(self, current, order, so_far):
-        s = ""
-        if len(order) == 0:
-            for value in current:
-                s += "{0}, {1}={2}: {3}\n".format(so_far, self.last, value, current[value])
-        else:
-            for value in current:
-                s += self.__to_string_rec(current[value], order[1:], "{2}, {0}={1}".format(order[0], value, so_far))
-
-        return s
-
 
 class SparseConditionalTable(SparseTable):
-    def __init__(self, variables, conditional):
-        super(SparseConditionalTable, self).__init__(variables)
+    def __init__(self, column_names, conditional):
+        super(SparseConditionalTable, self).__init__(column_names)
 
         self.conditional = conditional
 
         self.conditional_table = SparseTable(conditional)
 
-    def set_value(self, vals, value):
-        super(SparseConditionalTable, self).set_value(vals, value)
+    def set_value(self, row, value):
+        super(SparseConditionalTable, self).set_value(row, value)
 
         # Add entry to the conditional table
-        self.conditional_table.set_value({k: v for k, v in vals.iteritems() if k in self.conditional.keys()}, True)
+        self.conditional_table.set_value({k: v for k, v in row.iteritems() if k in self.conditional.keys()}, True)
 
     def has_data(self, conditional):
         return self.conditional_table.get_value(conditional)
 
 
 class Distribution(SparseTable):
-    def __init__(self, variables, freq=None):
+    def __init__(self, column_names, freq=None):
         """
         Parameters
         ----------
@@ -324,9 +319,9 @@ class Distribution(SparseTable):
             Variables and for each a list of their possible values.
         """
         if freq is None:
-            super(Distribution, self).__init__(variables)
+            super(Distribution, self).__init__(column_names)
         elif isinstance(freq, SparseTable):
-            self.variables = deepcopy(freq.variables)
+            self._column_names = deepcopy(freq._column_names)
             self.order = deepcopy(freq.order)
             self.last = deepcopy(freq.last)
 
@@ -339,12 +334,12 @@ class Distribution(SparseTable):
             return False
 
         # Check if variables and values are the same
-        for variable in self.variables:
-            if variable not in other.variables:
+        for variable in self._column_names:
+            if variable not in other._column_names:
                 return False
             else:
-                a = self.variables[variable]
-                b = self.variables[variable]
+                a = self._column_names[variable]
+                b = self._column_names[variable]
 
                 if not set(a) == set(b):
                     return False
@@ -352,8 +347,8 @@ class Distribution(SparseTable):
         # Check if all values are the same
         values = []
         for variable in self.order:
-            values.append(self.variables[variable])
-        values.append(self.variables[self.last])
+            values.append(self._column_names[variable])
+        values.append(self._column_names[self.last])
 
         for combination in list(itertools.product(*values)):
             vals = {}
@@ -365,15 +360,6 @@ class Distribution(SparseTable):
                 return False
 
         return True
-
-    def get_value(self, vals):
-        return super(Distribution, self).get_value(vals)
-
-    def set_value(self, vals, value):
-        super(Distribution, self).set_value(vals, value)
-
-    def get_variable_values(self, name):
-        return super(Distribution, self).get_variable_values(name)
 
     def set_prob(self, vals, p):
         """

@@ -3,7 +3,7 @@ __author__ = 'Dennis'
 import easl
 from easl.utils import SparseTable
 from easl.utils import SparseConditionalTable
-from controller import Controller
+from mechanism import Mechanism
 from easl import visualize
 
 import random
@@ -28,18 +28,18 @@ class Data(object):
         previous = self.entries[time - 1]
         current = self.entries[time]
 
-        previous_entries_motor = {x + NewCausalController.PREVIOUS: y
+        previous_entries_motor = {x + CausalLearningMechanism.PREVIOUS: y
                                   for (x, y) in past.iteritems()
-                                  if x in motor and x + NewCausalController.PREVIOUS in variables}
-        current_entries_motor = {x + NewCausalController.CURRENT: y
+                                  if x in motor and x + CausalLearningMechanism.PREVIOUS in variables}
+        current_entries_motor = {x + CausalLearningMechanism.CURRENT: y
                                  for (x, y) in previous.iteritems()
-                                 if x in motor and x + NewCausalController.CURRENT in variables}
-        previous_entries_sensor = {x + NewCausalController.PREVIOUS: y
+                                 if x in motor and x + CausalLearningMechanism.CURRENT in variables}
+        previous_entries_sensor = {x + CausalLearningMechanism.PREVIOUS: y
                                    for (x, y) in previous.iteritems()
-                                   if x not in motor and x + NewCausalController.PREVIOUS in variables}
-        current_entries_sensor = {x + NewCausalController.CURRENT: y
+                                   if x not in motor and x + CausalLearningMechanism.PREVIOUS in variables}
+        current_entries_sensor = {x + CausalLearningMechanism.CURRENT: y
                                   for (x, y) in current.iteritems()
-                                  if x not in motor and x + NewCausalController.CURRENT in variables}
+                                  if x not in motor and x + CausalLearningMechanism.CURRENT in variables}
 
         entries = {}
         entries.update(previous_entries_motor)
@@ -128,7 +128,7 @@ class CausalLearningVisual(visualize.Visual):
         return group
 
 
-class NewCausalController(Controller):
+class CausalLearningMechanism(Mechanism):
     """
     """
     # Exploration phase: random movement to collect data
@@ -178,7 +178,7 @@ class NewCausalController(Controller):
             Determines by which probability a 'still' motor signal is chosen.
             TODO: Hacked specifically for the babybot now; might be necessary to generalize later.
         """
-        super(NewCausalController, self).__init__(visual=CausalLearningVisual())
+        super(CausalLearningMechanism, self).__init__(visual=CausalLearningVisual())
 
         self.state = self.STATE_EXPLORATION
         self.exploration_iterations = 50
@@ -233,7 +233,7 @@ class NewCausalController(Controller):
         self.epsilon = 0.2
 
     def init_internal(self, entity):
-        super(NewCausalController, self).init_internal(entity)
+        super(CausalLearningMechanism, self).init_internal(entity)
 
         # Initialize the node numbering, and other relevant information, for all nodes, 'previous' and 'current'
         self.__create_node_numbering()

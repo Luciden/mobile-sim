@@ -1,6 +1,6 @@
 __author__ = 'Dennis'
 
-from controller import Controller
+from mechanism import Mechanism
 from easl import *
 from easl.visualize import *
 import random
@@ -26,7 +26,7 @@ class NewSimpleVisual(Visual):
         return group
 
 
-class NewSimpleController(Controller):
+class OperantConditioningMechanism(Mechanism):
     """
     Learns based on operant conditioning.
 
@@ -52,7 +52,7 @@ class NewSimpleController(Controller):
         rewards : [(name, value)]
             List of sensory stimuli that are considered as rewarding.
         """
-        super(NewSimpleController, self).__init__()
+        super(OperantConditioningMechanism, self).__init__()
         self.visual = NewSimpleVisual()
 
         self.observations = {}
@@ -69,7 +69,7 @@ class NewSimpleController(Controller):
         self.min_probability = 0.01
 
     def init_internal(self, entity):
-        super(NewSimpleController, self).init_internal(entity)
+        super(OperantConditioningMechanism, self).init_internal(entity)
 
         # Initialize the probability table
         self.probabilities = utils.FullTable(self.actions)
@@ -80,7 +80,7 @@ class NewSimpleController(Controller):
             n += 1
 
         p = 1 / float(n)
-        self.probabilities.do_operation(lambda x: p)
+        self.probabilities.map_function_over_all_values(lambda x: p)
         print self.probabilities.table
 
     def set_motor_signal_bias(self, valuation, bias):
@@ -116,9 +116,7 @@ class NewSimpleController(Controller):
         possibilities = self.all_possibilities(self.actions)
 
         for combination in possibilities:
-            # v = self.probabilities.get_value(combination) * self.motor_signal_bias + (1.0 - self.motor_signal_bias) * self.motor_signal_valuation(combination)
             v = self.probabilities.get_value(combination) * self.motor_signal_valuation(combination)
-            # v = self.probabilities.get_value(combination)
             values.append(v)
 
             total += v
@@ -152,7 +150,7 @@ class NewSimpleController(Controller):
         print "Old: {0}, New {1}, Normalized {2}".format(old, new, self.probabilities.get_value(self.action))
 
     def __normalize(self, new_total):
-        self.probabilities.do_operation(lambda x: x / float(new_total))
+        self.probabilities.map_function_over_all_values(lambda x: x / float(new_total))
 
     def __increase_probability(self, combination):
         old = self.probabilities.get_value(self.action)
