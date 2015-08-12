@@ -3,6 +3,7 @@
 Containing the experiment based on the mobile experiment.
 """
 import functools
+import argparse
 
 from easl import *
 from easl.mechanisms import *
@@ -379,16 +380,33 @@ def experimental_condition(n, agent, v=None, remove={}, add={}):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    # parser.add_argument("-q", "--quiet", help="when specified, text output to the console is suppressed (not implemented yet)",
+    #                     action="store_true")
+    parser.add_argument("-V", "--visualizer", help="when specified, the simulation is visualized using PyGame",
+                        action="store_true")
+    parser.add_argument("mechanism", type=str, help="specify the mechanism to be used",
+                        choices=["operant_conditioning", "causal_learning"])
+    parser.add_argument("condition", type=str, help="specify which condition to simulate",
+                        choices=["normal", "switch_halfway"])
+    args = parser.parse_args()
+
+    visualize = args.visualizer
+
+    mechanism = args.mechanism
+    condition = args.condition
+
     ss = SimulationSuite()
-    ss.set_visualizer(PyGameVisualizer())
+    if visualize:
+        ss.set_visualizer(PyGameVisualizer())
     ss.set_simulation_length(300)
     ss.set_data_bins(6)
     ss.add_constant_entities({"infant": create_infant, "mobile": create_mobile_direction})
-    ss.add_controllers("infant", {"new_simple": infant_new_simple_controller, "new_causal": infant_new_causal_controller})
+    ss.add_controllers("infant", {"operant_conditioning": infant_new_simple_controller, "causal_learning": infant_new_causal_controller})
 
     ss.add_initial_triggers({"experimental": [("infant", "right-foot-position", "movement", "mobile")]})
-    ss.add_conditional_trigger_changes({"experimental": {"plain": ([], []),
-                                                         "remove_halfway": ({150: [("infant", "left-hand-position", "movement", "mobile")]},
+    ss.add_conditional_trigger_changes({"experimental": {"normal": ([], []),
+                                                         "switch_halfway": ({150: [("infant", "left-hand-position", "movement", "mobile")]},
                                                                             {150: [("infant", "right-foot-position", "movement", "mobile")]})}})
 
     ss.add_constant_data_collection(["left-hand-position", "right-hand-position", "left-foot-position", "right-foot-position"], ["lh", "rh", "lf", "rf"])
@@ -396,6 +414,6 @@ if __name__ == '__main__':
     run_single = True
     make_average = True
     if run_single:
-        ss.run_single("experimental", "plain", {"infant": "new_simple"})
+        ss.run_single("experimental", condition, {"infant": mechanism})
     else:
         ss.run_simulations()
