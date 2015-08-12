@@ -80,7 +80,7 @@ class OperantConditioningMechanism(Mechanism):
             n += 1
 
         p = 1 / float(n)
-        self.probabilities.do_operation(lambda x: p)
+        self.probabilities.map_function_over_all_values(lambda x: p)
         print self.probabilities.table
 
     def set_motor_signal_bias(self, valuation, bias):
@@ -150,7 +150,7 @@ class OperantConditioningMechanism(Mechanism):
         print "Old: {0}, New {1}, Normalized {2}".format(old, new, self.probabilities.get_value(self.action))
 
     def __normalize(self, new_total):
-        self.probabilities.do_operation(lambda x: x / float(new_total))
+        self.probabilities.map_function_over_all_values(lambda x: x / float(new_total))
 
     def __increase_probability(self, combination):
         old = self.probabilities.get_value(self.action)
