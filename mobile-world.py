@@ -139,27 +139,6 @@ class InfantVisual(Visual):
 
         return grid
 
-<<<<<<< HEAD
-def infant_random_controller():
-    return RandomController()
-
-
-def infant_operant_controller():
-    controller = OperantConditioningController()
-    controller.set_primary_reinforcer("movement", "faster")
-
-    return controller
-
-
-def infant_causal_controller():
-    controller = CausalLearningController()
-    controller.set_values({"movement": "faster"})
-
-    return controller
-
-=======
->>>>>>> release-0.6.0a
-
 def infant_new_causal_controller():
     controller = CausalLearningMechanism()
     controller.set_rewards({"movement": "faster"})
@@ -286,88 +265,6 @@ def create_mobile_direction():
     return mobile
 
 
-<<<<<<< HEAD
-def create_experimenter(experiment_log):
-    """
-    Parameters
-    ----------
-    log : Log
-        Log to play back kicking behavior from.
-    """
-    experimenter = Entity("experimenter")
-    # second argument is dictionary of which actions of the original log match which actions.
-    agent = LogController("infant", experiment_log)
-    agent.set_watched("right-foot-position", "mechanical-hand", calc_direction)
-    experimenter.set_agent(agent)
-
-    experimenter.add_attribute("mechanical-hand-position", "down", ["down", "middle", "up"], move)
-
-    experimenter.add_action("mechanical-hand",
-                            ["up", "still", "down"],
-                            "still",
-                            functools.partial(relative_direction, attribute="mechanical-hand-position"))
-
-    return experimenter
-
-def experimental_condition(n, agent, v=None, remove={}, add={}):
-    infant = Entity("infant", visual=InfantVisual())
-
-    if agent == "random":
-        infant.set_agent(infant_random_controller())
-    elif agent == "operant":
-        infant.set_agent(infant_operant_controller())
-    elif agent == "causal":
-        infant.set_agent(infant_causal_controller())
-    elif agent == "simple":
-        infant.set_agent(infant_simple_controller())
-    else:
-        raise RuntimeError("Undefined controller type.")
-
-    mobile = create_mobile_change()
-
-    world = World(v)
-    world.add_entity(infant)
-    world.add_entity(mobile)
-    world.add_trigger("infant", "right-foot-position", "movement", "mobile")
-
-    world.run(n, add_triggers=add, remove_triggers=remove)
-
-    return world.log
-
-
-def control_condition(n, experiment_log, agent, v=None):
-    infant = Entity("infant", visual=InfantVisual())
-
-    if agent == "random":
-        infant.set_agent(infant_random_controller())
-    elif agent == "operant":
-        infant.set_agent(infant_operant_controller())
-    elif agent == "causal":
-        infant.set_agent(infant_causal_controller())
-    elif agent == "simple":
-        infant.set_agent(infant_simple_controller())
-    elif agent == "new_causal":
-        print "test"
-        infant.set_agent(infant_new_causal_controller())
-    else:
-        raise RuntimeError("Undefined controller type.")
-
-    mobile = create_mobile_change()
-    experimenter = create_experimenter(experiment_log)
-
-    world = World(v)
-    world.add_entity(infant)
-    world.add_entity(mobile)
-    world.add_entity(experimenter)
-    world.add_trigger("experimenter", "mechanical-hand-position", "movement", "mobile")
-
-    world.run(n)
-
-    return world.log
-
-
-=======
->>>>>>> release-0.6.0a
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # parser.add_argument("-q", "--quiet", help="when specified, text output to the console is suppressed (not implemented yet)",
