@@ -230,10 +230,6 @@ def infant_action_valuation_single_limb(signals):
     return infant_action_valuation_move_n_limbs(1, signals)
 
 
-def infant_action_valuation_two_limbs(signals):
-    return infant_action_valuation_move_n_limbs(2, signals)
-
-
 def infant_action_valuation_constant(signals):
     return 1.0
 
@@ -268,8 +264,6 @@ def create_mobile_direction():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # parser.add_argument("-q", "--quiet", help="when specified, text output to the console is suppressed (not implemented yet)",
-    #                     action="store_true")
     parser.add_argument("-V", "--visualizer", help="when specified, the simulation is visualized using PyGame",
                         action="store_true")
     parser.add_argument("mechanism", type=str, help="specify the mechanism to be used",

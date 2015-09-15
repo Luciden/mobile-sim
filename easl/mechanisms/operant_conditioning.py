@@ -10,12 +10,12 @@ class NewSimpleVisual(Visual):
     @staticmethod
     def visualize(self):
         trees = {}
-        for action in self.actions:
+        for action in self.motor_signals_and_domains:
             trees[action] = {}
-            for value in self.actions[action]:
+            for value in self.motor_signals_and_domains[action]:
                 trees[action][value] = 0.0
 
-        for combination in self.all_possibilities(self.actions):
+        for combination in self.all_possibilities(self.motor_signals_and_domains):
             for k, v in combination.iteritems():
                 trees[k][v] += self.probabilities.get_value(combination)
 
@@ -27,11 +27,7 @@ class NewSimpleVisual(Visual):
 
 
 class OperantConditioningMechanism(Mechanism):
-    """
-    Learns based on operant conditioning.
-
-    Probability of action increases if action is followed
-    by reinforcer.
+    """ Reinforces motor signals that are followed by a 'reward' state.
 
     Attributes
     ----------
@@ -72,12 +68,10 @@ class OperantConditioningMechanism(Mechanism):
         super(OperantConditioningMechanism, self).init_internal(entity)
 
         # Initialize the probability table
-        self.probabilities = utils.FullTable(self.actions)
+        self.probabilities = utils.FullTable(self.motor_signals_and_domains)
         # Initialize with uniform distribution
         # Count total possibilities
-        n = 0
-        for combination in self.all_possibilities(self.actions):
-            n += 1
+        n = len(self.all_possibilities(self.motor_signals_and_domains))
 
         p = 1 / float(n)
         self.probabilities.map_function_over_all_values(lambda x: p)
@@ -113,7 +107,7 @@ class OperantConditioningMechanism(Mechanism):
 
         print self.probabilities.table
 
-        possibilities = self.all_possibilities(self.actions)
+        possibilities = self.all_possibilities(self.motor_signals_and_domains)
 
         for combination in possibilities:
             v = self.probabilities.get_value(combination) * self.motor_signal_valuation(combination)
@@ -166,7 +160,7 @@ class OperantConditioningMechanism(Mechanism):
         if rewarded:
             print "Rewarded"
             new_total = 1.0
-            for combination in self.all_possibilities(self.actions):
+            for combination in self.all_possibilities(self.motor_signals_and_domains):
                 match = False
 
                 for k, v in self.action.iteritems():
