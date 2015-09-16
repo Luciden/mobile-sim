@@ -1,6 +1,43 @@
 # EASL 0.6.0a
 Simulator for an experiment involving artificial infants, and a mobile.
 
+## Usage examples
+
+Run a simulation with the operant conditioning mechanism, in the 'normal' condition,
+where the ribbon remains on one limb throughout the simulation:
+
+```bash
+./mobile-world.py operant_conditioning normal
+./mobile-world.py operant_conditioning switch_halfway
+./mobile-world.py causal_learning normal
+./mobile-world.py causal_learning switch_halfway
+```
+
+The parameters are the `mechanism type` and the `condition`.
+The 'mechanism' is one of `operant_conditioning` and `causal_learning`.
+The 'condition' is one of `normal` and `switch_halfway`.
+
+### Visualizer (PyGame)
+
+The babybot's movements can be shown graphically if the `-V` or `--visualizer`
+parameter is passed.
+For now, only a very crude visualizer using PyGame is available.
+
+```bash
+./mobile-world.py -V operant_conditioning switch_halfway
+```
+
+## Output
+
+Babybot movement is recorded and output as a comma-separated value (.csv) file
+with a file name of the format experimental-<condition>-infant-<mechanism>.csv.
+This file contains 5 columns: `t`, `lh`, `rh`, `lf`, `rf` for time, left hand, 
+right hand, left foot, and right foot movement counts respectively.
+A file in which these counts are summed into bins of size 6 (~-bins.csv) is
+also created.
+
+# "Developer's Corner"
+
 ## Running simulations with the Simulation Suite
 (Some parts are still sort of hacked together, but the examples should
 clarify some, I think.)
