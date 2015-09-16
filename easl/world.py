@@ -12,7 +12,6 @@ class Sensor(object):
         observations
             Reference to the observations list of the Entity with this Sensor.
         signals : {name: [value]}
-        :return:
         """
         self.observations = None
         self.signals = {}
@@ -104,7 +103,7 @@ class World(object):
         if self.visualizer is not None:
             self.visualizer.set_world(self)
 
-    def run(self, iterations=10, remove_triggers={}, add_triggers={}):
+    def run(self, iterations=10, remove_triggers=None, add_triggers=None):
         """
         Runs the simulation once with the currently specified Entities
         and relations between them.
@@ -115,6 +114,11 @@ class World(object):
             For every defined time step, the triggers to be removed.
 
         """
+        if remove_triggers is None:
+            remove_triggers = {}
+        if add_triggers is None:
+            add_triggers = {}
+
         self.log = Log()
         self.log.set_verbose()
 

@@ -4,10 +4,6 @@ from copy import deepcopy
 import itertools
 
 
-class DifferentVariableError(Exception):
-    pass
-
-
 class Table(object):
     """
     Given a set of variables and respective domains, this data structure provides

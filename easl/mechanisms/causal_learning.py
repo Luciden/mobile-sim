@@ -262,24 +262,24 @@ class CausalLearningMechanism(Mechanism):
 
     def __create_node_numbering(self):
         # Create motor_prev nodes and number them
-        for action in self.actions:
+        for action in self.motor_signals_and_domains:
             if action not in self.considered_signals:
                 continue
             self.__add_node(action, self.PREVIOUS)
         # Create sense_prev nodes
-        for sense in self.sensory:
+        for sense in self.sensory_variables_and_domains:
             if sense in self.ignored_variables:
                 continue
             if sense not in self.considered_sensory:
                 continue
             self.__add_node(sense, self.PREVIOUS)
         # Create action_current nodes
-        for action in self.actions:
+        for action in self.motor_signals_and_domains:
             if action not in self.considered_signals:
                 continue
             self.__add_node(action, self.CURRENT)
         # Create sense_current nodes
-        for sense in self.sensory:
+        for sense in self.sensory_variables_and_domains:
             if sense in self.ignored_variables:
                 continue
             self.__add_node(sense, self.CURRENT)
@@ -289,27 +289,27 @@ class CausalLearningMechanism(Mechanism):
 
         if exploration:
             self.nodes[self.current_number] = node
-            self.node_values[node] = self.variables[name]
+            self.node_values[node] = self.all_variables_and_domains[name]
         else:
             self.nodes_exp[self.current_number] = node
-            self.node_values_exp[node] = self.variables[name]
+            self.node_values_exp[node] = self.all_variables_and_domains[name]
 
         self.numberings[node] = self.current_number
 
         self.nodes_all[self.current_number] = node
-        self.node_values_all[node] = self.variables[name]
+        self.node_values_all[node] = self.all_variables_and_domains[name]
 
-        if name in self.actions.keys():
-            self.node_values_cond_motor[node] = self.variables[name]
+        if name in self.motor_signals_and_domains.keys():
+            self.node_values_cond_motor[node] = self.all_variables_and_domains[name]
 
-            self.node_values_motor[node] = self.variables[name]
+            self.node_values_motor[node] = self.all_variables_and_domains[name]
         elif name in self.ignored_variables:
-            self.node_values_cond_limb[node] = self.variables[name]
+            self.node_values_cond_limb[node] = self.all_variables_and_domains[name]
         else:
-            self.node_values_cond_motor[node] = self.variables[name]
-            self.node_values_cond_limb[node] = self.variables[name]
+            self.node_values_cond_motor[node] = self.all_variables_and_domains[name]
+            self.node_values_cond_limb[node] = self.all_variables_and_domains[name]
 
-            self.node_values_limb[node] = self.variables[name]
+            self.node_values_limb[node] = self.all_variables_and_domains[name]
 
         self.current_number += 1
 
@@ -331,10 +331,10 @@ class CausalLearningMechanism(Mechanism):
         if self.iteration == self.exploration_iterations:
             print "Exploration Complete"
             # Calculate the probability table from the exploration data once
-            self.jpd = DistributionComputer.compute_joint_probability_distribution(self.node_values, self.data, self.actions.keys())
+            self.jpd = DistributionComputer.compute_joint_probability_distribution(self.node_values, self.data, self.motor_signals_and_domains.keys())
             self.jpd2 = DistributionComputer.compute_conditional_probability_distribution(self.node_values_cond_motor,
                                                                                           self.data,
-                                                                                          self.actions.keys(),
+                                                                                          self.motor_signals_and_domains.keys(),
                                                                                           self.node_values_limb.keys())
 
             # Transfer data so new actions can be calculated immediately
@@ -353,7 +353,7 @@ class CausalLearningMechanism(Mechanism):
             # Select signals by maximum likelihood from collected (all) data
             self.jpd3 = DistributionComputer.compute_conditional_probability_distribution(self.node_values_cond_limb,
                                                                                           self.data2,
-                                                                                          self.actions.keys(),
+                                                                                          self.motor_signals_and_domains.keys(),
                                                                                           self.node_values_exp.keys())
 
             r = random.random()
@@ -382,11 +382,11 @@ class CausalLearningMechanism(Mechanism):
         constant = {}
 
         # Set latest selected motor signals as previous motor signals
-        for signal in self.actions.keys():
+        for signal in self.motor_signals_and_domains.keys():
             constant[signal + self.PREVIOUS] = self.data2.get_latest_entry()[signal]
 
         # Set latest known limb positions as previous limb positions
-        for signal in self.sensory.keys():
+        for signal in self.sensory_variables_and_domains.keys():
             if signal in self.ignored_variables:
                 continue
 
@@ -402,9 +402,9 @@ class CausalLearningMechanism(Mechanism):
         # Get maximum probability by checking all possible combinations of motor signals
         max_valuation = 0.0
         max_combinations = []
-        for combination in self.all_possibilities({k: v for k, v in self.actions.iteritems() if k in self.considered_signals}):
+        for combination in self.all_possibilities({k: v for k, v in self.motor_signals_and_domains.iteritems() if k in self.considered_signals}):
         #for combination in self.__subset_possibilities(self.actions, 1):
-            combination.update({k: "still" for k in self.actions.keys() if k not in self.considered_signals})
+            combination.update({k: "still" for k in self.motor_signals_and_domains.keys() if k not in self.considered_signals})
 
             assignment = {}
             assignment.update(constant)
@@ -416,7 +416,7 @@ class CausalLearningMechanism(Mechanism):
             else:
                 # Marginalize over current 'limb positions'
                 # P(X|Y = y) = \sum_A P(X,A,Y = y) * P(A,Y = y) / \sum_A P(A,Y = y) * P(Y = y)
-                for sensories in self.all_possibilities(self.sensory):
+                for sensories in self.all_possibilities(self.sensory_variables_and_domains):
                     sensory_assignment = {k + self.CURRENT: v for k, v in sensories.iteritems()
                                           if k not in self.rewards.keys()}
                     total_assignment = {}
@@ -479,7 +479,7 @@ class CausalLearningMechanism(Mechanism):
         """
         signals = []
 
-        for action in self.actions:
+        for action in self.motor_signals_and_domains:
             r = random.random()
             if r < self.selection_bias:
                 signals.append((action, "still"))

@@ -1,38 +1,34 @@
 __author__ = 'Dennis'
 
-
 import itertools
 
 
 class Mechanism(object):
-    """
-    Blah.
+    """ Abstract class for a (learning) mechanism to be used in the simulator.
 
-    Maybe integrate sense-plan-act into one process?
-    (Because all information is already stored in Entity.)
+    All mechanisms have a set of motor signals that can be sent, with the
+    respective domains.
 
-    Need some kind of time representation.
+    Attributes
+    ----------
+    log : Log
+    all_variables_and_domains : {str: [str]}
+    motor_signals_and_domains : {str: [str]}
+        Motor signal names and their possible values. Subset of all variables.
+    sensory_variables_and_domains : {name: [value]}
+        Sensory symbols and possible values. Subset of all variables.
+    signals : {name: [value]}
+        All signals and possible values that can be sensed by the entity.
+    default_action : {name: value}
+    default_signal : {name: value}
     """
     def __init__(self, visual=None):
-        """
-        Attributes
-        ----------
-        log : Log
-        actions : {name: [value]}
-            Action symbols and possible values.
-        sensory : {name: [value]}
-            Sensory symbols and possible values.
-        signals : {name: [value]}
-            All signals and possible values that can be sensed by the entity.
-        default_action : {name: value}
-        default_signal : {name: value}
-        """
         self.log = None
         self.visual = visual
 
-        self.variables = {}
-        self.actions = {}
-        self.sensory = {}
+        self.all_variables_and_domains = {}
+        self.motor_signals_and_domains = {}
+        self.sensory_variables_and_domains = {}
 
         self.signals = {}
 
@@ -53,9 +49,9 @@ class Mechanism(object):
         entity : Entity
         """
         # Strip the functions from the action predicates
-        self.actions = {}
+        self.motor_signals_and_domains = {}
         for action in entity.actions:
-            self.actions[action] = entity.actions[action][1]
+            self.motor_signals_and_domains[action] = entity.actions[action][1]
 
         signals = {}
         for sensor in entity.sensors:
@@ -67,11 +63,11 @@ class Mechanism(object):
         # Add all together into variables
         self.default_action = entity.default_action
 
-        self.sensory.update(entity.attribute_values)
-        self.sensory.update(signals)
+        self.sensory_variables_and_domains.update(entity.attribute_values)
+        self.sensory_variables_and_domains.update(signals)
 
-        self.variables.update(self.actions)
-        self.variables.update(self.sensory)
+        self.all_variables_and_domains.update(self.motor_signals_and_domains)
+        self.all_variables_and_domains.update(self.sensory_variables_and_domains)
 
     def sense(self, observation):
         """
