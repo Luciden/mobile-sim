@@ -5,10 +5,12 @@ starting with '0.0.0' are just a reference.
 
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
-### Changed
-- More refactoring.
+## 0.6.1 - 2015-09-16
+### Added
+- Usage examples.
 - More documentation.
+### Changed
+- Some refactoring in general.
 
 ## 0.6.0a - 2015-08-12
 ### Changed
