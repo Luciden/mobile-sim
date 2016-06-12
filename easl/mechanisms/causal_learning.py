@@ -94,7 +94,7 @@ class DistributionComputer(object):
         """
         freq, n = DistributionComputer.compute_frequency_table(variables, data, motor)
 
-        # Total number of occurences with only exploration variables
+        # Total number of occurrences with only exploration variables
         totals = SparseTable({k: v for k, v in variables.iteritems()
                               if k not in conditioned})
 
